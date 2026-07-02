@@ -1,156 +1,180 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Plus, Phone, Mail, FileText } from 'lucide-react';
-import { subscribeToEntities } from '../services/crmService';
-import CreateEntityModal from './CreateEntityModal';
-import ClientProfile from './ClientProfile';
+import { 
+  Users, Truck, MapPin, Search, Plus, Filter, Phone, Mail, FileText, Briefcase, Bell
+} from 'lucide-react';
 import useUIStore from '../../../store/useUIStore';
 
+import { subscribeToContacts } from '../services/crmService';
+import CreateContactModal from './CreateContactModal';
+
+// Puente para notificaciones nativas de Windows
+const electron = window.require ? window.require('electron') : null;
+const ipcRenderer = electron ? electron.ipcRenderer : null;
+
 export default function CRMBoard() {
-  const [entities, setEntities] = useState([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedEntity, setSelectedEntity] = useState(null); // <-- Estado para el expediente abierto
-  const [isLoading, setIsLoading] = useState(true);
+  const { searchQuery, setSearchQuery } = useUIStore();
   
-  const { searchQuery } = useUIStore();
+  const [activeTab, setActiveTab] = useState('clientes'); // 'clientes' o 'proveedores'
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedZone, setSelectedZone] = useState('Todas');
+
+  const [contacts, setContacts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = subscribeToEntities((data) => {
-      setEntities(data);
+    const unsubscribe = subscribeToContacts((data) => {
+      setContacts(data);
       setIsLoading(false);
-      // Si hay un expediente abierto, actualizamos sus datos en vivo
-      if (selectedEntity) {
-        const updatedSelected = data.find(e => e.id === selectedEntity.id);
-        if (updatedSelected) setSelectedEntity(updatedSelected);
-      }
     });
     return () => unsubscribe();
-  }, [selectedEntity]);
+  }, []);
 
-  const filteredEntities = entities.filter(ent => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return ent.name.toLowerCase().includes(q) || ent.type.toLowerCase().includes(q);
+  const zones = ['Todas', 'Línea Sur', 'Valle', 'Centro', 'Nacional'];
+
+  const testNativeNotification = () => {
+    if (ipcRenderer) {
+      ipcRenderer.send('show-native-notification', {
+        title: 'Remex OS - Nuevo Recordatorio',
+        body: 'Es momento de contactar a los clientes de la Línea Sur.'
+      });
+    } else {
+      alert("Las notificaciones nativas solo funcionan en la app de escritorio.");
+    }
+  };
+
+  const filteredContacts = contacts.filter(c => {
+    if (c.type !== activeTab) return false;
+    if (selectedZone !== 'Todas' && c.zone !== selectedZone) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      return c.name.toLowerCase().includes(q) || c.contact.toLowerCase().includes(q);
+    }
+    return true;
   });
 
   return (
-    <div className="flex-1 p-6 overflow-hidden flex flex-col bg-zinc-950">
+    <div className="flex-1 p-6 overflow-hidden flex flex-col h-full bg-zinc-950">
       
-      {/* CABECERA */}
-      <div className="flex justify-between items-center mb-6 shrink-0">
+      {/* HEADER */}
+      <div className="flex justify-between items-center mb-6">
         <div>
           <h2 className="text-2xl font-black text-white flex items-center gap-3">
-            CRM Operativo
+            <Briefcase className="w-7 h-7 text-orange-500" />
+            Directorio y CRM
           </h2>
-          <p className="text-sm text-zinc-500 mt-1">Directorio de Clientes, Proveedores y Límites de Crédito</p>
+          <p className="text-sm text-zinc-500 mt-1">Gestiona clientes, proveedores y zonas logísticas.</p>
         </div>
-        <button 
-          onClick={() => setIsModalOpen(true)}
-          className="bg-blue-600 hover:bg-blue-500 text-white font-black px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-transform hover:-translate-y-0.5 shadow-[0_0_15px_rgba(37,99,235,0.2)]"
-        >
-          <Plus className="w-4 h-4"/> NUEVA ENTIDAD
-        </button>
-      </div>
-
-      {/* MÉTRICAS RÁPIDAS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 shrink-0">
-        <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-2xl flex items-center gap-4">
-          <div className="p-3 bg-blue-500/10 rounded-xl"><Building2 className="w-6 h-6 text-blue-500"/></div>
-          <div>
-            <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Total Clientes</p>
-            <p className="text-2xl font-black text-white">
-              {entities.filter(e => e.type === 'cliente').length}
-            </p>
-          </div>
-        </div>
-        <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-2xl flex items-center gap-4">
-          <div className="p-3 bg-amber-500/10 rounded-xl"><BriefcaseIcon className="w-6 h-6 text-amber-500"/></div>
-          <div>
-            <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Total Proveedores</p>
-            <p className="text-2xl font-black text-white">
-              {entities.filter(e => e.type === 'proveedor').length}
-            </p>
-          </div>
+        <div className="flex gap-4">
+          <button 
+            onClick={testNativeNotification}
+            className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 border border-zinc-700 transition-colors"
+          >
+            <Bell className="w-4 h-4"/> Probar Notificación
+          </button>
+          <button onClick={() => setIsModalOpen(true)} className="bg-orange-600 hover:bg-orange-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 hover:scale-105 transition-all">
+            <Plus className="w-4 h-4"/> NUEVO REGISTRO
+          </button>
         </div>
       </div>
 
-      {/* TABLA DE CRM */}
-      <div className="flex-1 bg-zinc-900/50 border border-zinc-800 rounded-2xl overflow-hidden flex flex-col">
+      {}
+      <div className="flex flex-col md:flex-row gap-4 mb-6 justify-between items-start md:items-center">
+        <div className="flex bg-zinc-900 border border-zinc-800 rounded-xl p-1 w-full md:w-fit shadow-inner">
+          <button 
+            onClick={() => setActiveTab('clientes')}
+            className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-8 py-2.5 rounded-lg text-sm font-black transition-all ${activeTab === 'clientes' ? 'bg-orange-600 text-black shadow-md' : 'text-zinc-500 hover:text-white hover:bg-zinc-800'}`}
+          >
+            <Users className="w-4 h-4" /> CLIENTES
+          </button>
+          <button 
+            onClick={() => setActiveTab('proveedores')}
+            className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-8 py-2.5 rounded-lg text-sm font-black transition-all ${activeTab === 'proveedores' ? 'bg-orange-600 text-black shadow-md' : 'text-zinc-500 hover:text-white hover:bg-zinc-800'}`}
+          >
+            <Truck className="w-4 h-4" /> PROVEEDORES
+          </button>
+        </div>
+
+        <div className="flex items-center gap-3 bg-zinc-900 border border-zinc-800 px-4 py-2.5 rounded-xl">
+          <MapPin className="w-4 h-4 text-orange-500" />
+          <span className="text-xs text-zinc-500 font-bold uppercase hidden sm:inline">Zona Logística:</span>
+          <select 
+            value={selectedZone} 
+            onChange={(e) => setSelectedZone(e.target.value)} 
+            className="bg-transparent text-white font-bold text-sm outline-none cursor-pointer"
+          >
+            {zones.map(z => <option key={z} value={z} className="bg-zinc-900">{z}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {}
+      <div className="flex-1 bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col">
         <div className="overflow-x-auto flex-1 custom-scrollbar">
-          <table className="w-full text-left border-collapse min-w-[800px]">
+          <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-zinc-800 bg-zinc-900">
-                <th className="p-4 text-xs font-black text-zinc-500 uppercase tracking-widest">Entidad</th>
-                <th className="p-4 text-xs font-black text-zinc-500 uppercase tracking-widest">Tipo</th>
-                <th className="p-4 text-xs font-black text-zinc-500 uppercase tracking-widest">Contacto</th>
-                <th className="p-4 text-xs font-black text-zinc-500 uppercase tracking-widest text-right">Límite Crédito</th>
-                <th className="p-4 text-xs font-black text-zinc-500 uppercase tracking-widest text-center">Perfil</th>
+              <tr className="bg-zinc-950/50 border-b border-zinc-800">
+                <th className="p-4 text-xs font-black text-zinc-500 uppercase tracking-widest">Empresa / Razón Social</th>
+                <th className="p-4 text-xs font-black text-zinc-500 uppercase tracking-widest">Contacto Directo</th>
+                <th className="p-4 text-xs font-black text-zinc-500 uppercase tracking-widest">Zona Asignada</th>
+                <th className="p-4 text-xs font-black text-zinc-500 uppercase tracking-widest">Estado</th>
+                <th className="p-4 text-xs font-black text-zinc-500 uppercase tracking-widest text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/50">
               {isLoading ? (
-                <tr><td colSpan="5" className="p-8 text-center text-zinc-500 font-bold">Cargando base de datos...</td></tr>
-              ) : filteredEntities.map(ent => (
-                <tr 
-                  key={ent.id} 
-                  onClick={() => setSelectedEntity(ent)} 
-                  className="hover:bg-zinc-800/30 transition-colors cursor-pointer group"
-                >
-                  <td className="p-4">
-                    <p className="font-bold text-white text-sm group-hover:text-blue-400 transition-colors">{ent.name}</p>
-                  </td>
-                  <td className="p-4">
-                    <span className={`text-[10px] uppercase font-bold px-3 py-1 rounded-full border ${ent.type === 'cliente' ? 'text-blue-400 bg-blue-500/10 border-blue-500/20' : 'text-amber-400 bg-amber-500/10 border-amber-500/20'}`}>
-                      {ent.type}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <div className="text-xs text-zinc-400 flex flex-col gap-1">
-                      {ent.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3"/> {ent.phone}</span>}
-                      {ent.email && <span className="flex items-center gap-1"><Mail className="w-3 h-3"/> {ent.email}</span>}
-                      {(!ent.phone && !ent.email) && <span className="text-zinc-600 italic">Sin datos</span>}
-                    </div>
-                  </td>
-                  <td className="p-4 text-right">
-                    {ent.type === 'cliente' ? (
-                      <span className={`font-mono text-sm font-bold ${ent.creditLimit > 0 ? 'text-emerald-400' : 'text-zinc-600'}`}>
-                        ${ent.creditLimit?.toLocaleString('es-AR') || '0'}
-                      </span>
-                    ) : (
-                      <span className="text-zinc-600 text-xs">-</span>
-                    )}
-                  </td>
-                  <td className="p-4 text-center">
-                    <button className="text-zinc-500 group-hover:text-white transition-colors p-2 bg-zinc-800 group-hover:bg-blue-600 rounded-lg">
-                      <FileText className="w-4 h-4"/>
-                    </button>
+                <tr>
+                  <td colSpan="5" className="p-8 text-center text-zinc-500 font-bold">
+                    Cargando base de datos...
                   </td>
                 </tr>
-              ))}
-              {!isLoading && filteredEntities.length === 0 && (
-                 <tr><td colSpan="5" className="p-8 text-center text-zinc-500 font-bold">No hay entidades registradas.</td></tr>
+              ) : filteredContacts.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="p-8 text-center text-zinc-500 font-bold">
+                    No se encontraron {activeTab} para esta zona.
+                  </td>
+                </tr>
+              ) : (
+                filteredContacts.map(contact => (
+                  <tr key={contact.id} className="hover:bg-zinc-800/30 transition-colors group">
+                    <td className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-500 font-black">
+                          {contact.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <span className="font-bold text-white text-sm block group-hover:text-orange-400 transition-colors">{contact.name}</span>
+                          <span className="text-[10px] text-zinc-500 font-mono">{contact.id}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <span className="text-sm text-zinc-300 font-bold block">{contact.contact}</span>
+                      <span className="text-xs text-zinc-500 flex items-center gap-1 mt-0.5"><Phone className="w-3 h-3"/> {contact.phone}</span>
+                    </td>
+                    <td className="p-4">
+                      <span className="bg-zinc-800 text-zinc-300 text-xs font-bold px-2.5 py-1 rounded-md border border-zinc-700 flex items-center gap-1.5 w-fit">
+                        <MapPin className="w-3 h-3 text-orange-500"/> {contact.zone}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-md border ${contact.status === 'Activo' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-red-500/10 text-red-400 border-red-500/30'}`}>
+                        {contact.status}
+                      </span>
+                    </td>
+                    <td className="p-4 text-right">
+                      <button className="text-sm font-bold text-zinc-400 hover:text-white px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors">
+                        Ver Perfil
+                      </button>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {isModalOpen && <CreateEntityModal onClose={() => setIsModalOpen(false)} />}
-      
-      {/* RENDERIZADO DEL EXPEDIENTE CUANDO HAY UN CLIENTE SELECCIONADO */}
-      {selectedEntity && (
-        <ClientProfile 
-          entity={selectedEntity} 
-          onClose={() => setSelectedEntity(null)} 
-        />
-      )}
+      {isModalOpen && <CreateContactModal onClose={() => setIsModalOpen(false)} />}
     </div>
-  );
-}
-
-function BriefcaseIcon(props) {
-  return (
-    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
-    </svg>
   );
 }

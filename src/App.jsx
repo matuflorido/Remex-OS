@@ -7,6 +7,8 @@ import TaskBoard from './features/tasks/components/TaskBoard';
 import CRMBoard from './features/crm/components/CRMBoard';
 import AdminPanel from './features/admin/components/AdminPanel';
 import ReportsDashboard from './features/analytics/components/ReportsDashboard';
+// NUEVO: Importar el calendario
+import CalendarBoard from './features/calendar/components/CalendarBoard';
 
 export default function App() {
   const { user, loading, init } = useAuthStore();
@@ -35,6 +37,8 @@ export default function App() {
         return <TaskBoard />;
       case 'crm':
         return <CRMBoard />;
+      case 'calendar': // NUEVO: Vista de calendario
+        return <CalendarBoard />;
       case 'admin':
         return <AdminPanel />;
       case 'reports':

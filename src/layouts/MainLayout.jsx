@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, UserCircle, Wrench, Search, Bell, LogOut, Menu, X, CheckCircle2, BarChart3 } from 'lucide-react';
+import { Activity, UserCircle, Wrench, Search, Bell, LogOut, Menu, X, CheckCircle2, BarChart3, CalendarDays } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import useUIStore from '../store/useUIStore';
 import { subscribeToNotifications, markNotificationAsRead } from '../features/notifications/services/notificationService';
@@ -9,11 +9,9 @@ export default function MainLayout({ children }) {
   const { currentView, setCurrentView, searchQuery, setSearchQuery } = useUIStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   
-  // Estados para notificaciones
   const [notifications, setNotifications] = useState([]);
   const [showNotifs, setShowNotifs] = useState(false);
 
-  // Escuchar notificaciones en tiempo real al iniciar sesión
   useEffect(() => {
     if (!user) return;
     const unsubscribe = subscribeToNotifications(user.role, (data) => {
@@ -33,7 +31,6 @@ export default function MainLayout({ children }) {
   return (
     <div className="min-h-screen bg-zinc-950 font-mono text-slate-200 flex h-screen overflow-hidden">
       
-      {/* SIDEBAR */}
       <aside className={`${isSidebarOpen ? 'w-64' : 'w-20'} transition-all duration-300 bg-zinc-900/95 border-r border-zinc-800 flex-shrink-0 flex flex-col z-20`}>
         <div className="p-4 bg-black/40 flex items-center justify-between border-b border-zinc-800 h-[80px]">
           {isSidebarOpen ? (
@@ -58,6 +55,11 @@ export default function MainLayout({ children }) {
             <UserCircle className="w-5 h-5 shrink-0"/> {isSidebarOpen && <span className="ml-3 font-bold truncate">CRM Operativo</span>}
           </button>
           
+          {/* NUEVO BOTÓN DE CALENDARIO */}
+          <button onClick={() => setCurrentView('calendar')} className={`w-full flex items-center px-4 py-3 rounded-xl text-sm border transition-colors ${currentView === 'calendar' ? 'bg-orange-900/20 text-orange-400 border-orange-500/50' : 'border-transparent text-zinc-400 hover:bg-zinc-800'}`}>
+            <CalendarDays className="w-5 h-5 shrink-0"/> {isSidebarOpen && <span className="ml-3 font-bold truncate">Agenda y Rutas</span>}
+          </button>
+          
           <button onClick={() => setCurrentView('reports')} className={`w-full flex items-center px-4 py-3 rounded-xl text-sm border transition-colors ${currentView === 'reports' ? 'bg-orange-900/20 text-orange-400 border-orange-500/50' : 'border-transparent text-zinc-400 hover:bg-zinc-800'}`}>
             <BarChart3 className="w-5 h-5 shrink-0"/> {isSidebarOpen && <span className="ml-3 font-bold truncate">Estadísticas</span>}
           </button>
@@ -68,6 +70,13 @@ export default function MainLayout({ children }) {
         </nav>
 
         <div className="p-4 border-t border-zinc-800 bg-black/40">
+           {isSidebarOpen && (
+             <div className="mb-4 text-center">
+               <span className="text-[10px] text-zinc-500 font-bold tracking-widest uppercase bg-zinc-900 px-3 py-1 rounded-full border border-zinc-800">
+                 Versión 1.2.0
+               </span>
+             </div>
+           )}
            <button onClick={logout} className="w-full flex items-center justify-center py-3 rounded-xl text-sm bg-red-950/40 text-red-500 border border-red-900/50 hover:bg-red-600 hover:text-white transition-colors">
              <LogOut className="w-5 h-5" /> 
              {isSidebarOpen && <span className="ml-2 font-bold">CERRAR SESIÓN</span>}
@@ -75,7 +84,6 @@ export default function MainLayout({ children }) {
         </div>
       </aside>
 
-      {/* CONTENIDO PRINCIPAL */}
       <div className="flex-1 flex flex-col min-w-0 bg-zinc-950 relative">
         <header className="h-[80px] bg-zinc-900/80 border-b border-zinc-800 px-6 flex items-center justify-between shrink-0 z-10">
           <div className="flex items-center gap-4 flex-1">
@@ -83,7 +91,7 @@ export default function MainLayout({ children }) {
               <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" />
               <input 
                 type="text" 
-                value={searchQuery || ''}
+                value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Buscar tarea, cliente..." 
                 className="w-full bg-black border border-zinc-800 rounded-xl pl-11 pr-4 py-2.5 text-sm text-white focus:border-orange-500 outline-none transition-colors"
@@ -96,7 +104,6 @@ export default function MainLayout({ children }) {
                <p className="text-orange-500 text-xs font-bold uppercase">{user?.role || 'Rol'}</p>
             </div>
             
-            {/* CAMPANA DE NOTIFICACIONES */}
             <div className="relative">
               <button onClick={() => setShowNotifs(!showNotifs)} className="relative p-2 hover:bg-zinc-800 rounded-xl transition-colors">
                 <Bell className="w-5 h-5 text-zinc-400 hover:text-white"/>
@@ -105,7 +112,6 @@ export default function MainLayout({ children }) {
                 )}
               </button>
 
-              {/* DROPDOWN NOTIFICACIONES */}
               {showNotifs && (
                 <div className="absolute right-0 top-full mt-2 w-80 max-h-96 overflow-y-auto bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl z-50 custom-scrollbar">
                   <div className="p-4 border-b border-zinc-800 bg-black/20 flex justify-between items-center sticky top-0 backdrop-blur-md">
