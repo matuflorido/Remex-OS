@@ -21,20 +21,20 @@ function createWindow () {
 app.whenReady().then(() => {
   createWindow();
 
-  // 1. Busca actualizaciones silenciosamente al iniciar el programa
+  // NUEVO: Configuración para entrar al repositorio PRIVADO
+  autoUpdater.setFeedURL({
+    provider: 'github',
+    owner: 'matuflorido',
+    repo: 'Remex-OS',
+    private: true,
+    token: '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'
+  });
+
+  // Buscar actualizaciones silenciosamente al iniciar
   autoUpdater.checkForUpdatesAndNotify();
 });
 
-// 2. Escuchar el botón de "Buscar Actualización" de React
-ipcMain.on('check-for-updates-manual', () => {
-  autoUpdater.checkForUpdates().then((result) => {
-    // Si el resultado es nulo, significa que ya está en la última versión
-    if (!result || !result.updateInfo) {
-      dialog.showMessageBox({
-        type: 'info',
-        title: 'Actualizador',
-        message: 'Ya tienes la versión más reciente del sistema instalada.'
-      });
+// NUEVO: Manejar la descarga completada
     }
   }).catch(err => {
     dialog.showErrorBox(
