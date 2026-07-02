@@ -3,14 +3,17 @@ import {
   CheckCircle2, AlertTriangle, UserCircle, ShieldCheck, 
   Plus, Link as LinkIcon, FileText, 
   CheckSquare, History, ArrowRight, CalendarDays, Clock, Database,
-  ChevronLeft, ChevronRight, Paperclip, Repeat, GripVertical, Eye, PenTool, Send
+  ChevronLeft, ChevronRight, Paperclip, Repeat, GripVertical, Eye, PenTool, Send, RefreshCw
 } from 'lucide-react';
 import { X } from 'lucide-react';
 import { useAuthStore } from '../../../store/useAuthStore';
 import useUIStore from '../../../store/useUIStore';
-// NUEVO: Importamos createTaskInDb para poder clonar
 import { subscribeToTasks, updateTaskStatusInDb, addTaskCommentInDb, updateTaskInDb, createTaskInDb } from '../services/taskService';
 import CreateTaskModal from './CreateTaskModal';
+
+// Puente de comunicación seguro con Electron
+const electron = window.require ? window.require('electron') : null;
+const ipcRenderer = electron ? electron.ipcRenderer : null;
 
 export default function TaskBoard() {
   const { user } = useAuthStore();
@@ -25,6 +28,9 @@ export default function TaskBoard() {
   const [draggedColId, setDraggedColId] = useState(null);
   const [actionError, setActionError] = useState(null);
   const [adminView, setAdminView] = useState('Todas');
+  
+  // Estado para el botón de actualización
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
 
   // LÓGICA MULTI-ROL (Soporte para usuarios en múltiples áreas)
   const userRoles = user?.roles || (user?.role ? [user.role] : []);
@@ -50,6 +56,18 @@ export default function TaskBoard() {
     return () => unsubscribe();
   }, [selectedTask]);
 
+  const handleCheckUpdate = () => {
+    if (ipcRenderer) {
+      setIsCheckingUpdate(true);
+      ipcRenderer.send('check-for-updates-manual');
+      
+      // Restablece el botón después de 4 segundos
+      setTimeout(() => setIsCheckingUpdate(false), 4000);
+    } else {
+      showError("El actualizador solo funciona en la aplicación de escritorio instalada.");
+    }
+  };
+
   const checkDependencies = (taskToStart) => {
     if (!taskToStart.dependencies || taskToStart.dependencies.length === 0) return true;
     const blockingTasks = tasks.filter(t => taskToStart.dependencies.includes(t.id) && t.status !== 'closed');
@@ -65,7 +83,7 @@ export default function TaskBoard() {
     setTimeout(() => setActionError(null), 4500); 
   };
 
-  // NUEVO: Lógica que clona la tarea si tiene recurrencia
+  // Lógica que clona la tarea si tiene recurrencia
   const handleRecurringClone = async (taskToClone) => {
     if (!taskToClone.recurrence || taskToClone.recurrence === 'none') return;
 
@@ -81,7 +99,6 @@ export default function TaskBoard() {
 
     const randomId = `TSK-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    // Reseteamos los checkboxes de la subtarea clonada a "false"
     const resetBlocks = taskToClone.blocks?.map(block => {
       if (block.type === 'checklist') {
         return { ...block, items: block.items.map(item => ({ ...item, done: false })) };
@@ -112,7 +129,6 @@ export default function TaskBoard() {
     const task = tasks.find(t => t.id === taskId);
     if ((newStatus === 'in_progress' || newStatus === 'closed') && task && !checkDependencies(task)) return; 
     
-    // NUEVO: Disparamos la clonación si estamos cerrando la tarea
     if (newStatus === 'closed' && task) {
       await handleRecurringClone(task);
     }
@@ -127,20 +143,16 @@ export default function TaskBoard() {
     const currentApprovals = selectedTask.approvedBy || [];
     const requiredAreas = selectedTask.assignedArea.split(',').map(a => a.trim());
     
-    // Identificamos en nombre de qué áreas está firmando el usuario actual
     const myRelevantRoles = userRoles.filter(role => requiredAreas.includes(role));
     
-    // Si no es Super Usuario y ya firmó por todas sus áreas correspondientes, cancelamos
     if (!isSuperUser && myRelevantRoles.length > 0 && myRelevantRoles.every(r => currentApprovals.includes(r))) {
       return; 
     }
     
     const newApprovals = [...new Set([...currentApprovals, ...myRelevantRoles])]; 
-    
     const isFullyApproved = isSuperUser || requiredAreas.every(area => newApprovals.includes(area));
 
     if (isFullyApproved) {
-      // NUEVO: Disparamos la clonación si es firma conjunta y se cierra
       await handleRecurringClone(selectedTask);
       
       await updateTaskInDb(selectedTask.id, { 
@@ -230,7 +242,6 @@ export default function TaskBoard() {
       return task.creatorArea?.includes(adminView) || task.assignedArea?.includes(adminView);
     } else {
       const myName = user?.name || '';
-      // Retorna true si ALGUNO de los roles del usuario coincide con el área creadora/asignada
       return userRoles.some(role => task.creatorArea?.includes(role) || task.assignedArea?.includes(role)) ||
              task.creatorArea?.includes(myName) || task.assignedArea?.includes(myName);
     }
@@ -315,7 +326,18 @@ export default function TaskBoard() {
             Vista del Área: <span className="text-orange-400 font-bold">{isSuperUser ? adminView : userRoles.join(', ')}</span>
           </p>
         </div>
+        
+        {/* BOTONES SUPERIORES */}
         <div className="flex gap-4">
+          <button 
+            onClick={handleCheckUpdate} 
+            disabled={isCheckingUpdate}
+            className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors disabled:opacity-50 border border-zinc-700"
+          >
+            <RefreshCw className={`w-4 h-4 ${isCheckingUpdate ? 'animate-spin text-orange-500' : ''}`}/> 
+            {isCheckingUpdate ? 'Buscando...' : 'Buscar Actualización'}
+          </button>
+
           <button onClick={() => setIsCreateModalOpen(true)} className="bg-orange-600 hover:bg-orange-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 hover:-translate-y-0.5">
             <Plus className="w-4 h-4"/> NUEVA TAREA
           </button>
@@ -416,7 +438,6 @@ export default function TaskBoard() {
                 </div>
               </div>
 
-              {/* SECCIÓN DE NOTAS Y COMENTARIOS */}
               <div className="mt-2">
                 <h3 className="text-lg font-black text-white mb-4 border-b border-zinc-800 pb-2 flex items-center gap-2">
                   <History className="w-5 h-5 text-orange-500" /> Notas y Actividad
@@ -439,7 +460,6 @@ export default function TaskBoard() {
                   ))}
                 </div>
 
-                {/* Input de nueva nota */}
                 <div className="flex gap-3">
                   <input 
                     type="text" 
