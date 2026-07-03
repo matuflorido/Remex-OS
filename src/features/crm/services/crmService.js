@@ -1,4 +1,4 @@
-import { collection, query, onSnapshot, doc, addDoc, updateDoc, deleteDoc, serverTimestamp, writeBatch, where, getDocs } from 'firebase/firestore';
+import { collection, query, onSnapshot, doc, addDoc, updateDoc, deleteDoc, serverTimestamp, writeBatch, where, getDocs, arrayUnion } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 
 export const subscribeToContacts = (callback) => {
@@ -12,6 +12,7 @@ export const subscribeToContacts = (callback) => {
 export const createContactInDb = async (contactData) => {
   await addDoc(collection(db, 'contacts'), {
     ...contactData,
+    history: [], // Inicializamos el historial vacío
     createdAt: serverTimestamp()
   });
 };
@@ -26,14 +27,23 @@ export const deleteContactInDb = async (contactId) => {
   await deleteDoc(contactRef);
 };
 
+// NUEVO: Agregar una nota al historial de un cliente
+export const addContactNoteInDb = async (contactId, note) => {
+  const contactRef = doc(db, 'contacts', contactId);
+  await updateDoc(contactRef, {
+    history: arrayUnion(note)
+  });
+};
+
 // ==========================================
-// NUEVO: GESTOR INDEPENDIENTE DE ZONAS
+// GESTOR INDEPENDIENTE DE ZONAS
 // ==========================================
 
 export const subscribeToZones = (callback) => {
   const q = query(collection(db, 'zones'));
   return onSnapshot(q, (snapshot) => {
     const zones = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    // Ordenamos alfabéticamente para que los desplegables se vean prolijos
     callback(zones.sort((a, b) => a.name.localeCompare(b.name)));
   });
 };
