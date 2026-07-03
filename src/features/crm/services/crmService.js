@@ -1,28 +1,78 @@
-import { collection, query, onSnapshot, doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../../../config/firebase'; 
+import { collection, query, onSnapshot, doc, addDoc, updateDoc, deleteDoc, serverTimestamp, writeBatch, where, getDocs } from 'firebase/firestore';
+import { db } from '../../../config/firebase';
 
-const COLLECTION_NAME = 'contacts';
-
-// Escuchar los contactos en tiempo real
 export const subscribeToContacts = (callback) => {
-  const q = query(collection(db, COLLECTION_NAME));
+  const q = query(collection(db, 'contacts'));
   return onSnapshot(q, (snapshot) => {
     const contacts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     callback(contacts);
   });
 };
 
-// Crear un nuevo cliente o proveedor
 export const createContactInDb = async (contactData) => {
-  const newRef = doc(collection(db, COLLECTION_NAME));
-  await setDoc(newRef, {
+  await addDoc(collection(db, 'contacts'), {
     ...contactData,
-    createdAt: serverTimestamp(),
+    createdAt: serverTimestamp()
   });
 };
 
-// Actualizar un contacto 
-export const updateContactInDb = async (contactId, data) => {
-  const contactRef = doc(db, COLLECTION_NAME, contactId);
-  await updateDoc(contactRef, data);
+export const updateContactInDb = async (contactId, contactData) => {
+  const contactRef = doc(db, 'contacts', contactId);
+  await updateDoc(contactRef, contactData);
+};
+
+export const deleteContactInDb = async (contactId) => {
+  const contactRef = doc(db, 'contacts', contactId);
+  await deleteDoc(contactRef);
+};
+
+// ==========================================
+// NUEVO: GESTOR INDEPENDIENTE DE ZONAS
+// ==========================================
+
+export const subscribeToZones = (callback) => {
+  const q = query(collection(db, 'zones'));
+  return onSnapshot(q, (snapshot) => {
+    const zones = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    callback(zones.sort((a, b) => a.name.localeCompare(b.name)));
+  });
+};
+
+export const createZoneInDb = async (zoneName) => {
+  await addDoc(collection(db, 'zones'), {
+    name: zoneName,
+    createdAt: serverTimestamp()
+  });
+};
+
+// Renombrar zona y actualizar automáticamente a todos sus clientes
+export const updateZoneAndContacts = async (zoneId, oldName, newName) => {
+  const batch = writeBatch(db);
+  
+  // 1. Actualizar la zona maestra
+  batch.update(doc(db, 'zones', zoneId), { name: newName });
+  
+  // 2. Buscar a todos los clientes vinculados y actualizarles el nombre
+  const q = query(collection(db, 'contacts'), where('zone', '==', oldName));
+  const snapshot = await getDocs(q);
+  snapshot.forEach(docSnap => {
+    batch.update(docSnap.ref, { zone: newName });
+  });
+  
+  await batch.commit();
+};
+
+// Borrar zona y desvincular a los clientes (dejarlos en blanco)
+export const deleteZoneAndUnlinkContacts = async (zoneId, zoneName) => {
+  const batch = writeBatch(db);
+  
+  batch.delete(doc(db, 'zones', zoneId));
+  
+  const q = query(collection(db, 'contacts'), where('zone', '==', zoneName));
+  const snapshot = await getDocs(q);
+  snapshot.forEach(docSnap => {
+    batch.update(docSnap.ref, { zone: '' });
+  });
+  
+  await batch.commit();
 };

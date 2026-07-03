@@ -1,169 +1,246 @@
-import React, { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, CheckCircle2, Archive, Calendar, Search } from 'lucide-react';
-import { subscribeToTasks } from '../../tasks/services/taskService';
+import React from 'react';
+import { 
+  PieChart, Download, TrendingUp, CheckCircle, 
+  AlertTriangle, Activity, MapPin, Layers 
+} from 'lucide-react';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+  Filler
+} from 'chart.js';
+import { Line, Doughnut } from 'react-chartjs-2';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+  Filler
+);
+
+// Configuración global para que los gráficos combinen con el tema oscuro
+ChartJS.defaults.color = '#a1a1aa';
+ChartJS.defaults.font.family = "'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'monospace'";
 
 export default function ReportsDashboard() {
-  const [tasks, setTasks] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
 
-  useEffect(() => {
-    // Traemos todas las tareas de la base de datos
-    const unsubscribe = subscribeToTasks((data) => {
-      setTasks(data);
-      setIsLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
+  const lineChartData = {
+    labels: ['Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
+    datasets: [
+      {
+        label: 'Tareas Creadas',
+        data: [850, 920, 880, 1050, 1100, 950, 1200, 1150, 1300, 1250, 1400, 1450],
+        borderColor: '#52525b', // zinc-600
+        backgroundColor: 'rgba(82, 82, 91, 0.1)',
+        borderWidth: 2,
+        tension: 0.4,
+        fill: true,
+        pointBackgroundColor: '#52525b',
+      },
+      {
+        label: 'Tareas Cerradas',
+        data: [800, 890, 850, 1000, 1080, 920, 1150, 1100, 1280, 1200, 1380, 1420],
+        borderColor: '#f97316', // orange-500
+        backgroundColor: 'rgba(249, 115, 22, 0.1)',
+        borderWidth: 3,
+        tension: 0.4,
+        fill: true,
+        pointBackgroundColor: '#f97316',
+      }
+    ]
+  };
 
-  // 1. Filtramos SOLO las tareas terminadas (Cerradas)
-  const closedTasks = tasks.filter(t => t.status === 'closed');
+  const lineChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8 } }
+    },
+    scales: {
+      y: { grid: { color: '#27272a' }, beginAtZero: true },
+      x: { grid: { display: false } }
+    }
+  };
 
-  // 2. Buscador local para el historial
-  const filteredHistory = closedTasks.filter(t => 
-    t.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    t.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.assignedArea.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const doughnutChartData = {
+    labels: ['Bariloche', 'Neuquén', 'Gral. Roca', 'San Martín', 'Viedma', 'El Bolsón'],
+    datasets: [{
+      data: [33, 24, 15, 11, 9, 8],
+      backgroundColor: [
+        '#f97316', // orange-500
+        '#10b981', // emerald-500
+        '#3b82f6', // blue-500
+        '#eab308', // yellow-500
+        '#8b5cf6', // violet-500
+        '#ef4444'  // red-500
+      ],
+      borderWidth: 0,
+      hoverOffset: 4
+    }]
+  };
 
-  // 3. Cálculos para Estadísticas
-  const totalClosed = closedTasks.length;
-  
-  // Calcular rendimiento por área (quién termina más tareas)
-  const areaPerformance = closedTasks.reduce((acc, task) => {
-    const area = task.assignedArea.split(',')[0]; // Tomamos el área principal
-    acc[area] = (acc[area] || 0) + 1;
-    return acc;
-  }, {});
-
-  // Ordenar áreas por rendimiento para el gráfico
-  const sortedAreas = Object.keys(areaPerformance).sort((a, b) => areaPerformance[b] - areaPerformance[a]);
-  
-  // Encontrar el valor máximo para calcular los porcentajes de las barras
-  const maxTasks = sortedAreas.length > 0 ? areaPerformance[sortedAreas[0]] : 1;
+  const doughnutChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '75%',
+    plugins: {
+      legend: { position: 'right', labels: { usePointStyle: true, boxWidth: 8, padding: 20 } }
+    }
+  };
 
   return (
-    <div className="flex-1 p-6 overflow-hidden flex flex-col bg-zinc-950">
+    <div className="flex-1 overflow-y-auto custom-scrollbar bg-zinc-950 flex flex-col h-full">
       
-      {/* CABECERA */}
-      <div className="flex justify-between items-center mb-6 shrink-0">
+      {/* HEADER */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 p-6 lg:p-8 shrink-0">
         <div>
           <h2 className="text-2xl font-black text-white flex items-center gap-3">
-            Historial y Rendimiento
+            <PieChart className="w-7 h-7 text-orange-500" /> Dashboard Gerencial
           </h2>
-          <p className="text-sm text-zinc-500 mt-1">Estadísticas en tiempo real y registro de tareas archivadas</p>
+          <p className="text-sm text-zinc-500 mt-1">Rendimiento anual consolidado de las 6 sucursales.</p>
+        </div>
+        <div className="flex items-center gap-4 w-full md:w-auto">
+          <select className="flex-1 md:flex-none bg-black border border-zinc-800 rounded-xl px-4 py-2.5 text-sm font-bold text-white focus:border-orange-500 outline-none">
+            <option>Últimos 12 Meses (2025-2026)</option>
+            <option>Año Anterior</option>
+          </select>
+          <button className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-colors text-white shrink-0">
+            <Download className="w-4 h-4" /> Exportar PDF
+          </button>
         </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0 overflow-hidden">
+      <div className="px-6 lg:px-8 pb-8 space-y-6">
         
-        {/* COLUMNA IZQUIERDA: Estadísticas (Widgets) */}
-        <div className="w-full lg:w-1/3 flex flex-col gap-6 overflow-y-auto custom-scrollbar pr-2">
-          
-          {/* Widget 1: Tareas Completadas */}
-          <div className="bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-900/40 via-zinc-900 to-zinc-900 border border-zinc-800 p-6 rounded-3xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-10"><CheckCircle2 className="w-24 h-24 text-emerald-500"/></div>
-            <p className="text-xs font-black text-zinc-500 uppercase tracking-widest mb-1 relative z-10">Total Histórico</p>
-            <h3 className="text-5xl font-black text-white mb-2 relative z-10">{totalClosed}</h3>
-            <p className="text-emerald-500 text-sm font-bold flex items-center gap-1 relative z-10">
-              <TrendingUp className="w-4 h-4"/> Tareas Finalizadas
-            </p>
+        {/* KPI Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl relative overflow-hidden shadow-lg">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-orange-500/10 rounded-bl-full -mr-4 -mt-4"></div>
+            <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Total Tareas / Visitas</p>
+            <h3 className="text-4xl font-black text-white">12,450</h3>
+            <p className="text-sm text-emerald-500 font-bold mt-2 flex items-center gap-1"><TrendingUp className="w-4 h-4"/> +14% vs año ant.</p>
           </div>
 
-          {/* Widget 2: Gráfico de Barras (Rendimiento por Área) */}
-          <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-3xl flex-1 min-h-[300px]">
-            <h3 className="text-sm font-black text-white uppercase tracking-widest mb-6 flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-orange-500"/> Rendimiento por Área
+          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl relative overflow-hidden shadow-lg">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-bl-full -mr-4 -mt-4"></div>
+            <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Tasa de Cierre (SLA)</p>
+            <h3 className="text-4xl font-black text-white">94.2%</h3>
+            <p className="text-sm text-emerald-500 font-bold mt-2 flex items-center gap-1"><CheckCircle className="w-4 h-4"/> Dentro de las 48hs</p>
+          </div>
+
+          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl relative overflow-hidden shadow-lg">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-bl-full -mr-4 -mt-4"></div>
+            <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Cartera Activa CRM</p>
+            <h3 className="text-4xl font-black text-white">3,102</h3>
+            <p className="text-sm text-zinc-400 font-bold mt-2 flex items-center gap-1">Clientes y Proveedores</p>
+          </div>
+
+          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl relative overflow-hidden shadow-lg">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/10 rounded-bl-full -mr-4 -mt-4"></div>
+            <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Cuellos de Botella</p>
+            <h3 className="text-4xl font-black text-red-500">24</h3>
+            <p className="text-sm text-red-400 font-bold mt-2 flex items-center gap-1"><AlertTriangle className="w-4 h-4"/> Tareas bloqueadas hoy</p>
+          </div>
+        </div>
+
+        {/* Gráficos Principales */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl lg:col-span-2 shadow-xl">
+            <h3 className="text-sm font-black text-white mb-6 uppercase tracking-widest flex items-center gap-2">
+              <Activity className="w-4 h-4 text-orange-500" /> Volumen Operativo Mensual (1 Año)
             </h3>
-            
-            <div className="space-y-5">
-              {isLoading && <p className="text-zinc-500 text-sm">Calculando estadísticas...</p>}
-              {!isLoading && sortedAreas.length === 0 && <p className="text-zinc-600 text-sm italic">No hay tareas cerradas aún.</p>}
-              
-              {sortedAreas.map((area, index) => {
-                const count = areaPerformance[area];
-                const percentage = Math.round((count / maxTasks) * 100);
-                
-                return (
-                  <div key={area}>
-                    <div className="flex justify-between text-xs font-bold text-zinc-400 mb-2">
-                      <span>{area}</span>
-                      <span className="text-white">{count} tareas</span>
-                    </div>
-                    {/* Barra de progreso visual */}
-                    <div className="h-2 w-full bg-zinc-950 rounded-full overflow-hidden border border-zinc-800">
-                      <div 
-                        className={`h-full rounded-full transition-all duration-1000 ease-out ${index === 0 ? 'bg-orange-500' : 'bg-zinc-600'}`}
-                        style={{ width: `${percentage}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                )
-              })}
+            <div className="h-[300px] w-full">
+              <Line data={lineChartData} options={lineChartOptions} />
+            </div>
+          </div>
+
+          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl shadow-xl">
+            <h3 className="text-sm font-black text-white mb-6 uppercase tracking-widest flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-emerald-500" /> Carga por Sucursal
+            </h3>
+            <div className="h-[300px] w-full flex justify-center">
+              <Doughnut data={doughnutChartData} options={doughnutChartOptions} />
             </div>
           </div>
         </div>
 
-        {/* COLUMNA DERECHA: Tabla de Historial (Archivo) */}
-        <div className="flex-1 bg-zinc-900/50 border border-zinc-800 rounded-3xl flex flex-col overflow-hidden">
-          <div className="p-5 border-b border-zinc-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-zinc-900">
+        {}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden shadow-xl">
+          <div className="p-6 border-b border-zinc-800 bg-zinc-950/50">
             <h3 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
-              <Archive className="w-4 h-4 text-blue-500"/> Archivo Documental
+              <Layers className="w-4 h-4 text-blue-500" /> Desempeño Consolidado de las 6 Sucursales
             </h3>
-            <div className="relative w-full sm:w-64">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
-              <input 
-                type="text" 
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar en el archivo..." 
-                className="w-full bg-black border border-zinc-800 rounded-xl pl-9 pr-4 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors"
-              />
-            </div>
           </div>
-
-          <div className="flex-1 overflow-auto custom-scrollbar">
-            <table className="w-full text-left border-collapse min-w-[600px]">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-zinc-800 bg-black/20 sticky top-0 backdrop-blur-md z-10">
-                  <th className="p-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest">ID Ticket</th>
-                  <th className="p-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Título / Resumen</th>
-                  <th className="p-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Ejecutó</th>
-                  <th className="p-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest text-right">Vencimiento</th>
+                <tr className="bg-black/40 border-b border-zinc-800">
+                  <th className="p-4 text-xs font-black text-zinc-500 uppercase">Sucursal / Zona</th>
+                  <th className="p-4 text-xs font-black text-zinc-500 uppercase text-center">Tareas Generadas</th>
+                  <th className="p-4 text-xs font-black text-zinc-500 uppercase text-center">Tareas Cerradas</th>
+                  <th className="p-4 text-xs font-black text-zinc-500 uppercase text-center">Eficiencia</th>
+                  <th className="p-4 text-xs font-black text-zinc-500 uppercase">Estado</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800/50">
-                {filteredHistory.map(task => (
-                  <tr key={task.id} className="hover:bg-zinc-800/30 transition-colors">
-                    <td className="p-4">
-                      <span className="text-xs font-black text-zinc-400 bg-zinc-900 px-2 py-1 rounded-md border border-zinc-800">{task.id}</span>
-                    </td>
-                    <td className="p-4">
-                      <p className="font-bold text-white text-sm">{task.title}</p>
-                      <p className="text-xs text-zinc-500 mt-1 truncate max-w-xs">{task.blocks[0]?.content || 'Sin descripción'}</p>
-                    </td>
-                    <td className="p-4">
-                      <span className="text-xs text-zinc-300 font-bold bg-zinc-800 px-2 py-1 rounded-md">{task.assignedArea}</span>
-                    </td>
-                    <td className="p-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5 text-xs font-bold text-zinc-500">
-                        <Calendar className="w-3 h-3"/> {task.dueDate || 'N/A'}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {!isLoading && filteredHistory.length === 0 && (
-                   <tr>
-                     <td colSpan="4" className="p-12 text-center">
-                       <Archive className="w-8 h-8 text-zinc-700 mx-auto mb-3"/>
-                       <p className="text-zinc-500 font-bold text-sm">No hay tareas archivadas que coincidan.</p>
-                     </td>
-                   </tr>
-                )}
+                <tr className="hover:bg-zinc-800/30 transition-colors">
+                  <td className="p-4 font-bold text-white text-sm">San Carlos de Bariloche <span className="text-[10px] bg-zinc-800 px-2 py-0.5 rounded ml-2 text-zinc-400">Sede Central</span></td>
+                  <td className="p-4 text-center text-zinc-400 font-bold">4,120</td>
+                  <td className="p-4 text-center text-white font-bold">3,980</td>
+                  <td className="p-4 text-center text-emerald-400 font-black">96.6%</td>
+                  <td className="p-4"><span className="text-[10px] px-2 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded uppercase font-bold">Óptimo</span></td>
+                </tr>
+                <tr className="hover:bg-zinc-800/30 transition-colors">
+                  <td className="p-4 font-bold text-white text-sm">Neuquén Capital</td>
+                  <td className="p-4 text-center text-zinc-400 font-bold">3,050</td>
+                  <td className="p-4 text-center text-white font-bold">2,810</td>
+                  <td className="p-4 text-center text-emerald-400 font-black">92.1%</td>
+                  <td className="p-4"><span className="text-[10px] px-2 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded uppercase font-bold">Óptimo</span></td>
+                </tr>
+                <tr className="hover:bg-zinc-800/30 transition-colors">
+                  <td className="p-4 font-bold text-white text-sm">General Roca (Valle)</td>
+                  <td className="p-4 text-center text-zinc-400 font-bold">1,890</td>
+                  <td className="p-4 text-center text-white font-bold">1,600</td>
+                  <td className="p-4 text-center text-yellow-400 font-black">84.6%</td>
+                  <td className="p-4"><span className="text-[10px] px-2 py-1 bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 rounded uppercase font-bold">Revisión</span></td>
+                </tr>
+                <tr className="hover:bg-zinc-800/30 transition-colors">
+                  <td className="p-4 font-bold text-white text-sm">San Martín de los Andes</td>
+                  <td className="p-4 text-center text-zinc-400 font-bold">1,400</td>
+                  <td className="p-4 text-center text-white font-bold">1,350</td>
+                  <td className="p-4 text-center text-emerald-400 font-black">96.4%</td>
+                  <td className="p-4"><span className="text-[10px] px-2 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded uppercase font-bold">Óptimo</span></td>
+                </tr>
+                <tr className="hover:bg-zinc-800/30 transition-colors">
+                  <td className="p-4 font-bold text-white text-sm">Viedma</td>
+                  <td className="p-4 text-center text-zinc-400 font-bold">1,150</td>
+                  <td className="p-4 text-center text-white font-bold">1,020</td>
+                  <td className="p-4 text-center text-yellow-400 font-black">88.6%</td>
+                  <td className="p-4"><span className="text-[10px] px-2 py-1 bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 rounded uppercase font-bold">Estable</span></td>
+                </tr>
+                <tr className="hover:bg-zinc-800/30 transition-colors">
+                  <td className="p-4 font-bold text-white text-sm">El Bolsón</td>
+                  <td className="p-4 text-center text-zinc-400 font-bold">840</td>
+                  <td className="p-4 text-center text-white font-bold">650</td>
+                  <td className="p-4 text-center text-red-400 font-black">77.3%</td>
+                  <td className="p-4"><span className="text-[10px] px-2 py-1 bg-red-500/10 text-red-500 border border-red-500/20 rounded uppercase font-bold">Crítico</span></td>
+                </tr>
               </tbody>
             </table>
           </div>
         </div>
+
       </div>
     </div>
   );

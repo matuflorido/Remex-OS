@@ -1,170 +1,132 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Users, Truck, MapPin, Search, Plus, Filter, Phone, Mail, FileText, Briefcase, Bell
-} from 'lucide-react';
-import useUIStore from '../../../store/useUIStore';
-
-import { subscribeToContacts } from '../services/crmService';
+import { Users, Building2, Map, Search, Plus, Edit2, Trash2, CalendarDays, Settings } from 'lucide-react';
+import { subscribeToContacts, deleteContactInDb, subscribeToZones } from '../services/crmService';
 import CreateContactModal from './CreateContactModal';
-
-// Puente para notificaciones nativas de Windows
-const electron = window.require ? window.require('electron') : null;
-const ipcRenderer = electron ? electron.ipcRenderer : null;
+import CreateEventModal from '../../calendar/components/CreateEventModal';
+import ZoneManagerModal from './ZoneManagerModal';
 
 export default function CRMBoard() {
-  const { searchQuery, setSearchQuery } = useUIStore();
-  
-  const [activeTab, setActiveTab] = useState('clientes'); // 'clientes' o 'proveedores'
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedZone, setSelectedZone] = useState('Todas');
-
   const [contacts, setContacts] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [zones, setZones] = useState([]); 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedType, setSelectedType] = useState('cliente');
+  
+  // Controladores de Modales
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isZoneModalOpen, setIsZoneModalOpen] = useState(false); 
+  const [contactToEdit, setContactToEdit] = useState(null);
+  const [eventPrefill, setEventPrefill] = useState(null); // Para atajo calendario
 
   useEffect(() => {
-    const unsubscribe = subscribeToContacts((data) => {
-      setContacts(data);
-      setIsLoading(false);
-    });
-    return () => unsubscribe();
+    const unsubscribeContacts = subscribeToContacts(setContacts);
+    const unsubscribeZones = subscribeToZones(setZones);
+    return () => {
+      unsubscribeContacts();
+      unsubscribeZones();
+    };
   }, []);
 
-  const zones = ['Todas', 'Línea Sur', 'Valle', 'Centro', 'Nacional'];
-
-  const testNativeNotification = () => {
-    if (ipcRenderer) {
-      ipcRenderer.send('show-native-notification', {
-        title: 'Remex OS - Nuevo Recordatorio',
-        body: 'Es momento de contactar a los clientes de la Línea Sur.'
-      });
-    } else {
-      alert("Las notificaciones nativas solo funcionan en la app de escritorio.");
-    }
+  const handleEdit = (contact) => {
+    setContactToEdit(contact);
+    setIsModalOpen(true);
   };
 
+  const handleCreate = () => {
+    setContactToEdit(null);
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async (id) => {
+    await deleteContactInDb(id);
+  };
+
+  const uniqueZones = zones.map(z => z.name);
+  const [selectedZoneFilter, setSelectedZoneFilter] = useState('Todas');
+
   const filteredContacts = contacts.filter(c => {
-    if (c.type !== activeTab) return false;
-    if (selectedZone !== 'Todas' && c.zone !== selectedZone) return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      return c.name.toLowerCase().includes(q) || c.contact.toLowerCase().includes(q);
-    }
-    return true;
+    const matchesType = c.type === selectedType;
+    const matchesSearch = c.name?.toLowerCase().includes(searchQuery.toLowerCase()) || c.zone?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesZone = selectedZoneFilter === 'Todas' || c.zone === selectedZoneFilter;
+    return matchesType && matchesSearch && matchesZone;
   });
 
   return (
-    <div className="flex-1 p-6 overflow-hidden flex flex-col h-full bg-zinc-950">
-      
-      {/* HEADER */}
-      <div className="flex justify-between items-center mb-6">
+    <div className="flex-1 p-6 lg:p-8 overflow-y-auto custom-scrollbar bg-zinc-950 flex flex-col h-full">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
           <h2 className="text-2xl font-black text-white flex items-center gap-3">
-            <Briefcase className="w-7 h-7 text-orange-500" />
-            Directorio y CRM
+            {selectedType === 'cliente' ? <Users className="w-7 h-7 text-orange-500" /> : <Building2 className="w-7 h-7 text-orange-500" />}
+            Directorio {selectedType === 'cliente' ? 'Comercial' : 'de Proveedores'}
           </h2>
-          <p className="text-sm text-zinc-500 mt-1">Gestiona clientes, proveedores y zonas logísticas.</p>
+          <p className="text-sm text-zinc-500 mt-1">Gestiona contactos y zonas de logística.</p>
         </div>
-        <div className="flex gap-4">
-          <button 
-            onClick={testNativeNotification}
-            className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 border border-zinc-700 transition-colors"
-          >
-            <Bell className="w-4 h-4"/> Probar Notificación
+        <div className="flex gap-3">
+          <button onClick={() => setIsZoneModalOpen(true)} className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold px-4 py-3 rounded-xl text-sm flex items-center gap-2 transition-colors">
+            <Settings className="w-5 h-5"/> ZONAS
           </button>
-          <button onClick={() => setIsModalOpen(true)} className="bg-orange-600 hover:bg-orange-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 hover:scale-105 transition-all">
-            <Plus className="w-4 h-4"/> NUEVO REGISTRO
+          <button onClick={handleCreate} className="bg-orange-600 hover:bg-orange-500 text-black font-black px-6 py-3 rounded-xl text-sm flex items-center gap-2 shadow-[0_0_15px_rgba(249,115,22,0.2)]">
+            <Plus className="w-5 h-5"/> NUEVO REGISTRO
           </button>
         </div>
       </div>
 
-      {}
-      <div className="flex flex-col md:flex-row gap-4 mb-6 justify-between items-start md:items-center">
-        <div className="flex bg-zinc-900 border border-zinc-800 rounded-xl p-1 w-full md:w-fit shadow-inner">
-          <button 
-            onClick={() => setActiveTab('clientes')}
-            className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-8 py-2.5 rounded-lg text-sm font-black transition-all ${activeTab === 'clientes' ? 'bg-orange-600 text-black shadow-md' : 'text-zinc-500 hover:text-white hover:bg-zinc-800'}`}
-          >
-            <Users className="w-4 h-4" /> CLIENTES
-          </button>
-          <button 
-            onClick={() => setActiveTab('proveedores')}
-            className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-8 py-2.5 rounded-lg text-sm font-black transition-all ${activeTab === 'proveedores' ? 'bg-orange-600 text-black shadow-md' : 'text-zinc-500 hover:text-white hover:bg-zinc-800'}`}
-          >
-            <Truck className="w-4 h-4" /> PROVEEDORES
-          </button>
+      <div className="flex flex-col sm:flex-row justify-between gap-4 mb-6">
+        <div className="flex bg-zinc-900 border border-zinc-800 rounded-xl p-1 w-fit">
+          <button onClick={() => {setSelectedType('cliente'); setSelectedZoneFilter('Todas');}} className={`px-6 py-2 rounded-lg text-sm font-bold transition-colors ${selectedType === 'cliente' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-white'}`}>Clientes</button>
+          <button onClick={() => {setSelectedType('proveedor'); setSelectedZoneFilter('Todas');}} className={`px-6 py-2 rounded-lg text-sm font-bold transition-colors ${selectedType === 'proveedor' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-white'}`}>Proveedores</button>
         </div>
 
-        <div className="flex items-center gap-3 bg-zinc-900 border border-zinc-800 px-4 py-2.5 rounded-xl">
-          <MapPin className="w-4 h-4 text-orange-500" />
-          <span className="text-xs text-zinc-500 font-bold uppercase hidden sm:inline">Zona Logística:</span>
-          <select 
-            value={selectedZone} 
-            onChange={(e) => setSelectedZone(e.target.value)} 
-            className="bg-transparent text-white font-bold text-sm outline-none cursor-pointer"
-          >
-            {zones.map(z => <option key={z} value={z} className="bg-zinc-900">{z}</option>)}
-          </select>
+        <div className="flex gap-2 items-center overflow-x-auto custom-scrollbar pb-2 sm:pb-0">
+          <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest shrink-0">Filtrar Zona:</span>
+          <button onClick={() => setSelectedZoneFilter('Todas')} className={`px-3 py-1.5 rounded-lg text-xs font-bold border shrink-0 ${selectedZoneFilter === 'Todas' ? 'bg-orange-500/10 text-orange-500 border-orange-500/30' : 'bg-black text-zinc-400 border-zinc-800'}`}>Todas</button>
+          {uniqueZones.map(zone => (
+            <button key={zone} onClick={() => setSelectedZoneFilter(zone)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border shrink-0 ${selectedZoneFilter === zone ? 'bg-orange-500/10 text-orange-500 border-orange-500/30' : 'bg-black text-zinc-400 border-zinc-800'}`}>{zone}</button>
+          ))}
         </div>
       </div>
 
-      {}
-      <div className="flex-1 bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col">
-        <div className="overflow-x-auto flex-1 custom-scrollbar">
+      <div className="flex-1 bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden flex flex-col shadow-2xl">
+        <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-zinc-950/50 border-b border-zinc-800">
-                <th className="p-4 text-xs font-black text-zinc-500 uppercase tracking-widest">Empresa / Razón Social</th>
-                <th className="p-4 text-xs font-black text-zinc-500 uppercase tracking-widest">Contacto Directo</th>
-                <th className="p-4 text-xs font-black text-zinc-500 uppercase tracking-widest">Zona Asignada</th>
-                <th className="p-4 text-xs font-black text-zinc-500 uppercase tracking-widest">Estado</th>
-                <th className="p-4 text-xs font-black text-zinc-500 uppercase tracking-widest text-right">Acciones</th>
+                <th className="p-4 text-xs font-black text-zinc-500 uppercase">Empresa / Contacto</th>
+                <th className="p-4 text-xs font-black text-zinc-500 uppercase">Teléfono</th>
+                <th className="p-4 text-xs font-black text-zinc-500 uppercase">Zona Asignada</th>
+                <th className="p-4 text-xs font-black text-zinc-500 uppercase text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/50">
-              {isLoading ? (
-                <tr>
-                  <td colSpan="5" className="p-8 text-center text-zinc-500 font-bold">
-                    Cargando base de datos...
-                  </td>
-                </tr>
-              ) : filteredContacts.length === 0 ? (
-                <tr>
-                  <td colSpan="5" className="p-8 text-center text-zinc-500 font-bold">
-                    No se encontraron {activeTab} para esta zona.
-                  </td>
-                </tr>
+              {filteredContacts.length === 0 ? (
+                <tr><td colSpan="4" className="p-8 text-center text-zinc-500 font-bold">No hay registros en esta vista.</td></tr>
               ) : (
-                filteredContacts.map(contact => (
+                filteredContacts.map((contact) => (
                   <tr key={contact.id} className="hover:bg-zinc-800/30 transition-colors group">
+                    <td className="p-4 font-bold text-white text-sm">{contact.name}</td>
+                    <td className="p-4 text-zinc-400 text-sm">{contact.phone || '-'}</td>
                     <td className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-500 font-black">
-                          {contact.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <span className="font-bold text-white text-sm block group-hover:text-orange-400 transition-colors">{contact.name}</span>
-                          <span className="text-[10px] text-zinc-500 font-mono">{contact.id}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <span className="text-sm text-zinc-300 font-bold block">{contact.contact}</span>
-                      <span className="text-xs text-zinc-500 flex items-center gap-1 mt-0.5"><Phone className="w-3 h-3"/> {contact.phone}</span>
-                    </td>
-                    <td className="p-4">
-                      <span className="bg-zinc-800 text-zinc-300 text-xs font-bold px-2.5 py-1 rounded-md border border-zinc-700 flex items-center gap-1.5 w-fit">
-                        <MapPin className="w-3 h-3 text-orange-500"/> {contact.zone}
-                      </span>
-                    </td>
-                    <td className="p-4">
-                      <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-md border ${contact.status === 'Activo' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-red-500/10 text-red-400 border-red-500/30'}`}>
-                        {contact.status}
-                      </span>
+                      {contact.zone ? (
+                        <span className="flex items-center gap-1.5 text-[10px] font-bold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-2 py-1 rounded w-fit uppercase">
+                          <Map className="w-3 h-3"/> {contact.zone}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-zinc-600 font-bold">Sin zona</span>
+                      )}
                     </td>
                     <td className="p-4 text-right">
-                      <button className="text-sm font-bold text-zinc-400 hover:text-white px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors">
-                        Ver Perfil
-                      </button>
+                      <div className="flex items-center justify-end gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                        {/* BOTÓN ATAJO CALENDARIO */}
+                        <button 
+                          onClick={() => setEventPrefill({ title: `Llamada a ${contact.name}`, type: 'llamada', contactId: contact.id })} 
+                          className="p-2 bg-orange-950/50 hover:bg-orange-600 text-orange-500 hover:text-white border border-orange-900/50 rounded-lg transition-colors"
+                          title="Agendar Tarea/Llamada"
+                        >
+                          <CalendarDays className="w-4 h-4" />
+                        </button>
+                        
+                        <button onClick={() => handleEdit(contact)} className="p-2 bg-zinc-800 hover:bg-blue-600 text-zinc-400 hover:text-white rounded-lg transition-colors"><Edit2 className="w-4 h-4" /></button>
+                        <button onClick={() => handleDelete(contact.id)} className="p-2 bg-zinc-800 hover:bg-red-600 text-zinc-400 hover:text-white rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -174,7 +136,9 @@ export default function CRMBoard() {
         </div>
       </div>
 
-      {isModalOpen && <CreateContactModal onClose={() => setIsModalOpen(false)} />}
+      {isModalOpen && <CreateContactModal onClose={() => setIsModalOpen(false)} contactToEdit={contactToEdit} />}
+      {eventPrefill && <CreateEventModal onClose={() => setEventPrefill(null)} prefilledData={eventPrefill} />}
+      {isZoneModalOpen && <ZoneManagerModal onClose={() => setIsZoneModalOpen(false)} />}
     </div>
   );
 }

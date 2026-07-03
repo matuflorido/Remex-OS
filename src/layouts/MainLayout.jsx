@@ -1,24 +1,59 @@
-import React, { useState, useEffect } from 'react';
-import { Activity, UserCircle, Wrench, Search, Bell, LogOut, Menu, X, CheckCircle2, BarChart3, CalendarDays } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Activity, UserCircle, Wrench, Search, Bell, LogOut, Menu, X, CheckCircle2, BarChart3, CalendarDays, Settings } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import useUIStore from '../store/useUIStore';
+import useSettingsStore from '../store/useSettingsStore';
 import { subscribeToNotifications, markNotificationAsRead } from '../features/notifications/services/notificationService';
+import SettingsModal from '../features/settings/components/SettingsModal';
+
+const electron = window.require ? window.require('electron') : null;
+const ipcRenderer = electron ? electron.ipcRenderer : null;
 
 export default function MainLayout({ children }) {
   const { user, logout } = useAuthStore();
   const { currentView, setCurrentView, searchQuery, setSearchQuery } = useUIStore();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const { notificationLevel } = useSettingsStore(); // Obtenemos el nivel configurado
   
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [notifications, setNotifications] = useState([]);
   const [showNotifs, setShowNotifs] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false); // Estado para abrir el modal
+
+  // Referencia para saber si nos llegó una notificación NUEVA y no sonar al abrir la app por primera vez
+  const prevNotifCount = useRef(0);
 
   useEffect(() => {
     if (!user) return;
     const unsubscribe = subscribeToNotifications(user.role, (data) => {
       setNotifications(data);
+
+      // LÓGICA DE NOTIFICACIONES NATIVAS (Solo si hay más notificaciones que antes)
+      if (data.length > prevNotifCount.current && prevNotifCount.current !== 0) {
+        const newNotif = data[0]; // La notificación más reciente
+        
+        if (notificationLevel !== 'none' && ipcRenderer) {
+          let shouldNotify = true;
+          
+          // Si el usuario eligió "Solo importantes", verificamos si lo es (ej. un tag 'important' o prioridad alta)
+          // Asumimos que la tabla notifications puede traer una prioridad. Si no, lo mostramos igual.
+          if (notificationLevel === 'important' && newNotif.priority !== 'high' && newNotif.priority !== 'critical') {
+            shouldNotify = false;
+          }
+
+          if (shouldNotify) {
+            ipcRenderer.send('show-native-notification', {
+              title: newNotif.title || 'Nuevo Aviso',
+              body: newNotif.message || 'Tienes actualizaciones en Remex OS.'
+            });
+          }
+        }
+      }
+      
+      prevNotifCount.current = data.length; // Guardamos el nuevo contador
     });
+
     return () => unsubscribe();
-  }, [user]);
+  }, [user, notificationLevel]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -54,16 +89,12 @@ export default function MainLayout({ children }) {
           <button onClick={() => setCurrentView('crm')} className={`w-full flex items-center px-4 py-3 rounded-xl text-sm border transition-colors ${currentView === 'crm' ? 'bg-orange-900/20 text-orange-400 border-orange-500/50' : 'border-transparent text-zinc-400 hover:bg-zinc-800'}`}>
             <UserCircle className="w-5 h-5 shrink-0"/> {isSidebarOpen && <span className="ml-3 font-bold truncate">CRM Operativo</span>}
           </button>
-          
-          {/* NUEVO BOTÓN DE CALENDARIO */}
           <button onClick={() => setCurrentView('calendar')} className={`w-full flex items-center px-4 py-3 rounded-xl text-sm border transition-colors ${currentView === 'calendar' ? 'bg-orange-900/20 text-orange-400 border-orange-500/50' : 'border-transparent text-zinc-400 hover:bg-zinc-800'}`}>
             <CalendarDays className="w-5 h-5 shrink-0"/> {isSidebarOpen && <span className="ml-3 font-bold truncate">Agenda y Rutas</span>}
           </button>
-          
           <button onClick={() => setCurrentView('reports')} className={`w-full flex items-center px-4 py-3 rounded-xl text-sm border transition-colors ${currentView === 'reports' ? 'bg-orange-900/20 text-orange-400 border-orange-500/50' : 'border-transparent text-zinc-400 hover:bg-zinc-800'}`}>
             <BarChart3 className="w-5 h-5 shrink-0"/> {isSidebarOpen && <span className="ml-3 font-bold truncate">Estadísticas</span>}
           </button>
-
           <button onClick={() => setCurrentView('admin')} className={`w-full flex items-center px-4 py-3 rounded-xl text-sm border transition-colors ${currentView === 'admin' ? 'bg-orange-900/20 text-orange-400 border-orange-500/50' : 'border-transparent text-zinc-400 hover:bg-zinc-800'}`}>
             <Wrench className="w-5 h-5 shrink-0"/> {isSidebarOpen && <span className="ml-3 font-bold truncate">Administración</span>}
           </button>
@@ -73,7 +104,7 @@ export default function MainLayout({ children }) {
            {isSidebarOpen && (
              <div className="mb-4 text-center">
                <span className="text-[10px] text-zinc-500 font-bold tracking-widest uppercase bg-zinc-900 px-3 py-1 rounded-full border border-zinc-800">
-                 Versión 1.2.0
+                 Versión 1.3.0
                </span>
              </div>
            )}
@@ -98,48 +129,61 @@ export default function MainLayout({ children }) {
               />
             </div>
           </div>
-          <div className="flex items-center gap-6">
+          
+          <div className="flex items-center gap-4 sm:gap-6">
             <div className="text-right hidden sm:block">
                <p className="text-white font-bold text-sm leading-tight">{user?.name || 'Usuario'}</p>
                <p className="text-orange-500 text-xs font-bold uppercase">{user?.role || 'Rol'}</p>
             </div>
             
-            <div className="relative">
-              <button onClick={() => setShowNotifs(!showNotifs)} className="relative p-2 hover:bg-zinc-800 rounded-xl transition-colors">
-                <Bell className="w-5 h-5 text-zinc-400 hover:text-white"/>
-                {unreadCount > 0 && (
-                  <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-orange-500 rounded-full border-2 border-zinc-900"></span>
-                )}
+            <div className="flex items-center gap-2 border-l border-zinc-800 pl-4 sm:pl-6">
+              
+              {/* BOTÓN DE CONFIGURACIÓN */}
+              <button 
+                onClick={() => setIsSettingsOpen(true)}
+                className="p-2 hover:bg-zinc-800 rounded-xl transition-colors text-zinc-400 hover:text-white"
+                title="Ajustes de Notificaciones"
+              >
+                <Settings className="w-5 h-5"/>
               </button>
 
-              {showNotifs && (
-                <div className="absolute right-0 top-full mt-2 w-80 max-h-96 overflow-y-auto bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl z-50 custom-scrollbar">
-                  <div className="p-4 border-b border-zinc-800 bg-black/20 flex justify-between items-center sticky top-0 backdrop-blur-md">
-                    <h3 className="font-bold text-sm text-white">Notificaciones</h3>
-                    <span className="text-[10px] bg-orange-500/10 text-orange-500 px-2 py-1 rounded font-bold">{unreadCount} Nuevas</span>
-                  </div>
-                  <div className="divide-y divide-zinc-800/50">
-                    {notifications.length === 0 && (
-                      <div className="p-6 text-center text-zinc-500 text-xs font-bold">No hay avisos recientes.</div>
-                    )}
-                    {notifications.map(notif => (
-                      <div 
-                        key={notif.id} 
-                        onClick={() => handleNotificationClick(notif)}
-                        className={`p-4 cursor-pointer transition-colors ${!notif.read ? 'bg-orange-500/5 hover:bg-orange-500/10' : 'hover:bg-zinc-800/50'}`}
-                      >
-                        <div className="flex items-start gap-3">
-                          {!notif.read ? <span className="w-2 h-2 rounded-full bg-orange-500 mt-1.5 shrink-0"></span> : <CheckCircle2 className="w-4 h-4 text-zinc-600 mt-0.5 shrink-0"/>}
-                          <div>
-                            <p className={`text-sm ${!notif.read ? 'text-white font-bold' : 'text-zinc-400'}`}>{notif.title}</p>
-                            <p className="text-xs text-zinc-500 mt-1 leading-relaxed">{notif.message}</p>
+              <div className="relative">
+                <button onClick={() => setShowNotifs(!showNotifs)} className="relative p-2 hover:bg-zinc-800 rounded-xl transition-colors">
+                  <Bell className="w-5 h-5 text-zinc-400 hover:text-white"/>
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-orange-500 rounded-full border-2 border-zinc-900"></span>
+                  )}
+                </button>
+
+                {showNotifs && (
+                  <div className="absolute right-0 top-full mt-2 w-80 max-h-96 overflow-y-auto bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl z-50 custom-scrollbar">
+                    <div className="p-4 border-b border-zinc-800 bg-black/20 flex justify-between items-center sticky top-0 backdrop-blur-md">
+                      <h3 className="font-bold text-sm text-white">Notificaciones</h3>
+                      <span className="text-[10px] bg-orange-500/10 text-orange-500 px-2 py-1 rounded font-bold">{unreadCount} Nuevas</span>
+                    </div>
+                    <div className="divide-y divide-zinc-800/50">
+                      {notifications.length === 0 && (
+                        <div className="p-6 text-center text-zinc-500 text-xs font-bold">No hay avisos recientes.</div>
+                      )}
+                      {notifications.map(notif => (
+                        <div 
+                          key={notif.id} 
+                          onClick={() => handleNotificationClick(notif)}
+                          className={`p-4 cursor-pointer transition-colors ${!notif.read ? 'bg-orange-500/5 hover:bg-orange-500/10' : 'hover:bg-zinc-800/50'}`}
+                        >
+                          <div className="flex items-start gap-3">
+                            {!notif.read ? <span className="w-2 h-2 rounded-full bg-orange-500 mt-1.5 shrink-0"></span> : <CheckCircle2 className="w-4 h-4 text-zinc-600 mt-0.5 shrink-0"/>}
+                            <div>
+                              <p className={`text-sm ${!notif.read ? 'text-white font-bold' : 'text-zinc-400'}`}>{notif.title}</p>
+                              <p className="text-xs text-zinc-500 mt-1 leading-relaxed">{notif.message}</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </header>
@@ -148,6 +192,8 @@ export default function MainLayout({ children }) {
           {children}
         </main>
       </div>
+
+      {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
     </div>
   );
 }

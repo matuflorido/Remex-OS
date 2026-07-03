@@ -1,103 +1,158 @@
-import React, { useState } from 'react';
-import { X, Calendar as CalendarIcon, MapPin, Truck, Phone } from 'lucide-react';
-import { createEventInDb } from '../services/calendarService';
-import { useAuthStore } from '../../../store/useAuthStore';
+import React, { useState, useEffect } from 'react';
+import { X, CalendarDays, Map, Phone, AlertCircle, Trash2 } from 'lucide-react';
+import { createEventInDb, updateEventInDb, deleteEventInDb } from '../services/calendarService';
+import { subscribeToContacts, subscribeToZones } from '../../crm/services/crmService';
 
-export default function CreateEventModal({ onClose, selectedDateStr = '' }) {
-  const { user } = useAuthStore();
-  const [loading, setLoading] = useState(false);
+export default function CreateEventModal({ onClose, selectedDate, eventToEdit = null, prefilledData = null }) {
+  const isEditing = !!(eventToEdit && eventToEdit.id);
   
   const [formData, setFormData] = useState({
-    type: 'ruta', // 'ruta' o 'llamada'
     title: '',
-    date: selectedDateStr || new Date().toISOString().split('T')[0],
-    zone: 'Línea Sur',
-    area: user?.role || 'Operaciones'
+    date: selectedDate ? selectedDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+    type: 'recorrido', 
+    zone: '',
+    contactId: '',
+    notes: ''
   });
 
-  const zones = ['Línea Sur', 'Valle', 'Centro', 'Nacional'];
+  const [contacts, setContacts] = useState([]);
+  const [zones, setZones] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  useEffect(() => {
+    const unsubContacts = subscribeToContacts(setContacts);
+    const unsubZones = subscribeToZones(setZones);
+    return () => {
+      unsubContacts();
+      unsubZones();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (eventToEdit && eventToEdit.id) {
+      setFormData({
+        title: eventToEdit.title || '',
+        date: eventToEdit.date || '',
+        type: eventToEdit.type || 'recorrido',
+        zone: eventToEdit.zone || '',
+        contactId: eventToEdit.contactId || '',
+        notes: eventToEdit.notes || ''
+      });
+    } else if (prefilledData) {
+      // Si venimos del atajo del CRM
+      setFormData(prev => ({
+        ...prev,
+        ...prefilledData
+      }));
+    }
+  }, [eventToEdit, prefilledData]);
+
+  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.title.trim()) return;
-    setLoading(true);
+    setIsLoading(true);
     try {
-      await createEventInDb({
-        ...formData,
-        status: 'pending'
-      });
+      if (isEditing) {
+        await updateEventInDb(eventToEdit.id, formData);
+      } else {
+        await createEventInDb(formData);
+      }
       onClose();
     } catch (error) {
-      console.error("Error al crear evento:", error);
-      alert("Error al guardar en la base de datos.");
+      console.error(error);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
+  };
+
+  const handleDelete = async () => {
+    setIsLoading(true);
+    await deleteEventInDb(eventToEdit.id);
+    onClose();
   };
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex justify-center items-center p-4">
-      <div className="bg-zinc-950 border border-zinc-800 rounded-3xl w-full max-w-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col">
+      <div className="bg-zinc-950 border border-zinc-800 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col">
         
-        {}
-        <div className="px-6 py-5 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50 shrink-0">
-          <h2 className="text-xl font-black text-white flex items-center gap-2">
-            <CalendarIcon className="w-5 h-5 text-orange-500"/> Programar Evento
+        <div className="p-6 border-b border-zinc-800 bg-zinc-900/50 flex justify-between items-center">
+          <h2 className="text-xl font-black text-white flex items-center gap-3">
+            <CalendarDays className="w-6 h-6 text-orange-500" />
+            {isEditing ? 'Editar Evento' : 'Programar Evento'}
           </h2>
-          <button onClick={onClose} className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-zinc-400 transition-colors">
+          <button onClick={onClose} className="p-2 hover:bg-zinc-800 rounded-xl text-zinc-400 hover:text-white transition-colors">
             <X className="w-5 h-5"/>
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto custom-scrollbar">
-          <form id="eventForm" onSubmit={handleSubmit} className="space-y-5">
+        <div className="p-6 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-zinc-900/40 via-zinc-950 to-zinc-950">
+          <form id="eventForm" onSubmit={handleSubmit} className="space-y-4">
             
-            <div className="grid grid-cols-2 gap-4 mb-2">
-              <label className={`cursor-pointer border p-3 rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-all ${formData.type === 'ruta' ? 'bg-orange-900/20 border-orange-500 text-orange-400' : 'bg-black border-zinc-800 text-zinc-500 hover:border-zinc-600'}`}>
-                <input type="radio" name="type" value="ruta" checked={formData.type === 'ruta'} onChange={handleChange} className="hidden"/>
-                <Truck className="w-4 h-4"/> RUTA LOGÍSTICA
-              </label>
-              <label className={`cursor-pointer border p-3 rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-all ${formData.type === 'llamada' ? 'bg-orange-900/20 border-orange-500 text-orange-400' : 'bg-black border-zinc-800 text-zinc-500 hover:border-zinc-600'}`}>
-                <input type="radio" name="type" value="llamada" checked={formData.type === 'llamada'} onChange={handleChange} className="hidden"/>
-                <Phone className="w-4 h-4"/> LLAMADA / AVISO
-              </label>
+            <div className="flex gap-4 bg-black p-1.5 rounded-xl border border-zinc-800 w-fit">
+              <button type="button" onClick={() => setFormData({...formData, type: 'recorrido'})} className={`px-4 py-1.5 text-sm font-bold rounded-lg flex items-center gap-2 ${formData.type === 'recorrido' ? 'bg-orange-500 text-black' : 'text-zinc-500 hover:text-white'}`}>
+                <Map className="w-4 h-4"/> Recorrido / Zona
+              </button>
+              <button type="button" onClick={() => setFormData({...formData, type: 'llamada'})} className={`px-4 py-1.5 text-sm font-bold rounded-lg flex items-center gap-2 ${formData.type === 'llamada' ? 'bg-orange-500 text-black' : 'text-zinc-500 hover:text-white'}`}>
+                <Phone className="w-4 h-4"/> Llamada
+              </button>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-zinc-500 uppercase mb-2 tracking-widest">Título de la Actividad *</label>
-              <input type="text" name="title" required value={formData.title} onChange={handleChange} placeholder={formData.type === 'ruta' ? "Ej. Reparto Mensual Valle" : "Ej. Llamar a Distribuidora X"} className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white focus:border-orange-500 outline-none"/>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-zinc-500 uppercase mb-2 tracking-widest">Fecha Exacta *</label>
-                <input type="date" name="date" required value={formData.date} onChange={handleChange} className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white focus:border-orange-500 outline-none color-scheme-dark"/>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-zinc-500 uppercase mb-2 tracking-widest">Asignar al Área</label>
-                <input type="text" name="area" value={formData.area} onChange={handleChange} className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-400 outline-none bg-zinc-900/50" readOnly title="Se asigna a tu área actual automáticamente"/>
-              </div>
+              <label className="block text-xs font-bold text-zinc-400 mb-1.5 ml-1">Título del Evento</label>
+              <input type="text" name="title" required value={formData.title} onChange={handleChange} placeholder="Ej. Visita Línea Sur, Llamar a proveedor..." className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white focus:border-orange-500 outline-none" />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-zinc-500 uppercase mb-2 tracking-widest flex items-center gap-1"><MapPin className="w-3 h-3"/> Zona de Referencia</label>
-              <select name="zone" value={formData.zone} onChange={handleChange} className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white focus:border-orange-500 outline-none">
-                {zones.map(z => <option key={z} value={z}>{z}</option>)}
-              </select>
+              <label className="block text-xs font-bold text-zinc-400 mb-1.5 ml-1">Fecha</label>
+              <input type="date" name="date" required value={formData.date} onChange={handleChange} className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white focus:border-orange-500 outline-none" />
+            </div>
+
+            {formData.type === 'recorrido' && (
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 mb-1.5 ml-1 text-orange-400">Asignar Zona Logística</label>
+                <select name="zone" value={formData.zone} onChange={handleChange} required className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white focus:border-orange-500 outline-none">
+                  <option value="">-- Seleccionar Zona --</option>
+                  {zones.map(z => (
+                    <option key={z.id} value={z.name}>{z.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {formData.type === 'llamada' && (
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 mb-1.5 ml-1 text-orange-400">Vincular a un Contacto</label>
+                <select name="contactId" value={formData.contactId} onChange={handleChange} required className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white focus:border-orange-500 outline-none">
+                  <option value="">-- Seleccionar Contacto --</option>
+                  {contacts.map(c => (
+                    <option key={c.id} value={c.id}>{c.name} ({c.type})</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-bold text-zinc-400 mb-1.5 ml-1">Notas / Detalles</label>
+              <textarea name="notes" value={formData.notes} onChange={handleChange} rows="2" className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white focus:border-orange-500 outline-none custom-scrollbar" />
             </div>
 
           </form>
         </div>
 
-        <div className="px-6 py-5 flex justify-end gap-4 border-t border-zinc-800 bg-zinc-900 shrink-0">
-          <button type="button" onClick={onClose} className="px-6 py-2.5 rounded-xl text-sm font-bold text-zinc-400 hover:text-white">Cancelar</button>
-          <button form="eventForm" type="submit" disabled={loading || !formData.title.trim()} className="bg-orange-600 hover:bg-orange-500 text-black font-black px-8 py-2.5 rounded-xl text-sm shadow-[0_0_15px_rgba(249,115,22,0.3)] disabled:opacity-50">
-            {loading ? 'PROGRAMANDO...' : 'PROGRAMAR EVENTO'}
-          </button>
+        <div className="p-6 border-t border-zinc-800 bg-zinc-900 shrink-0 flex justify-between items-center">
+          {isEditing ? (
+             <button type="button" onClick={handleDelete} className="p-2.5 bg-red-950/40 border border-red-900/50 text-red-500 rounded-xl hover:bg-red-600 hover:text-white transition-colors" title="Eliminar Evento">
+                <Trash2 className="w-5 h-5"/>
+             </button>
+          ) : <div></div>}
+          
+          <div className="flex gap-3">
+            <button type="button" onClick={onClose} className="px-6 py-2.5 rounded-xl font-bold text-sm text-zinc-400 hover:text-white hover:bg-zinc-800">CANCELAR</button>
+            <button form="eventForm" type="submit" disabled={isLoading} className="bg-orange-600 hover:bg-orange-500 text-black font-black px-8 py-2.5 rounded-xl text-sm transition-all disabled:opacity-50">
+              {isLoading ? 'GUARDANDO...' : (isEditing ? 'ACTUALIZAR' : 'PROGRAMAR')}
+            </button>
+          </div>
         </div>
 
       </div>
