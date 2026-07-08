@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Activity, UserCircle, Wrench, Search, Bell, LogOut, Menu, X, CheckCircle2, BarChart3, CalendarDays, Settings } from 'lucide-react';
+import { Activity, UserCircle, Wrench, Search, Bell, LogOut, Menu, X, CheckCircle2, BarChart3, CalendarDays, Settings, BookOpen } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import useUIStore from '../store/useUIStore';
 import useSettingsStore from '../store/useSettingsStore';
@@ -98,6 +98,12 @@ export default function MainLayout({ children }) {
           <button onClick={() => setCurrentView('admin')} className={`w-full flex items-center px-4 py-3 rounded-xl text-sm border transition-colors ${currentView === 'admin' ? 'bg-orange-900/20 text-orange-400 border-orange-500/50' : 'border-transparent text-zinc-400 hover:bg-zinc-800'}`}>
             <Wrench className="w-5 h-5 shrink-0"/> {isSidebarOpen && <span className="ml-3 font-bold truncate">Administración</span>}
           </button>
+          
+          <div className="my-4 border-t border-zinc-800/50"></div>
+          
+          <button onClick={() => setCurrentView('manual')} className={`w-full flex items-center px-4 py-3 rounded-xl text-sm border transition-colors ${currentView === 'manual' ? 'bg-orange-900/20 text-orange-400 border-orange-500/50' : 'border-transparent text-zinc-400 hover:bg-zinc-800'}`}>
+            <BookOpen className="w-5 h-5 shrink-0"/> {isSidebarOpen && <span className="ml-3 font-bold truncate">Manual de Uso</span>}
+          </button>
         </nav>
 
         <div className="p-4 border-t border-zinc-800 bg-black/40">
@@ -116,7 +122,7 @@ export default function MainLayout({ children }) {
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0 bg-zinc-950 relative">
-        <header className="h-[80px] bg-zinc-900/80 border-b border-zinc-800 px-6 flex items-center justify-between shrink-0 z-10">
+        <header className="h-[80px] bg-zinc-900/80 border-b border-zinc-800 px-6 flex items-center justify-between shrink-0 z-50">
           <div className="flex items-center gap-4 flex-1">
             <div className="relative w-full max-w-md hidden md:block">
               <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" />
@@ -156,7 +162,7 @@ export default function MainLayout({ children }) {
                 </button>
 
                 {showNotifs && (
-                  <div className="absolute right-0 top-full mt-2 w-80 max-h-96 overflow-y-auto bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl z-50 custom-scrollbar">
+                  <div className="absolute right-0 top-full mt-2 w-80 max-h-96 overflow-y-auto bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl z-[100] custom-scrollbar">
                     <div className="p-4 border-b border-zinc-800 bg-black/20 flex justify-between items-center sticky top-0 backdrop-blur-md">
                       <h3 className="font-bold text-sm text-white">Notificaciones</h3>
                       <span className="text-[10px] bg-orange-500/10 text-orange-500 px-2 py-1 rounded font-bold">{unreadCount} Nuevas</span>

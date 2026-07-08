@@ -4,6 +4,7 @@ import { subscribeToContacts, deleteContactInDb, subscribeToZones } from '../ser
 import CreateContactModal from './CreateContactModal';
 import CreateEventModal from '../../calendar/components/CreateEventModal';
 import ZoneManagerModal from './ZoneManagerModal';
+import HelpTooltip from '../../../components/ui/HelpTooltip'; // NUEVO
 
 export default function CRMBoard() {
   const [contacts, setContacts] = useState([]);
@@ -57,6 +58,9 @@ export default function CRMBoard() {
           <h2 className="text-2xl font-black text-white flex items-center gap-3">
             {selectedType === 'cliente' ? <Users className="w-7 h-7 text-orange-500" /> : <Building2 className="w-7 h-7 text-orange-500" />}
             Directorio {selectedType === 'cliente' ? 'Comercial' : 'de Proveedores'}
+            
+            {/* NUEVO: Botón de ayuda */}
+            <HelpTooltip text="Utiliza el botón ZONAS para crear tus rutas. Luego, puedes usar el icono de calendario naranja en cada cliente para agendarle rápidamente una visita o llamada." />
           </h2>
           <p className="text-sm text-zinc-500 mt-1">Gestiona contactos y zonas de logística.</p>
         </div>

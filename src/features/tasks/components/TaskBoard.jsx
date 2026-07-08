@@ -3,13 +3,15 @@ import {
   CheckCircle2, AlertTriangle, UserCircle, ShieldCheck, 
   Plus, Link as LinkIcon, FileText, 
   CheckSquare, History, ArrowRight, CalendarDays, Clock, Database,
-  ChevronLeft, ChevronRight, Paperclip, Repeat, GripVertical, Eye, PenTool, Send, RefreshCw
+  ChevronLeft, ChevronRight, Paperclip, Repeat, GripVertical, Eye, PenTool, Send, RefreshCw, User
 } from 'lucide-react';
 import { X } from 'lucide-react';
 import { useAuthStore } from '../../../store/useAuthStore';
 import useUIStore from '../../../store/useUIStore';
 import { subscribeToTasks, updateTaskStatusInDb, addTaskCommentInDb, updateTaskInDb, createTaskInDb } from '../services/taskService';
+import { subscribeToUsers } from '../../admin/services/adminService';
 import CreateTaskModal from './CreateTaskModal';
+import HelpTooltip from '../../../components/ui/HelpTooltip'; // AGREGA ESTA LÍNEA
 
 // Puente de comunicación seguro con Electron
 const electron = window.require ? window.require('electron') : null;
@@ -27,12 +29,15 @@ export default function TaskBoard() {
   const [draggedTaskId, setDraggedTaskId] = useState(null);
   const [draggedColId, setDraggedColId] = useState(null);
   const [actionError, setActionError] = useState(null);
-  const [adminView, setAdminView] = useState('Todas');
   
-  // Estado para el botón de actualización
+  // ESTADOS DEL FILTRO EN CASCADA (ÁREA -> EMPLEADO)
+  const [adminArea, setAdminArea] = useState('Todas');
+  const [adminEmployee, setAdminEmployee] = useState('Todos');
+  const [systemUsers, setSystemUsers] = useState([]);
+  
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
 
-  // LÓGICA MULTI-ROL (Soporte para usuarios en múltiples áreas)
+  // LÓGICA MULTI-ROL
   const userRoles = user?.roles || (user?.role ? [user.role] : []);
   const isSuperUser = userRoles.includes('Super_Usuario');
 
@@ -45,7 +50,7 @@ export default function TaskBoard() {
   ]);
 
   useEffect(() => {
-    const unsubscribe = subscribeToTasks((data) => {
+    const unsubscribeTasks = subscribeToTasks((data) => {
       setTasks(data);
       setIsLoading(false);
       if (selectedTask) {
@@ -53,15 +58,24 @@ export default function TaskBoard() {
         if (updatedSelected) setSelectedTask(updatedSelected);
       }
     });
-    return () => unsubscribe();
-  }, [selectedTask]);
+
+    let unsubscribeUsers = () => {};
+    if (isSuperUser) {
+      unsubscribeUsers = subscribeToUsers((usersData) => {
+        setSystemUsers(usersData);
+      });
+    }
+
+    return () => {
+      unsubscribeTasks();
+      unsubscribeUsers();
+    };
+  }, [selectedTask, isSuperUser]);
 
   const handleCheckUpdate = () => {
     if (ipcRenderer) {
       setIsCheckingUpdate(true);
       ipcRenderer.send('check-for-updates-manual');
-      
-      // Restablece el botón después de 4 segundos
       setTimeout(() => setIsCheckingUpdate(false), 4000);
     } else {
       showError("El actualizador solo funciona en la aplicación de escritorio instalada.");
@@ -83,7 +97,6 @@ export default function TaskBoard() {
     setTimeout(() => setActionError(null), 4500); 
   };
 
-  // Lógica que clona la tarea si tiene recurrencia
   const handleRecurringClone = async (taskToClone) => {
     if (!taskToClone.recurrence || taskToClone.recurrence === 'none') return;
 
@@ -238,8 +251,17 @@ export default function TaskBoard() {
     }
     
     if (isSuperUser) {
-      if (adminView === 'Todas') return true;
-      return task.creatorArea?.includes(adminView) || task.assignedArea?.includes(adminView);
+      let matchArea = true;
+      let matchEmployee = true;
+
+      if (adminArea !== 'Todas') {
+        matchArea = task.creatorArea?.includes(adminArea) || task.assignedArea?.includes(adminArea);
+      }
+      if (adminEmployee !== 'Todos') {
+        matchEmployee = task.creatorArea?.includes(adminEmployee) || task.assignedArea?.includes(adminEmployee);
+      }
+
+      return matchArea && matchEmployee;
     } else {
       const myName = user?.name || '';
       return userRoles.some(role => task.creatorArea?.includes(role) || task.assignedArea?.includes(role)) ||
@@ -282,7 +304,7 @@ export default function TaskBoard() {
       )}
       <div className="mt-2 pt-3 border-t border-zinc-800 flex justify-between items-center text-xs pointer-events-none">
         <div className="flex items-center gap-2 text-zinc-400">
-          <UserCircle className="w-4 h-4"/>
+          {task.assignedArea.includes(',') ? <UserCircle className="w-4 h-4"/> : <User className="w-4 h-4"/>}
           <span className="truncate max-w-[120px]">{task.assignedArea}</span>
         </div>
         {task.status === 'pending_validation' && (
@@ -305,40 +327,64 @@ export default function TaskBoard() {
         </div>
       )}
 
-      <div className="flex justify-between items-center mb-6">
+      {/* HEADER */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div>
           <h2 className="text-2xl font-black text-white flex items-center gap-3">
             Tablero de Operaciones
+            
+            {/* AGREGA ESTE BOTÓN DE AYUDA AQUÍ */}
+            <HelpTooltip text="Arrastra y suelta las tareas entre las columnas para avanzar. El sistema requerirá firmas conjuntas de las distintas áreas si la tarea lo exige antes de cerrarse." />
+
+            {/* FILTRO EN CASCADA (Área -> Empleado) */}
             {isSuperUser && (
               <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-lg ml-2 shadow-inner">
                 <Eye className="w-4 h-4 text-orange-500" />
-                <span className="text-xs text-zinc-500 font-bold uppercase hidden sm:inline">Ver como:</span>
-                <select value={adminView} onChange={(e) => setAdminView(e.target.value)} className="bg-transparent text-orange-400 font-bold text-sm outline-none cursor-pointer">
+                <span className="text-xs text-zinc-500 font-bold uppercase hidden sm:inline">Ver:</span>
+                
+                <select 
+                  value={adminArea} 
+                  onChange={(e) => { setAdminArea(e.target.value); setAdminEmployee('Todos'); }} 
+                  className="bg-transparent text-orange-400 font-bold text-sm outline-none cursor-pointer border-r border-zinc-700 pr-2"
+                >
                   <option value="Todas" className="bg-zinc-900">Todas las áreas</option>
                   <option value="Ventas" className="bg-zinc-900">Ventas</option>
                   <option value="Operaciones" className="bg-zinc-900">Operaciones</option>
                   <option value="Administración" className="bg-zinc-900">Administración</option>
+                  <option value="Marketing" className="bg-zinc-900">Marketing</option>
                 </select>
+
+                {adminArea !== 'Todas' && (
+                  <select 
+                    value={adminEmployee} 
+                    onChange={(e) => setAdminEmployee(e.target.value)} 
+                    className="bg-transparent text-emerald-400 font-bold text-sm outline-none cursor-pointer pl-2"
+                  >
+                    <option value="Todos" className="bg-zinc-900">Todos los empleados</option>
+                    {systemUsers.filter(u => (u.roles || []).includes(adminArea) || u.role === adminArea).map(u => (
+                      <option key={u.id} value={u.name} className="bg-zinc-900">{u.name}</option>
+                    ))}
+                  </select>
+                )}
               </div>
             )}
           </h2>
           <p className="text-sm text-zinc-500 mt-1">
-            Vista del Área: <span className="text-orange-400 font-bold">{isSuperUser ? adminView : userRoles.join(', ')}</span>
+            Vista actual: <span className="text-orange-400 font-bold">{isSuperUser ? (adminEmployee !== 'Todos' ? adminEmployee : adminArea) : userRoles.join(', ')}</span>
           </p>
         </div>
         
-        {/* BOTONES SUPERIORES */}
-        <div className="flex gap-4">
+        <div className="flex gap-4 w-full md:w-auto">
           <button 
             onClick={handleCheckUpdate} 
             disabled={isCheckingUpdate}
             className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors disabled:opacity-50 border border-zinc-700"
           >
             <RefreshCw className={`w-4 h-4 ${isCheckingUpdate ? 'animate-spin text-orange-500' : ''}`}/> 
-            {isCheckingUpdate ? 'Buscando...' : 'Buscar Actualización'}
+            <span className="hidden sm:inline">{isCheckingUpdate ? 'Buscando...' : 'Buscar Actualización'}</span>
           </button>
 
-          <button onClick={() => setIsCreateModalOpen(true)} className="bg-orange-600 hover:bg-orange-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 hover:-translate-y-0.5">
+          <button onClick={() => setIsCreateModalOpen(true)} className="bg-orange-600 hover:bg-orange-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 flex-1 md:flex-none hover:-translate-y-0.5">
             <Plus className="w-4 h-4"/> NUEVA TAREA
           </button>
         </div>
