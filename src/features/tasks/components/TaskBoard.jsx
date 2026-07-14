@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
   CheckCircle2, AlertTriangle, UserCircle, ShieldCheck, 
-  Plus, Link as LinkIcon, FileText, 
+  Plus, Link as LinkIcon, FileText, Settings2,
   CheckSquare, History, ArrowRight, CalendarDays, Clock, Database,
-  ChevronLeft, ChevronRight, Paperclip, Repeat, GripVertical, Eye, PenTool, Send, RefreshCw, User
+  ChevronLeft, ChevronRight, Paperclip, Repeat, GripVertical, Eye, PenTool, Send, RefreshCw, User, Building2, EyeOff, Edit2
 } from 'lucide-react';
 import { X } from 'lucide-react';
 import { useAuthStore } from '../../../store/useAuthStore';
@@ -11,43 +11,55 @@ import useUIStore from '../../../store/useUIStore';
 import { subscribeToTasks, updateTaskStatusInDb, addTaskCommentInDb, updateTaskInDb, createTaskInDb } from '../services/taskService';
 import { subscribeToUsers } from '../../admin/services/adminService';
 import CreateTaskModal from './CreateTaskModal';
-import HelpTooltip from '../../../components/ui/HelpTooltip'; // AGREGA ESTA LÍNEA
+import HelpTooltip from '../../../components/ui/HelpTooltip';
 
 // Puente de comunicación seguro con Electron
 const electron = window.require ? window.require('electron') : null;
 const ipcRenderer = electron ? electron.ipcRenderer : null;
+
+const defaultCols = [
+  { id: 'open', title: 'NUEVAS', color: 'bg-zinc-500', visible: true },
+  { id: 'blocked', title: 'BLOQUEADAS', color: 'bg-red-500', visible: true },
+  { id: 'in_progress', title: 'EN PROCESO', color: 'bg-blue-500', visible: true },
+  { id: 'pending_validation', title: 'VALIDACIÓN', color: 'bg-yellow-500', visible: true },
+  { id: 'closed', title: 'CERRADAS', color: 'bg-emerald-500', visible: true }
+];
 
 export default function TaskBoard() {
   const { user } = useAuthStore();
   const { searchQuery } = useUIStore(); 
   const [tasks, setTasks] = useState([]);
   const [selectedTask, setSelectedTask] = useState(null);
+  const [taskToEdit, setTaskToEdit] = useState(null);
   const [newTaskComment, setNewTaskComment] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [collapsedColumns, setCollapsedColumns] = useState({});
+  
   const [draggedTaskId, setDraggedTaskId] = useState(null);
-  const [draggedColId, setDraggedColId] = useState(null);
+  const [draggedOverColId, setDraggedOverColId] = useState(null); // Más fluido en HTML5
   const [actionError, setActionError] = useState(null);
   
-  // ESTADOS DEL FILTRO EN CASCADA (ÁREA -> EMPLEADO)
-  const [adminArea, setAdminArea] = useState('Todas');
   const [adminEmployee, setAdminEmployee] = useState('Todos');
   const [systemUsers, setSystemUsers] = useState([]);
-  
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
 
-  // LÓGICA MULTI-ROL
+  const [isColumnSettingsOpen, setIsColumnSettingsOpen] = useState(false);
+  const [kanbanColumns, setKanbanColumns] = useState(() => {
+    const saved = localStorage.getItem('remex_board_cols');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return defaultCols.map(dc => {
+        const found = parsed.find(p => p.id === dc.id);
+        return found ? { ...dc, title: found.title, visible: found.visible !== false } : dc;
+      });
+    }
+    return defaultCols;
+  });
+
+  useEffect(() => localStorage.setItem('remex_board_cols', JSON.stringify(kanbanColumns)), [kanbanColumns]);
+
   const userRoles = user?.roles || (user?.role ? [user.role] : []);
   const isSuperUser = userRoles.includes('Super_Usuario');
-
-  const [kanbanColumns, setKanbanColumns] = useState([
-    { id: 'open', title: 'NUEVAS', color: 'bg-zinc-500' },
-    { id: 'blocked', title: 'BLOQUEADAS', color: 'bg-red-500' },
-    { id: 'in_progress', title: 'EN PROCESO', color: 'bg-blue-500' },
-    { id: 'pending_validation', title: 'PENDIENTE VALIDACIÓN', color: 'bg-yellow-500' },
-    { id: 'closed', title: 'CERRADAS', color: 'bg-emerald-500' }
-  ]);
 
   useEffect(() => {
     const unsubscribeTasks = subscribeToTasks((data) => {
@@ -193,80 +205,47 @@ export default function TaskBoard() {
     setNewTaskComment("");
   };
 
-  const handleTaskDragStart = (e, taskId) => {
-    e.stopPropagation();
+  const handleDragStart = (e, taskId) => {
     setDraggedTaskId(taskId);
     e.dataTransfer.effectAllowed = 'move';
   };
-
-  const handleTaskDrop = async (e, columnId) => {
+  
+  const handleDragOver = (e, colId) => {
     e.preventDefault();
-    e.stopPropagation();
+    if (draggedOverColId !== colId) setDraggedOverColId(colId);
+  };
+  
+  const handleDragLeave = () => setDraggedOverColId(null);
+  
+  const handleDrop = async (e, colId) => {
+    e.preventDefault();
+    setDraggedOverColId(null);
     if (draggedTaskId) {
       const task = tasks.find(t => t.id === draggedTaskId);
-      if (task && task.status !== columnId) {
-        if ((columnId === 'in_progress' || columnId === 'pending_validation' || columnId === 'closed') && !checkDependencies(task)) {
-          setDraggedTaskId(null);
-          return;
+      if (task && task.status !== colId) {
+        if ((colId === 'in_progress' || colId === 'pending_validation' || colId === 'closed') && !checkDependencies(task)) {
+          setDraggedTaskId(null); return;
         }
-        setTasks(prev => prev.map(t => t.id === draggedTaskId ? { ...t, status: columnId } : t));
-        await updateTaskStatusInDb(draggedTaskId, columnId);
+        setTasks(prev => prev.map(t => t.id === draggedTaskId ? { ...t, status: colId } : t));
+        await updateTaskStatusInDb(draggedTaskId, colId);
       }
       setDraggedTaskId(null);
     }
   };
 
-  const handleColDragStart = (e, colId) => {
-    setDraggedColId(colId);
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleColDragOver = (e) => {
-    e.preventDefault(); 
-    e.dataTransfer.dropEffect = 'move';
-  };
-
-  const handleColDrop = (e, targetColId) => {
-    e.preventDefault();
-    if (draggedColId && draggedColId !== targetColId) {
-      const oldIndex = kanbanColumns.findIndex(c => c.id === draggedColId);
-      const newIndex = kanbanColumns.findIndex(c => c.id === targetColId);
-      const newCols = [...kanbanColumns];
-      const [movedCol] = newCols.splice(oldIndex, 1);
-      newCols.splice(newIndex, 0, movedCol);
-      setKanbanColumns(newCols);
-    }
-    setDraggedColId(null);
-  };
-
-  const toggleColumn = (colId) => {
-    setCollapsedColumns(prev => ({ ...prev, [colId]: !prev[colId] }));
-  };
-
   const filteredTasks = tasks.filter(task => {
     if (searchQuery) {
-      const lowerQuery = searchQuery.toLowerCase();
-      const matchesSearch = task.title.toLowerCase().includes(lowerQuery) || task.id.toLowerCase().includes(lowerQuery) || task.assignedArea.toLowerCase().includes(lowerQuery);
-      if (!matchesSearch) return false;
+      const q = searchQuery.toLowerCase();
+      if (!task.title.toLowerCase().includes(q) && !task.id.toLowerCase().includes(q) && !(task.associatedContactName || '').toLowerCase().includes(q)) return false;
     }
     
-    if (isSuperUser) {
-      let matchArea = true;
-      let matchEmployee = true;
-
-      if (adminArea !== 'Todas') {
-        matchArea = task.creatorArea?.includes(adminArea) || task.assignedArea?.includes(adminArea);
-      }
-      if (adminEmployee !== 'Todos') {
-        matchEmployee = task.creatorArea?.includes(adminEmployee) || task.assignedArea?.includes(adminEmployee);
-      }
-
-      return matchArea && matchEmployee;
-    } else {
-      const myName = user?.name || '';
-      return userRoles.some(role => task.creatorArea?.includes(role) || task.assignedArea?.includes(role)) ||
-             task.creatorArea?.includes(myName) || task.assignedArea?.includes(myName);
+    if (isSuperUser && adminEmployee !== 'Todos') {
+      return task.assignedEmployees?.includes(adminEmployee);
     }
+    if (!isSuperUser) {
+      return task.assignedEmployees?.includes(user?.name) || task.creatorArea?.includes(user?.name);
+    }
+    return true;
   });
 
   const getPriorityColor = (p) => {
@@ -275,46 +254,7 @@ export default function TaskBoard() {
     return 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20';
   };
 
-  const renderKanbanCard = (task) => (
-    <div 
-      key={task.id}
-      draggable 
-      onDragStart={(e) => handleTaskDragStart(e, task.id)}
-      onClick={() => setSelectedTask(task)}
-      className={`bg-zinc-900 border border-zinc-800 hover:border-orange-500/50 p-4 rounded-xl cursor-grab active:cursor-grabbing transition-all shadow-lg hover:shadow-[0_0_15px_rgba(249,115,22,0.15)] flex flex-col gap-3 group ${draggedTaskId === task.id ? 'opacity-40 scale-95 border-orange-500 border-dashed' : 'opacity-100'}`}
-    >
-      <div className="flex justify-between items-start">
-        <span className="text-[10px] font-black tracking-widest text-zinc-500">{task.id}</span>
-        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${getPriorityColor(task.priority)}`}>
-          {task.priority}
-        </span>
-      </div>
-      <h4 className="font-bold text-white text-sm leading-snug group-hover:text-orange-400 transition-colors">
-        {task.title}
-      </h4>
-      {task.requireJointApproval && (
-        <div className="flex items-center gap-1 text-[10px] text-orange-400 font-bold bg-orange-950/30 w-fit px-2 py-0.5 rounded border border-orange-500/30 uppercase">
-          <PenTool className="w-3 h-3"/> Firma Conjunta
-        </div>
-      )}
-      {task.dependencies && task.dependencies.length > 0 && task.status === 'blocked' && (
-        <div className="flex items-center gap-1 text-[10px] text-red-400 font-bold bg-red-950/30 w-fit px-2 py-0.5 rounded border border-red-500/30">
-          <LinkIcon className="w-3 h-3"/> Bloqueada
-        </div>
-      )}
-      <div className="mt-2 pt-3 border-t border-zinc-800 flex justify-between items-center text-xs pointer-events-none">
-        <div className="flex items-center gap-2 text-zinc-400">
-          {task.assignedArea.includes(',') ? <UserCircle className="w-4 h-4"/> : <User className="w-4 h-4"/>}
-          <span className="truncate max-w-[120px]">{task.assignedArea}</span>
-        </div>
-        {task.status === 'pending_validation' && (
-          <span className="animate-pulse flex items-center gap-1 text-yellow-500 font-bold text-[10px]">
-            <CheckCircle2 className="w-3 h-3"/> Validar
-          </span>
-        )}
-      </div>
-    </div>
-  );
+  const visibleColumns = kanbanColumns.filter(c => c.visible);
 
   return (
     <div className="flex-1 p-6 overflow-hidden flex flex-col h-full bg-zinc-950">
@@ -332,56 +272,40 @@ export default function TaskBoard() {
         <div>
           <h2 className="text-2xl font-black text-white flex items-center gap-3">
             Tablero de Operaciones
-            
-            {/* AGREGA ESTE BOTÓN DE AYUDA AQUÍ */}
-            <HelpTooltip text="Arrastra y suelta las tareas entre las columnas para avanzar. El sistema requerirá firmas conjuntas de las distintas áreas si la tarea lo exige antes de cerrarse." />
+            <HelpTooltip text="Arrastra y suelta las tareas entre las columnas para avanzar. En 'Columnas' puedes cambiarles el nombre u ocultarlas." />
 
-            {/* FILTRO EN CASCADA (Área -> Empleado) */}
             {isSuperUser && (
               <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-lg ml-2 shadow-inner">
                 <Eye className="w-4 h-4 text-orange-500" />
-                <span className="text-xs text-zinc-500 font-bold uppercase hidden sm:inline">Ver:</span>
+                <span className="text-xs text-zinc-500 font-bold uppercase hidden sm:inline">Ver Empleado:</span>
                 
                 <select 
-                  value={adminArea} 
-                  onChange={(e) => { setAdminArea(e.target.value); setAdminEmployee('Todos'); }} 
-                  className="bg-transparent text-orange-400 font-bold text-sm outline-none cursor-pointer border-r border-zinc-700 pr-2"
+                  value={adminEmployee} 
+                  onChange={(e) => setAdminEmployee(e.target.value)} 
+                  className="bg-transparent text-emerald-400 font-bold text-sm outline-none cursor-pointer pl-2"
                 >
-                  <option value="Todas" className="bg-zinc-900">Todas las áreas</option>
-                  <option value="Ventas" className="bg-zinc-900">Ventas</option>
-                  <option value="Operaciones" className="bg-zinc-900">Operaciones</option>
-                  <option value="Administración" className="bg-zinc-900">Administración</option>
-                  <option value="Marketing" className="bg-zinc-900">Marketing</option>
+                  <option value="Todos" className="bg-zinc-900">Todos</option>
+                  {systemUsers.map(u => <option key={u.id} value={u.name} className="bg-zinc-900">{u.name}</option>)}
                 </select>
-
-                {adminArea !== 'Todas' && (
-                  <select 
-                    value={adminEmployee} 
-                    onChange={(e) => setAdminEmployee(e.target.value)} 
-                    className="bg-transparent text-emerald-400 font-bold text-sm outline-none cursor-pointer pl-2"
-                  >
-                    <option value="Todos" className="bg-zinc-900">Todos los empleados</option>
-                    {systemUsers.filter(u => (u.roles || []).includes(adminArea) || u.role === adminArea).map(u => (
-                      <option key={u.id} value={u.name} className="bg-zinc-900">{u.name}</option>
-                    ))}
-                  </select>
-                )}
               </div>
             )}
           </h2>
           <p className="text-sm text-zinc-500 mt-1">
-            Vista actual: <span className="text-orange-400 font-bold">{isSuperUser ? (adminEmployee !== 'Todos' ? adminEmployee : adminArea) : userRoles.join(', ')}</span>
+            Vista actual: <span className="text-orange-400 font-bold">{isSuperUser ? adminEmployee : user?.name}</span>
           </p>
         </div>
         
         <div className="flex gap-4 w-full md:w-auto">
+          <button onClick={() => setIsColumnSettingsOpen(true)} className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors border border-zinc-700">
+            <Settings2 className="w-4 h-4"/> <span className="hidden sm:inline">Columnas</span>
+          </button>
           <button 
             onClick={handleCheckUpdate} 
             disabled={isCheckingUpdate}
-            className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors disabled:opacity-50 border border-zinc-700"
+            className="hidden sm:flex bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold px-4 py-2.5 rounded-xl text-sm items-center gap-2 transition-colors disabled:opacity-50 border border-zinc-700"
           >
             <RefreshCw className={`w-4 h-4 ${isCheckingUpdate ? 'animate-spin text-orange-500' : ''}`}/> 
-            <span className="hidden sm:inline">{isCheckingUpdate ? 'Buscando...' : 'Buscar Actualización'}</span>
+            <span>{isCheckingUpdate ? 'Buscando...' : 'Actualizar'}</span>
           </button>
 
           <button onClick={() => setIsCreateModalOpen(true)} className="bg-orange-600 hover:bg-orange-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 flex-1 md:flex-none hover:-translate-y-0.5">
@@ -391,62 +315,108 @@ export default function TaskBoard() {
       </div>
 
       <div className="flex-1 overflow-x-auto custom-scrollbar flex gap-6 pb-4">
-        {kanbanColumns.map(col => {
+        {visibleColumns.map(col => {
           const columnTasks = filteredTasks.filter(t => t.status === col.id);
-          const isCollapsed = collapsedColumns[col.id];
+          const isOver = draggedOverColId === col.id;
 
           return (
             <div 
               key={col.id} 
-              draggable 
-              onDragStart={(e) => handleColDragStart(e, col.id)}
-              onDragOver={handleColDragOver}
-              onDrop={(e) => {
-                if(draggedColId) handleColDrop(e, col.id);
-                else handleTaskDrop(e, col.id);
-              }}
-              className={`flex-shrink-0 flex flex-col bg-zinc-950/50 rounded-2xl border ${draggedTaskId ? 'border-zinc-700/80 bg-zinc-900/50' : 'border-zinc-800/50'} transition-all duration-300 ${isCollapsed ? 'w-[72px]' : 'w-[320px]'} ${draggedColId === col.id ? 'opacity-30' : ''}`}
+              onDragOver={(e) => handleDragOver(e, col.id)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, col.id)}
+              className={`flex-shrink-0 flex flex-col rounded-2xl border transition-all duration-200 w-[320px] 
+                ${isOver ? 'bg-orange-950/10 border-orange-500/50 ring-2 ring-orange-500/20' : 'bg-zinc-950/50 border-zinc-800/50'}
+              `}
             >
-              <div className={`p-4 border-b border-zinc-800 flex items-center justify-between sticky top-0 bg-zinc-950/90 backdrop-blur z-10 rounded-t-2xl cursor-grab active:cursor-grabbing ${isCollapsed ? 'flex-col gap-4 py-5' : ''}`}>
-                {!isCollapsed && (
-                  <div className="flex items-center gap-2 pointer-events-none">
-                    <GripVertical className="w-4 h-4 text-zinc-600"/>
-                    <div className={`w-2 h-2 rounded-full ${col.color}`}></div>
-                    <h3 className="font-black text-white text-sm">{col.title}</h3>
-                  </div>
-                )}
-                <div className={`flex items-center ${isCollapsed ? 'flex-col gap-4' : 'gap-2'}`}>
-                  {!isCollapsed && <span className="bg-zinc-800 text-zinc-400 text-xs px-2 py-0.5 rounded-md font-bold">{columnTasks.length}</span>}
-                  <button onClick={() => toggleColumn(col.id)} className="text-zinc-500 hover:text-white bg-zinc-900 hover:bg-zinc-800 p-1 rounded-md">
-                    {isCollapsed ? <ChevronRight className="w-4 h-4"/> : <ChevronLeft className="w-4 h-4"/>}
-                  </button>
+              <div className="p-4 border-b border-zinc-800 flex items-center justify-between sticky top-0 bg-zinc-950/90 backdrop-blur z-10 rounded-t-2xl">
+                <div className="flex items-center gap-2 pointer-events-none">
+                  <div className={`w-2 h-2 rounded-full ${col.color}`}></div>
+                  <h3 className="font-black text-white text-sm">{col.title}</h3>
                 </div>
-                {isCollapsed && (
-                  <div className="flex-1 flex flex-col items-center gap-4 mt-2">
-                    <GripVertical className="w-4 h-4 text-zinc-600 mb-2"/>
-                    <div className={`w-3 h-3 rounded-full ${col.color}`}></div>
-                    <span className="bg-zinc-800 text-zinc-400 text-[10px] px-2 py-1 rounded-md font-bold">{columnTasks.length}</span>
-                    <div className="text-zinc-500 font-black text-xs tracking-[0.2em] uppercase mt-4 whitespace-nowrap" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
-                      {col.title}
-                    </div>
-                  </div>
-                )}
+                <div className="flex items-center gap-2">
+                  <span className="bg-zinc-800 text-zinc-400 text-xs px-2 py-0.5 rounded-md font-bold">{columnTasks.length}</span>
+                </div>
               </div>
 
-              {!isCollapsed && (
-                <div className="flex-1 p-3 overflow-y-auto custom-scrollbar space-y-3">
-                  {!isLoading && columnTasks.map(task => renderKanbanCard(task))}
-                  {!isLoading && columnTasks.length === 0 && (
-                    <div className={`border-2 border-dashed rounded-xl h-24 flex items-center justify-center text-xs font-bold uppercase ${draggedTaskId ? 'border-orange-500/30 text-orange-500/50 bg-orange-500/5' : 'border-zinc-800 text-zinc-600'}`}>
-                      {draggedTaskId ? 'Soltar aquí' : 'Vacío'}
+              <div className="flex-1 p-3 overflow-y-auto custom-scrollbar space-y-3">
+                {!isLoading && columnTasks.map(task => (
+                  <div 
+                    key={task.id} 
+                    draggable 
+                    onDragStart={(e) => handleDragStart(e, task.id)}
+                    onClick={() => setSelectedTask(task)}
+                    className={`bg-zinc-900 border border-zinc-800 hover:border-orange-500/50 p-4 rounded-xl cursor-grab active:cursor-grabbing transition-all shadow-lg hover:shadow-[0_0_15px_rgba(249,115,22,0.15)] flex flex-col gap-3 group ${draggedTaskId === task.id ? 'opacity-40 scale-95 border-orange-500 border-dashed' : 'opacity-100'}`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <span className="text-[10px] font-black tracking-widest text-zinc-500">{task.id}</span>
+                      <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${getPriorityColor(task.priority)}`}>
+                        {task.priority}
+                      </span>
                     </div>
-                  )}
-                </div>
-              )}
+                    <h4 className="font-bold text-white text-sm leading-snug group-hover:text-orange-400 transition-colors">
+                      {task.title}
+                    </h4>
+
+                    {task.associatedContactName && (
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2 py-1 rounded border border-blue-500/20 w-fit">
+                        <Building2 className="w-3 h-3"/> {task.associatedContactName}
+                      </div>
+                    )}
+
+                    {task.requireJointApproval && (
+                      <div className="flex items-center gap-1 text-[10px] text-orange-400 font-bold bg-orange-950/30 w-fit px-2 py-0.5 rounded border border-orange-500/30 uppercase">
+                        <PenTool className="w-3 h-3"/> Firma Conjunta
+                      </div>
+                    )}
+                    {task.dependencies && task.dependencies.length > 0 && task.status === 'blocked' && (
+                      <div className="flex items-center gap-1 text-[10px] text-red-400 font-bold bg-red-950/30 w-fit px-2 py-0.5 rounded border border-red-500/30">
+                        <LinkIcon className="w-3 h-3"/> Bloqueada
+                      </div>
+                    )}
+                    <div className="mt-2 pt-3 border-t border-zinc-800 flex justify-between items-center text-xs pointer-events-none">
+                      <div className="flex items-center gap-2 text-zinc-400">
+                        <UserCircle className="w-4 h-4"/>
+                        <span className="truncate max-w-[120px]">{task.assignedEmployees?.join(', ') || 'Sin Asignar'}</span>
+                      </div>
+                      {task.status === 'pending_validation' && (
+                        <span className="animate-pulse flex items-center gap-1 text-yellow-500 font-bold text-[10px]">
+                          <CheckCircle2 className="w-3 h-3"/> Validar
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {isOver && draggedTaskId && <div className="border-2 border-dashed border-orange-500/50 rounded-xl h-24 bg-orange-500/5 transition-all"></div>}
+              </div>
             </div>
           );
         })}
       </div>
+
+      {isColumnSettingsOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex justify-center items-center p-4">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col">
+            <div className="p-5 border-b border-zinc-800 bg-zinc-900/50 flex justify-between items-center">
+              <h2 className="font-black text-white flex items-center gap-2"><Settings2 className="w-5 h-5 text-orange-500"/> Visibilidad de Columnas</h2>
+              <button onClick={() => setIsColumnSettingsOpen(false)} className="p-2 text-zinc-400 hover:text-white"><X className="w-5 h-5"/></button>
+            </div>
+            <div className="p-6 space-y-3">
+              {kanbanColumns.map((col, idx) => (
+                <div key={col.id} className="flex items-center gap-3 bg-black border border-zinc-800 p-3 rounded-xl">
+                  <button onClick={() => { const newCols = [...kanbanColumns]; newCols[idx].visible = !newCols[idx].visible; setKanbanColumns(newCols); }} className={`p-2 rounded-lg transition-colors ${col.visible ? 'bg-emerald-500/20 text-emerald-500' : 'bg-zinc-800 text-zinc-500'}`}>
+                    {col.visible ? <Eye className="w-4 h-4"/> : <EyeOff className="w-4 h-4"/>}
+                  </button>
+                  <input type="text" value={col.title} onChange={(e) => { const newCols = [...kanbanColumns]; newCols[idx].title = e.target.value; setKanbanColumns(newCols); }} className="flex-1 bg-transparent border-none text-white text-sm font-bold outline-none focus:border-b focus:border-orange-500 uppercase" />
+                </div>
+              ))}
+            </div>
+            <div className="p-5 bg-zinc-900 border-t border-zinc-800 flex justify-end">
+              <button onClick={() => setIsColumnSettingsOpen(false)} className="bg-orange-600 hover:bg-orange-500 text-black font-black px-6 py-2.5 rounded-xl text-sm">LISTO</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {selectedTask && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex justify-center items-center p-4">
@@ -461,17 +431,34 @@ export default function TaskBoard() {
                 </div>
                 <h2 className="text-2xl font-black text-white leading-tight">{selectedTask.title}</h2>
               </div>
-              <button onClick={() => setSelectedTask(null)} className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-white">
-                <X className="w-5 h-5"/>
-              </button>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => { setTaskToEdit(selectedTask); setIsCreateModalOpen(true); setSelectedTask(null); }} 
+                  className="p-2 bg-zinc-800 hover:bg-orange-600 rounded-xl text-zinc-400 hover:text-white transition-colors"
+                  title="Editar Tarea"
+                >
+                  <Edit2 className="w-5 h-5"/>
+                </button>
+                <button onClick={() => setSelectedTask(null)} className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-white">
+                  <X className="w-5 h-5"/>
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar p-8 flex flex-col gap-8 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-zinc-900/40 via-zinc-950 to-zinc-950">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl md:col-span-2">
                   <span className="text-xs text-zinc-500 font-bold uppercase block mb-1">Equipos / Personas Asignadas</span>
-                  <span className="text-white font-bold text-sm">{selectedTask.assignedArea}</span>
+                  <span className="text-white font-bold text-sm">{selectedTask.assignedEmployees?.join(', ') || 'Sin Asignar'}</span>
                 </div>
+                {selectedTask.associatedContactName && (
+                  <div className="bg-blue-900/10 border border-blue-900/30 p-4 rounded-2xl md:col-span-2">
+                    <span className="text-xs text-blue-500 font-bold uppercase block mb-1">Asociado a Cliente</span>
+                    <span className="text-blue-400 font-bold text-sm flex items-center gap-2">
+                      <Building2 className="w-4 h-4"/> {selectedTask.associatedContactName}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -524,7 +511,6 @@ export default function TaskBoard() {
                   </button>
                 </div>
               </div>
-
             </div>
 
             <div className="px-8 py-5 border-t border-zinc-800 bg-zinc-900 shrink-0 flex items-center justify-between">
@@ -582,7 +568,12 @@ export default function TaskBoard() {
         </div>
       )}
 
-      {isCreateModalOpen && <CreateTaskModal onClose={() => setIsCreateModalOpen(false)} />}
+      {isCreateModalOpen && (
+        <CreateTaskModal 
+          onClose={() => { setIsCreateModalOpen(false); setTaskToEdit(null); }} 
+          taskToEdit={taskToEdit} 
+        />
+      )}
     </div>
   );
 }

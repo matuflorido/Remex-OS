@@ -33,6 +33,11 @@ app.whenReady().then(() => {
 
   // Busca actualizaciones silenciosamente al abrir el programa
   autoUpdater.checkForUpdatesAndNotify();
+
+  // NUEVO: Buscar actualizaciones automáticamente una vez al día (cada 24 horas)
+  setInterval(() => {
+    autoUpdater.checkForUpdatesAndNotify();
+  }, 24 * 60 * 60 * 1000);
 });
 
 // --- NUEVA LÓGICA DEL ACTUALIZADOR MANUAL ---

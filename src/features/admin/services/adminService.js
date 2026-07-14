@@ -1,4 +1,4 @@
-import { collection, query, onSnapshot, doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, onSnapshot, doc, setDoc, updateDoc, serverTimestamp, addDoc, deleteDoc } from 'firebase/firestore';
 import { getAuth, sendPasswordResetEmail, createUserWithEmailAndPassword } from 'firebase/auth';
 import { db } from '../../../config/firebase';
 
@@ -18,43 +18,57 @@ export const createUserProfile = async (uid, userData) => {
   });
 };
 
-// NUEVO: Activar / Desactivar Usuario (Soft Delete)
 export const toggleUserStatus = async (uid, currentStatus) => {
   const userRef = doc(db, 'users', uid);
   await updateDoc(userRef, { isActive: !currentStatus });
 };
 
-// NUEVO: Enviar email de reseteo de contraseña
 export const sendResetEmail = async (email) => {
   const auth = getAuth();
   await sendPasswordResetEmail(auth, email);
 };
 
-// --- FUNCIONES AÑADIDAS PARA EL MODAL DE USUARIOS ---
-
-// Actualizar datos del usuario en Firestore (Roles, Nombre, etc.)
 export const updateUserData = async (userId, data, newPassword = null) => {
   const userRef = doc(db, 'users', userId);
-  
-  // Por reglas de seguridad de Firebase, no se puede cambiar la contraseña de otro usuario
-  // directamente desde el cliente (requiere Firebase Admin o Cloud Functions).
-  // Por ahora, actualizamos únicamente su perfil y roles en Firestore.
-  // Si necesitan cambiar clave, lo ideal es usar la función sendResetEmail de arriba.
   await updateDoc(userRef, data);
 };
 
-// Crear un nuevo usuario en Firebase Auth y guardar su perfil en Firestore
 export const registerUser = async (email, password, userData) => {
   const auth = getAuth();
-  
-  // Crea el usuario en Firebase Authentication
   const userCredential = await createUserWithEmailAndPassword(auth, email, password);
   
-  // Guarda el resto de los datos (roles, nombre) en la base de datos Firestore
   await createUserProfile(userCredential.user.uid, {
     email,
     ...userData
   });
   
   return userCredential.user;
+};
+
+// ==========================================
+// NUEVAS FUNCIONES: GESTOR DE ÁREAS
+// ==========================================
+export const subscribeToAreas = (callback) => {
+  const q = query(collection(db, 'areas'));
+  return onSnapshot(q, (snapshot) => {
+    const areas = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    callback(areas.sort((a, b) => a.name.localeCompare(b.name)));
+  });
+};
+
+export const saveAreaInDb = async (areaData) => {
+  if (areaData.id) {
+    const areaRef = doc(db, 'areas', areaData.id);
+    await updateDoc(areaRef, areaData);
+  } else {
+    await addDoc(collection(db, 'areas'), {
+      ...areaData,
+      subareas: areaData.subareas || [],
+      createdAt: serverTimestamp()
+    });
+  }
+};
+
+export const deleteAreaInDb = async (areaId) => {
+  await deleteDoc(doc(db, 'areas', areaId));
 };

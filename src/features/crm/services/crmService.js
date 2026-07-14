@@ -27,7 +27,7 @@ export const deleteContactInDb = async (contactId) => {
   await deleteDoc(contactRef);
 };
 
-// NUEVO: Agregar una nota al historial de un cliente
+// Agregar una nota al historial de un cliente
 export const addContactNoteInDb = async (contactId, note) => {
   const contactRef = doc(db, 'contacts', contactId);
   await updateDoc(contactRef, {
@@ -48,19 +48,21 @@ export const subscribeToZones = (callback) => {
   });
 };
 
-export const createZoneInDb = async (zoneName) => {
+// NUEVO: Agregamos el color al crear (por defecto naranja si no eligen)
+export const createZoneInDb = async (zoneName, color = '#f97316') => {
   await addDoc(collection(db, 'zones'), {
     name: zoneName,
+    color: color,
     createdAt: serverTimestamp()
   });
 };
 
-// Renombrar zona y actualizar automáticamente a todos sus clientes
-export const updateZoneAndContacts = async (zoneId, oldName, newName) => {
+// NUEVO: Agregamos el newColor al actualizar
+export const updateZoneAndContacts = async (zoneId, oldName, newName, newColor) => {
   const batch = writeBatch(db);
   
   // 1. Actualizar la zona maestra
-  batch.update(doc(db, 'zones', zoneId), { name: newName });
+  batch.update(doc(db, 'zones', zoneId), { name: newName, color: newColor });
   
   // 2. Buscar a todos los clientes vinculados y actualizarles el nombre
   const q = query(collection(db, 'contacts'), where('zone', '==', oldName));

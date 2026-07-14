@@ -1,34 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Shield, Plus, Edit2, UserX, UserCheck, Search, Activity, Mail } from 'lucide-react';
+import { Users, Shield, Plus, Edit2, UserX, UserCheck, Search, Activity, Mail, Layers } from 'lucide-react';
 import { collection, query, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import CreateUserModal from './CreateUserModal';
+import AreaManagerModal from './AreaManagerModal';
 import { useAuthStore } from '../../../store/useAuthStore';
 
 export default function AdminPanel() {
   const { user } = useAuthStore();
   const [usersList, setUsersList] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAreaModalOpen, setIsAreaModalOpen] = useState(false);
   const [userToEdit, setUserToEdit] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
-  // Solo el Super Usuario puede ver esto
   const isSuperUser = user?.roles?.includes('Super_Usuario') || user?.role === 'Super_Usuario';
 
   useEffect(() => {
     if (!isSuperUser) return;
-
     const q = query(collection(db, 'users'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const usersData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setUsersList(usersData);
       setIsLoading(false);
     });
-
     return () => unsubscribe();
   }, [isSuperUser]);
 
@@ -74,25 +70,24 @@ export default function AdminPanel() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
           <h2 className="text-2xl font-black text-white flex items-center gap-3">
-            <Shield className="w-7 h-7 text-orange-500" />
-            Centro de Administración
+            <Shield className="w-7 h-7 text-orange-500" /> Centro de Administración
           </h2>
-          <p className="text-sm text-zinc-500 mt-1">Gestión de usuarios, roles y accesos al sistema.</p>
+          <p className="text-sm text-zinc-500 mt-1">Gestión de usuarios, áreas y accesos al sistema.</p>
         </div>
-        <button 
-          onClick={handleCreateClick}
-          className="bg-orange-600 hover:bg-orange-500 text-black font-black px-6 py-3 rounded-xl text-sm flex items-center gap-2 transition-all hover:scale-105 shadow-[0_0_20px_rgba(249,115,22,0.2)]"
-        >
-          <Plus className="w-5 h-5"/> NUEVO USUARIO
-        </button>
+        <div className="flex gap-3">
+          <button onClick={() => setIsAreaModalOpen(true)} className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold px-4 py-3 rounded-xl text-sm flex items-center gap-2 transition-colors">
+            <Layers className="w-5 h-5"/> GESTIONAR ÁREAS
+          </button>
+          <button onClick={handleCreateClick} className="bg-orange-600 hover:bg-orange-500 text-black font-black px-6 py-3 rounded-xl text-sm flex items-center gap-2 transition-all hover:scale-105 shadow-[0_0_20px_rgba(249,115,22,0.2)]">
+            <Plus className="w-5 h-5"/> NUEVO USUARIO
+          </button>
+        </div>
       </div>
 
       <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-4 mb-6 flex items-center gap-3 backdrop-blur-sm">
         <Search className="w-5 h-5 text-zinc-500" />
         <input 
-          type="text" 
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Buscar por nombre, correo o área..." 
           className="flex-1 bg-transparent border-none text-white text-sm outline-none placeholder-zinc-600 font-mono"
         />
@@ -112,13 +107,9 @@ export default function AdminPanel() {
             </thead>
             <tbody className="divide-y divide-zinc-800/50">
               {isLoading ? (
-                <tr>
-                  <td colSpan="5" className="p-8 text-center text-zinc-500 font-bold">Cargando usuarios...</td>
-                </tr>
+                <tr><td colSpan="5" className="p-8 text-center text-zinc-500 font-bold">Cargando usuarios...</td></tr>
               ) : filteredUsers.length === 0 ? (
-                <tr>
-                  <td colSpan="5" className="p-8 text-center text-zinc-500 font-bold">No se encontraron usuarios.</td>
-                </tr>
+                <tr><td colSpan="5" className="p-8 text-center text-zinc-500 font-bold">No se encontraron usuarios.</td></tr>
               ) : (
                 filteredUsers.map((u) => (
                   <tr key={u.id} className="hover:bg-zinc-800/30 transition-colors group">
@@ -142,9 +133,7 @@ export default function AdminPanel() {
                             {role}
                           </span>
                         )) : (
-                          <span className="text-[10px] uppercase font-bold px-2 py-1 rounded-md border bg-zinc-800 text-zinc-300 border-zinc-700">
-                            {u.role || 'Sin área'}
-                          </span>
+                          <span className="text-[10px] uppercase font-bold px-2 py-1 rounded-md border bg-zinc-800 text-zinc-300 border-zinc-700">{u.role || 'Sin área'}</span>
                         )}
                       </div>
                     </td>
@@ -155,19 +144,10 @@ export default function AdminPanel() {
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button 
-                          onClick={() => handleEditClick(u)}
-                          className="p-2 bg-zinc-800 hover:bg-blue-600 text-zinc-400 hover:text-white rounded-lg transition-colors"
-                          title="Editar Usuario"
-                        >
+                        <button onClick={() => handleEditClick(u)} className="p-2 bg-zinc-800 hover:bg-blue-600 text-zinc-400 hover:text-white rounded-lg transition-colors" title="Editar Usuario">
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        
-                        <button 
-                          onClick={() => toggleUserStatus(u.id, u.isActive !== false)}
-                          className={`p-2 rounded-lg transition-colors ${u.isActive !== false ? 'bg-zinc-800 hover:bg-red-600 text-zinc-400 hover:text-white' : 'bg-red-950 border border-red-900 text-red-500 hover:bg-emerald-600 hover:text-white'}`}
-                          title={u.isActive !== false ? 'Suspender Usuario' : 'Activar Usuario'}
-                        >
+                        <button onClick={() => toggleUserStatus(u.id, u.isActive !== false)} className={`p-2 rounded-lg transition-colors ${u.isActive !== false ? 'bg-zinc-800 hover:bg-red-600 text-zinc-400 hover:text-white' : 'bg-red-950 border border-red-900 text-red-500 hover:bg-emerald-600 hover:text-white'}`} title={u.isActive !== false ? 'Suspender Usuario' : 'Activar Usuario'}>
                           {u.isActive !== false ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                         </button>
                       </div>
@@ -180,12 +160,8 @@ export default function AdminPanel() {
         </div>
       </div>
 
-      {isModalOpen && (
-        <CreateUserModal 
-          onClose={() => setIsModalOpen(false)} 
-          userToEdit={userToEdit}
-        />
-      )}
+      {isModalOpen && <CreateUserModal onClose={() => setIsModalOpen(false)} userToEdit={userToEdit} />}
+      {isAreaModalOpen && <AreaManagerModal onClose={() => setIsAreaModalOpen(false)} />}
     </div>
   );
 }

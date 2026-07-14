@@ -53,7 +53,7 @@ export default function SystemManual() {
   return (
     <div className="flex-1 flex flex-col h-full bg-zinc-950 overflow-hidden">
       
-      {}
+      {/* HEADER */}
       <div className="p-6 lg:p-8 shrink-0 border-b border-zinc-800 bg-zinc-900/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-2xl font-black text-white flex items-center gap-3">
@@ -65,7 +65,6 @@ export default function SystemManual() {
 
       <div className="flex-1 flex overflow-hidden">
         
-        {}
         {/* PANEL IZQUIERDO: Índice y Buscador */}
         <div className="w-80 border-r border-zinc-800 bg-black/20 flex flex-col shrink-0">
           <div className="p-4 border-b border-zinc-800">
@@ -97,7 +96,6 @@ export default function SystemManual() {
           </div>
         </div>
 
-        {}
         {/* PANEL DERECHO: Contenido */}
         <div className="flex-1 overflow-y-auto custom-scrollbar p-8 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-zinc-900/40 via-zinc-950 to-zinc-950">
           {activeTopic ? (
@@ -133,9 +131,9 @@ export default function SystemManual() {
               </div>
             </div>
           ) : (
-            <div className="flex items-center justify-center h-full text-zinc-500 font-bold">
-              Selecciona un tema del menú izquierdo.
-            </div>
+             <div className="flex items-center justify-center h-full text-zinc-500 font-bold">
+               Selecciona un tema del menú izquierdo.
+             </div>
           )}
         </div>
 
