@@ -13,7 +13,6 @@ import { subscribeToUsers } from '../../admin/services/adminService';
 import CreateTaskModal from './CreateTaskModal';
 import HelpTooltip from '../../../components/ui/HelpTooltip';
 
-// Puente de comunicación seguro con Electron
 const electron = window.require ? window.require('electron') : null;
 const ipcRenderer = electron ? electron.ipcRenderer : null;
 
@@ -35,23 +34,32 @@ export default function TaskBoard() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   
+  const [collapsedColumns, setCollapsedColumns] = useState({});
   const [draggedTaskId, setDraggedTaskId] = useState(null);
-  const [draggedOverColId, setDraggedOverColId] = useState(null); // Más fluido en HTML5
+  const [draggedOverColId, setDraggedOverColId] = useState(null);
+  const [draggedColId, setDraggedColId] = useState(null);
   const [actionError, setActionError] = useState(null);
   
+  const [adminArea, setAdminArea] = useState('Todas');
   const [adminEmployee, setAdminEmployee] = useState('Todos');
   const [systemUsers, setSystemUsers] = useState([]);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
 
   const [isColumnSettingsOpen, setIsColumnSettingsOpen] = useState(false);
+  
+  // Guardado de columnas con soporte de orden y visibilidad
   const [kanbanColumns, setKanbanColumns] = useState(() => {
     const saved = localStorage.getItem('remex_board_cols');
     if (saved) {
-      const parsed = JSON.parse(saved);
-      return defaultCols.map(dc => {
-        const found = parsed.find(p => p.id === dc.id);
-        return found ? { ...dc, title: found.title, visible: found.visible !== false } : dc;
-      });
+      try {
+        const parsed = JSON.parse(saved);
+        const validParsed = parsed.filter(p => defaultCols.some(dc => dc.id === p.id)).map(p => {
+          const dc = defaultCols.find(d => d.id === p.id);
+          return { ...dc, ...p, visible: p.visible !== false };
+        });
+        const missing = defaultCols.filter(dc => !parsed.some(p => p.id === dc.id));
+        return [...validParsed, ...missing];
+      } catch(e) {}
     }
     return defaultCols;
   });
@@ -111,7 +119,6 @@ export default function TaskBoard() {
 
   const handleRecurringClone = async (taskToClone) => {
     if (!taskToClone.recurrence || taskToClone.recurrence === 'none') return;
-
     const nextDate = new Date();
     if (taskToClone.recurrence === 'daily') nextDate.setDate(nextDate.getDate() + 1);
     else if (taskToClone.recurrence === 'weekly') nextDate.setDate(nextDate.getDate() + 7);
@@ -146,7 +153,6 @@ export default function TaskBoard() {
         comment: `Rutina generada automáticamente a partir del cierre de la tarea ${taskToClone.id}.`
       }]
     };
-
     await createTaskInDb(clonedTask);
   };
 
@@ -157,19 +163,16 @@ export default function TaskBoard() {
     if (newStatus === 'closed' && task) {
       await handleRecurringClone(task);
     }
-
     await updateTaskStatusInDb(taskId, newStatus);
     if(newStatus === 'closed') setTimeout(() => setSelectedTask(null), 300);
   };
 
   const handleJointApprove = async () => {
     if (!selectedTask) return;
-    
     const currentApprovals = selectedTask.approvedBy || [];
     const requiredAreas = selectedTask.assignedArea.split(',').map(a => a.trim());
     
     const myRelevantRoles = userRoles.filter(role => requiredAreas.includes(role));
-    
     if (!isSuperUser && myRelevantRoles.length > 0 && myRelevantRoles.every(r => currentApprovals.includes(r))) {
       return; 
     }
@@ -179,11 +182,7 @@ export default function TaskBoard() {
 
     if (isFullyApproved) {
       await handleRecurringClone(selectedTask);
-      
-      await updateTaskInDb(selectedTask.id, { 
-        approvedBy: isSuperUser ? requiredAreas : newApprovals, 
-        status: 'closed' 
-      });
+      await updateTaskInDb(selectedTask.id, { approvedBy: isSuperUser ? requiredAreas : newApprovals, status: 'closed' });
       setTimeout(() => setSelectedTask(null), 300);
     } else {
       await updateTaskInDb(selectedTask.id, { approvedBy: newApprovals });
@@ -192,7 +191,6 @@ export default function TaskBoard() {
 
   const handleAddComment = async () => {
     if (!newTaskComment.trim() || !selectedTask) return;
-    
     const now = new Date();
     const newHistoryEntry = { 
       date: now.toISOString().split('T')[0], 
@@ -200,25 +198,20 @@ export default function TaskBoard() {
       user: user.name, 
       comment: newTaskComment.trim()
     };
-    
     await addTaskCommentInDb(selectedTask.id, newHistoryEntry);
     setNewTaskComment("");
   };
 
-  const handleDragStart = (e, taskId) => {
+  // ARRASTRE DE TAREAS
+  const handleTaskDragStart = (e, taskId) => {
+    e.stopPropagation(); // Evita que se mueva la columna
     setDraggedTaskId(taskId);
     e.dataTransfer.effectAllowed = 'move';
   };
   
-  const handleDragOver = (e, colId) => {
+  const handleTaskDrop = async (e, colId) => {
     e.preventDefault();
-    if (draggedOverColId !== colId) setDraggedOverColId(colId);
-  };
-  
-  const handleDragLeave = () => setDraggedOverColId(null);
-  
-  const handleDrop = async (e, colId) => {
-    e.preventDefault();
+    e.stopPropagation();
     setDraggedOverColId(null);
     if (draggedTaskId) {
       const task = tasks.find(t => t.id === draggedTaskId);
@@ -233,19 +226,54 @@ export default function TaskBoard() {
     }
   };
 
+  // ARRASTRE DE COLUMNAS
+  const handleColDragStart = (e, colId) => {
+    setDraggedColId(colId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleColDragOver = (e) => {
+    e.preventDefault(); 
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleColDrop = (e, targetColId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (draggedColId && draggedColId !== targetColId) {
+      const oldIndex = kanbanColumns.findIndex(c => c.id === draggedColId);
+      const newIndex = kanbanColumns.findIndex(c => c.id === targetColId);
+      const newCols = [...kanbanColumns];
+      const [movedCol] = newCols.splice(oldIndex, 1);
+      newCols.splice(newIndex, 0, movedCol);
+      setKanbanColumns(newCols);
+    }
+    setDraggedColId(null);
+  };
+
+  const toggleColumn = (colId) => {
+    setCollapsedColumns(prev => ({ ...prev, [colId]: !prev[colId] }));
+  };
+
   const filteredTasks = tasks.filter(task => {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       if (!task.title.toLowerCase().includes(q) && !task.id.toLowerCase().includes(q) && !(task.associatedContactName || '').toLowerCase().includes(q)) return false;
     }
     
-    if (isSuperUser && adminEmployee !== 'Todos') {
-      return task.assignedEmployees?.includes(adminEmployee);
+    if (isSuperUser) {
+      let matchArea = true;
+      let matchEmployee = true;
+      if (adminArea !== 'Todas') {
+        matchArea = task.creatorArea?.includes(adminArea) || task.assignedArea?.includes(adminArea) || task.assignedEmployees?.includes(adminArea);
+      }
+      if (adminEmployee !== 'Todos') {
+        matchEmployee = task.creatorArea?.includes(adminEmployee) || task.assignedArea?.includes(adminEmployee) || task.assignedEmployees?.includes(adminEmployee);
+      }
+      return matchArea && matchEmployee;
+    } else {
+      return task.assignedEmployees?.includes(user?.name) || task.creatorArea?.includes(user?.name) || task.assignedArea?.includes(user?.name);
     }
-    if (!isSuperUser) {
-      return task.assignedEmployees?.includes(user?.name) || task.creatorArea?.includes(user?.name);
-    }
-    return true;
   });
 
   const getPriorityColor = (p) => {
@@ -267,31 +295,46 @@ export default function TaskBoard() {
         </div>
       )}
 
-      {/* HEADER */}
+      {}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div>
           <h2 className="text-2xl font-black text-white flex items-center gap-3">
             Tablero de Operaciones
-            <HelpTooltip text="Arrastra y suelta las tareas entre las columnas para avanzar. En 'Columnas' puedes cambiarles el nombre u ocultarlas." />
+            <HelpTooltip text="Arrastra y suelta las tareas o columnas. Desde 'Columnas' puedes renombrar u ocultar tableros." />
 
             {isSuperUser && (
               <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-lg ml-2 shadow-inner">
                 <Eye className="w-4 h-4 text-orange-500" />
-                <span className="text-xs text-zinc-500 font-bold uppercase hidden sm:inline">Ver Empleado:</span>
+                <span className="text-xs text-zinc-500 font-bold uppercase hidden sm:inline">Ver:</span>
                 
                 <select 
-                  value={adminEmployee} 
-                  onChange={(e) => setAdminEmployee(e.target.value)} 
-                  className="bg-transparent text-emerald-400 font-bold text-sm outline-none cursor-pointer pl-2"
+                  value={adminArea} 
+                  onChange={(e) => { setAdminArea(e.target.value); setAdminEmployee('Todos'); }} 
+                  className="bg-transparent text-orange-400 font-bold text-sm outline-none cursor-pointer border-r border-zinc-700 pr-2"
                 >
-                  <option value="Todos" className="bg-zinc-900">Todos</option>
-                  {systemUsers.map(u => <option key={u.id} value={u.name} className="bg-zinc-900">{u.name}</option>)}
+                  <option value="Todas" className="bg-zinc-900">Todas las áreas</option>
+                  <option value="Ventas" className="bg-zinc-900">Ventas</option>
+                  <option value="Operaciones" className="bg-zinc-900">Operaciones</option>
+                  <option value="Administración" className="bg-zinc-900">Administración</option>
+                  <option value="Marketing" className="bg-zinc-900">Marketing</option>
                 </select>
+                {adminArea !== 'Todas' && (
+                  <select 
+                    value={adminEmployee} 
+                    onChange={(e) => setAdminEmployee(e.target.value)} 
+                    className="bg-transparent text-emerald-400 font-bold text-sm outline-none cursor-pointer pl-2"
+                  >
+                    <option value="Todos" className="bg-zinc-900">Todos los empleados</option>
+                    {systemUsers.filter(u => (u.roles || []).includes(adminArea) || u.role === adminArea).map(u => (
+                      <option key={u.id} value={u.name} className="bg-zinc-900">{u.name}</option>
+                    ))}
+                  </select>
+                )}
               </div>
             )}
           </h2>
           <p className="text-sm text-zinc-500 mt-1">
-            Vista actual: <span className="text-orange-400 font-bold">{isSuperUser ? adminEmployee : user?.name}</span>
+            Vista actual: <span className="text-orange-400 font-bold">{isSuperUser ? (adminEmployee !== 'Todos' ? adminEmployee : adminArea) : user?.name}</span>
           </p>
         </div>
         
@@ -314,94 +357,125 @@ export default function TaskBoard() {
         </div>
       </div>
 
+      {}
       <div className="flex-1 overflow-x-auto custom-scrollbar flex gap-6 pb-4">
         {visibleColumns.map(col => {
           const columnTasks = filteredTasks.filter(t => t.status === col.id);
-          const isOver = draggedOverColId === col.id;
+          const isCollapsed = collapsedColumns[col.id];
+          const isOver = draggedOverColId === col.id && draggedTaskId; // Solo ilumina si arrastramos tarea
 
           return (
             <div 
               key={col.id} 
-              onDragOver={(e) => handleDragOver(e, col.id)}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, col.id)}
-              className={`flex-shrink-0 flex flex-col rounded-2xl border transition-all duration-200 w-[320px] 
+              draggable 
+              onDragStart={(e) => handleColDragStart(e, col.id)}
+              onDragOver={(e) => {
+                if (draggedColId) handleColDragOver(e); // Para columnas
+                else if (draggedTaskId) { e.preventDefault(); setDraggedOverColId(col.id); } // Para tareas
+              }}
+              onDragLeave={() => setDraggedOverColId(null)}
+              onDrop={(e) => {
+                if (draggedColId) handleColDrop(e, col.id);
+                else if (draggedTaskId) handleTaskDrop(e, col.id);
+              }}
+              className={`flex-shrink-0 flex flex-col rounded-2xl border transition-all duration-300 
+                ${isCollapsed ? 'w-[72px]' : 'w-[320px]'}
                 ${isOver ? 'bg-orange-950/10 border-orange-500/50 ring-2 ring-orange-500/20' : 'bg-zinc-950/50 border-zinc-800/50'}
+                ${draggedColId === col.id ? 'opacity-30' : 'opacity-100'}
               `}
             >
-              <div className="p-4 border-b border-zinc-800 flex items-center justify-between sticky top-0 bg-zinc-950/90 backdrop-blur z-10 rounded-t-2xl">
-                <div className="flex items-center gap-2 pointer-events-none">
-                  <div className={`w-2 h-2 rounded-full ${col.color}`}></div>
-                  <h3 className="font-black text-white text-sm">{col.title}</h3>
+              <div className={`p-4 border-b border-zinc-800 flex items-center justify-between sticky top-0 bg-zinc-950/90 backdrop-blur z-10 rounded-t-2xl ${isCollapsed ? 'flex-col gap-4 py-5' : ''}`}>
+                {!isCollapsed && (
+                  <div className="flex items-center gap-2 pointer-events-none">
+                    <GripVertical className="w-4 h-4 text-zinc-600"/>
+                    <div className={`w-2 h-2 rounded-full ${col.color}`}></div>
+                    <h3 className="font-black text-white text-sm">{col.title}</h3>
+                  </div>
+                )}
+                <div className={`flex items-center ${isCollapsed ? 'flex-col gap-4' : 'gap-2'}`}>
+                  {!isCollapsed && <span className="bg-zinc-800 text-zinc-400 text-xs px-2 py-0.5 rounded-md font-bold">{columnTasks.length}</span>}
+                  <button onClick={() => toggleColumn(col.id)} className="text-zinc-500 hover:text-white bg-zinc-900 hover:bg-zinc-800 p-1.5 rounded-md transition-colors">
+                    {isCollapsed ? <ChevronRight className="w-4 h-4"/> : <ChevronLeft className="w-4 h-4"/>}
+                  </button>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="bg-zinc-800 text-zinc-400 text-xs px-2 py-0.5 rounded-md font-bold">{columnTasks.length}</span>
-                </div>
-              </div>
-
-              <div className="flex-1 p-3 overflow-y-auto custom-scrollbar space-y-3">
-                {!isLoading && columnTasks.map(task => (
-                  <div 
-                    key={task.id} 
-                    draggable 
-                    onDragStart={(e) => handleDragStart(e, task.id)}
-                    onClick={() => setSelectedTask(task)}
-                    className={`bg-zinc-900 border border-zinc-800 hover:border-orange-500/50 p-4 rounded-xl cursor-grab active:cursor-grabbing transition-all shadow-lg hover:shadow-[0_0_15px_rgba(249,115,22,0.15)] flex flex-col gap-3 group ${draggedTaskId === task.id ? 'opacity-40 scale-95 border-orange-500 border-dashed' : 'opacity-100'}`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <span className="text-[10px] font-black tracking-widest text-zinc-500">{task.id}</span>
-                      <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${getPriorityColor(task.priority)}`}>
-                        {task.priority}
-                      </span>
-                    </div>
-                    <h4 className="font-bold text-white text-sm leading-snug group-hover:text-orange-400 transition-colors">
-                      {task.title}
-                    </h4>
-
-                    {task.associatedContactName && (
-                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2 py-1 rounded border border-blue-500/20 w-fit">
-                        <Building2 className="w-3 h-3"/> {task.associatedContactName}
-                      </div>
-                    )}
-
-                    {task.requireJointApproval && (
-                      <div className="flex items-center gap-1 text-[10px] text-orange-400 font-bold bg-orange-950/30 w-fit px-2 py-0.5 rounded border border-orange-500/30 uppercase">
-                        <PenTool className="w-3 h-3"/> Firma Conjunta
-                      </div>
-                    )}
-                    {task.dependencies && task.dependencies.length > 0 && task.status === 'blocked' && (
-                      <div className="flex items-center gap-1 text-[10px] text-red-400 font-bold bg-red-950/30 w-fit px-2 py-0.5 rounded border border-red-500/30">
-                        <LinkIcon className="w-3 h-3"/> Bloqueada
-                      </div>
-                    )}
-                    <div className="mt-2 pt-3 border-t border-zinc-800 flex justify-between items-center text-xs pointer-events-none">
-                      <div className="flex items-center gap-2 text-zinc-400">
-                        <UserCircle className="w-4 h-4"/>
-                        <span className="truncate max-w-[120px]">{task.assignedEmployees?.join(', ') || 'Sin Asignar'}</span>
-                      </div>
-                      {task.status === 'pending_validation' && (
-                        <span className="animate-pulse flex items-center gap-1 text-yellow-500 font-bold text-[10px]">
-                          <CheckCircle2 className="w-3 h-3"/> Validar
-                        </span>
-                      )}
+                {isCollapsed && (
+                  <div className="flex-1 flex flex-col items-center gap-4 mt-2">
+                    <GripVertical className="w-4 h-4 text-zinc-600 mb-2"/>
+                    <div className={`w-3 h-3 rounded-full ${col.color}`}></div>
+                    <span className="bg-zinc-800 text-zinc-400 text-[10px] px-2 py-1 rounded-md font-bold">{columnTasks.length}</span>
+                    <div className="text-zinc-500 font-black text-xs tracking-[0.2em] uppercase mt-4 whitespace-nowrap" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
+                      {col.title}
                     </div>
                   </div>
-                ))}
-                {isOver && draggedTaskId && <div className="border-2 border-dashed border-orange-500/50 rounded-xl h-24 bg-orange-500/5 transition-all"></div>}
+                )}
               </div>
+
+              {!isCollapsed && (
+                <div className="flex-1 p-3 overflow-y-auto custom-scrollbar space-y-3">
+                  {!isLoading && columnTasks.map(task => (
+                    <div 
+                      key={task.id} 
+                      draggable 
+                      onDragStart={(e) => handleTaskDragStart(e, task.id)}
+                      onClick={() => setSelectedTask(task)}
+                      className={`bg-zinc-900 border border-zinc-800 hover:border-orange-500/50 p-4 rounded-xl cursor-grab active:cursor-grabbing transition-all shadow-lg hover:shadow-[0_0_15px_rgba(249,115,22,0.15)] flex flex-col gap-3 group ${draggedTaskId === task.id ? 'opacity-40 scale-95 border-orange-500 border-dashed' : 'opacity-100'}`}
+                    >
+                      <div className="flex justify-between items-start">
+                        <span className="text-[10px] font-black tracking-widest text-zinc-500">{task.id}</span>
+                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${getPriorityColor(task.priority)}`}>
+                          {task.priority}
+                        </span>
+                      </div>
+                      <h4 className="font-bold text-white text-sm leading-snug group-hover:text-orange-400 transition-colors">
+                        {task.title}
+                      </h4>
+
+                      {task.associatedContactName && (
+                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2 py-1 rounded border border-blue-500/20 w-fit">
+                          <Building2 className="w-3 h-3"/> {task.associatedContactName}
+                        </div>
+                      )}
+
+                      {task.requireJointApproval && (
+                        <div className="flex items-center gap-1 text-[10px] text-orange-400 font-bold bg-orange-950/30 w-fit px-2 py-0.5 rounded border border-orange-500/30 uppercase">
+                          <PenTool className="w-3 h-3"/> Firma Conjunta
+                        </div>
+                      )}
+                      {task.dependencies && task.dependencies.length > 0 && task.status === 'blocked' && (
+                        <div className="flex items-center gap-1 text-[10px] text-red-400 font-bold bg-red-950/30 w-fit px-2 py-0.5 rounded border border-red-500/30">
+                          <LinkIcon className="w-3 h-3"/> Bloqueada
+                        </div>
+                      )}
+                      <div className="mt-2 pt-3 border-t border-zinc-800 flex justify-between items-center text-xs pointer-events-none">
+                        <div className="flex items-center gap-2 text-zinc-400">
+                          <UserCircle className="w-4 h-4"/>
+                          <span className="truncate max-w-[120px]">{task.assignedEmployees?.join(', ') || task.assignedArea || 'Sin Asignar'}</span>
+                        </div>
+                        {task.status === 'pending_validation' && (
+                          <span className="animate-pulse flex items-center gap-1 text-yellow-500 font-bold text-[10px]">
+                            <CheckCircle2 className="w-3 h-3"/> Validar
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {isOver && draggedTaskId && <div className="border-2 border-dashed border-orange-500/50 rounded-xl h-24 bg-orange-500/5 transition-all"></div>}
+                </div>
+              )}
             </div>
           );
         })}
       </div>
 
+      {}
       {isColumnSettingsOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex justify-center items-center p-4">
           <div className="bg-zinc-950 border border-zinc-800 rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col">
             <div className="p-5 border-b border-zinc-800 bg-zinc-900/50 flex justify-between items-center">
-              <h2 className="font-black text-white flex items-center gap-2"><Settings2 className="w-5 h-5 text-orange-500"/> Visibilidad de Columnas</h2>
+              <h2 className="font-black text-white flex items-center gap-2"><Settings2 className="w-5 h-5 text-orange-500"/> Personalizar Columnas</h2>
               <button onClick={() => setIsColumnSettingsOpen(false)} className="p-2 text-zinc-400 hover:text-white"><X className="w-5 h-5"/></button>
             </div>
-            <div className="p-6 space-y-3">
+            <div className="p-6 space-y-3 max-h-[60vh] overflow-y-auto custom-scrollbar">
               {kanbanColumns.map((col, idx) => (
                 <div key={col.id} className="flex items-center gap-3 bg-black border border-zinc-800 p-3 rounded-xl">
                   <button onClick={() => { const newCols = [...kanbanColumns]; newCols[idx].visible = !newCols[idx].visible; setKanbanColumns(newCols); }} className={`p-2 rounded-lg transition-colors ${col.visible ? 'bg-emerald-500/20 text-emerald-500' : 'bg-zinc-800 text-zinc-500'}`}>
@@ -418,6 +492,7 @@ export default function TaskBoard() {
         </div>
       )}
 
+      {}
       {selectedTask && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex justify-center items-center p-4">
           <div className="bg-zinc-950 border border-zinc-800 rounded-3xl w-full max-w-4xl max-h-[95vh] flex flex-col shadow-2xl overflow-hidden">
@@ -449,7 +524,7 @@ export default function TaskBoard() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl md:col-span-2">
                   <span className="text-xs text-zinc-500 font-bold uppercase block mb-1">Equipos / Personas Asignadas</span>
-                  <span className="text-white font-bold text-sm">{selectedTask.assignedEmployees?.join(', ') || 'Sin Asignar'}</span>
+                  <span className="text-white font-bold text-sm">{selectedTask.assignedEmployees?.join(', ') || selectedTask.assignedArea || 'Sin Asignar'}</span>
                 </div>
                 {selectedTask.associatedContactName && (
                   <div className="bg-blue-900/10 border border-blue-900/30 p-4 rounded-2xl md:col-span-2">
@@ -527,8 +602,8 @@ export default function TaskBoard() {
                       <div className="flex flex-col gap-1">
                         <span className="text-[10px] text-zinc-500 font-bold uppercase">Firmas Requeridas:</span>
                         <div className="flex gap-2">
-                          {selectedTask.assignedArea.split(',').map(area => {
-                            const a = area.trim();
+                          {(selectedTask.assignedEmployees || []).map(emp => {
+                            const a = emp.trim();
                             const hasSigned = (selectedTask.approvedBy || []).includes(a);
                             return <span key={a} className={`px-2 py-1 text-[10px] rounded font-bold ${hasSigned ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-zinc-800 text-zinc-500 border border-zinc-700'}`}>{a} {hasSigned && '✓'}</span>
                           })}
@@ -536,10 +611,10 @@ export default function TaskBoard() {
                       </div>
                       
                       {(() => {
-                        const requiredAreas = selectedTask.assignedArea.split(',').map(a => a.trim());
-                        const myRelevantRoles = userRoles.filter(r => requiredAreas.includes(r));
-                        const hasSignedAllMyRoles = myRelevantRoles.length > 0 && myRelevantRoles.every(r => (selectedTask.approvedBy || []).includes(r));
-                        const canSign = isSuperUser || (!hasSignedAllMyRoles && myRelevantRoles.length > 0);
+                        const requiredEmp = selectedTask.assignedEmployees || [];
+                        const myName = user?.name || '';
+                        const hasSigned = (selectedTask.approvedBy || []).includes(myName);
+                        const canSign = isSuperUser || (requiredEmp.includes(myName) && !hasSigned);
                         
                         return canSign && (
                           <button 
