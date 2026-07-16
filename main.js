@@ -34,20 +34,18 @@ app.whenReady().then(() => {
   // Busca actualizaciones silenciosamente al abrir el programa
   autoUpdater.checkForUpdatesAndNotify();
 
-  // NUEVO: Buscar actualizaciones automáticamente una vez al día (cada 24 horas)
+  // Buscar actualizaciones automáticamente una vez al día (cada 24 horas)
   setInterval(() => {
     autoUpdater.checkForUpdatesAndNotify();
   }, 24 * 60 * 60 * 1000);
 });
 
-// --- NUEVA LÓGICA DEL ACTUALIZADOR MANUAL ---
+// --- LÓGICA DEL ACTUALIZADOR MANUAL ---
 let isManualCheck = false;
 
-// Evento: Cuando NO hay actualización
 autoUpdater.on('update-not-available', () => {
   if (isManualCheck) {
     isManualCheck = false; // Reiniciar bandera
-    const { dialog } = require('electron');
     dialog.showMessageBox({
       type: 'info',
       title: 'Actualizador de Remex OS',
@@ -56,10 +54,8 @@ autoUpdater.on('update-not-available', () => {
   }
 });
 
-// Evento: Cuando SÍ hay actualización
 autoUpdater.on('update-available', () => {
   if (isManualCheck) {
-    const { dialog } = require('electron');
     dialog.showMessageBox({
       type: 'info',
       title: 'Actualización encontrada',
@@ -68,18 +64,6 @@ autoUpdater.on('update-available', () => {
   }
 });
 
-// Escuchar el botón manual de "Buscar Actualización" desde React
-ipcMain.on('check-for-updates-manual', () => {
-  isManualCheck = true; // Avisar que fue el usuario quien hizo clic
-  autoUpdater.checkForUpdates().catch(err => {
-    isManualCheck = false;
-    const { dialog } = require('electron');
-    dialog.showErrorBox('Error de Actualización', 'Detalle técnico: ' + err.message);
-  });
-});
-// --- FIN NUEVA LÓGICA ---
-
-// Manejar la descarga completada (automático)
 autoUpdater.on('update-downloaded', (info) => {
   dialog.showMessageBox({
     type: 'info',
@@ -93,22 +77,15 @@ autoUpdater.on('update-downloaded', (info) => {
   });
 });
 
-// Escuchar el botón manual de "Buscar Actualización" desde React
 ipcMain.on('check-for-updates-manual', () => {
-  autoUpdater.checkForUpdates().then((result) => {
-    if (!result || !result.updateInfo) {
-      const { dialog } = require('electron');
-      dialog.showMessageBox({
-        type: 'info',
-        title: 'Actualizador',
-        message: 'Ya tienes la versión más reciente del sistema instalada.'
-      });
-    }
-  }).catch(err => {
-    const { dialog } = require('electron');
+  isManualCheck = true; 
+  autoUpdater.checkForUpdates().catch(err => {
+    isManualCheck = false;
     dialog.showErrorBox('Error de Actualización', 'Detalle técnico: ' + err.message);
   });
 });
+
+// --- LÓGICA DE NOTIFICACIONES Y GLOBOS ---
 
 // Puente para disparar notificaciones nativas desde React
 ipcMain.on('show-native-notification', (event, { title, body }) => {
@@ -117,6 +94,23 @@ ipcMain.on('show-native-notification', (event, { title, body }) => {
       title: title,
       body: body
     }).show();
+  }
+});
+
+// Pone un globito rojo con el número en el ícono de la barra de tareas
+ipcMain.on('update-badge-count', (event, count) => {
+  if (process.platform === 'darwin') {
+    app.setBadgeCount(count); // Globito rojo nativo en Mac
+  } else if (process.platform === 'win32') {
+    const wins = BrowserWindow.getAllWindows();
+    if (wins.length > 0) {
+      // En Windows hace titilar la app en la barra de tareas si hay alertas
+      if (count > 0) {
+        wins[0].flashFrame(true);
+      } else {
+        wins[0].flashFrame(false);
+      }
+    }
   }
 });
 

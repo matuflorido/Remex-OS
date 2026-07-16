@@ -12,14 +12,11 @@ const ipcRenderer = electron ? electron.ipcRenderer : null;
 export default function MainLayout({ children }) {
   const { user, logout } = useAuthStore();
   const { currentView, setCurrentView, searchQuery, setSearchQuery } = useUIStore();
-  const { notificationLevel } = useSettingsStore(); // Obtenemos el nivel configurado
-  
+  const { notificationLevel } = useSettingsStore(); 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [notifications, setNotifications] = useState([]);
   const [showNotifs, setShowNotifs] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false); // Estado para abrir el modal
-
-  // Referencia para saber si nos llegó una notificación NUEVA y no sonar al abrir la app por primera vez
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false); 
   const prevNotifCount = useRef(0);
 
   useEffect(() => {
@@ -27,19 +24,21 @@ export default function MainLayout({ children }) {
     const unsubscribe = subscribeToNotifications(user.role, (data) => {
       setNotifications(data);
 
-      // LÓGICA DE NOTIFICACIONES NATIVAS (Solo si hay más notificaciones que antes)
+      const unread = data.filter(n => !n.read).length;
+
+      // Actualizar el globo en el ícono de Windows/Mac
+      if (ipcRenderer) {
+        ipcRenderer.send('update-badge-count', unread);
+      }
+
       if (data.length > prevNotifCount.current && prevNotifCount.current !== 0) {
-        const newNotif = data[0]; // La notificación más reciente
+        const newNotif = data[0]; 
         
         if (notificationLevel !== 'none' && ipcRenderer) {
           let shouldNotify = true;
-          
-          // Si el usuario eligió "Solo importantes", verificamos si lo es (ej. un tag 'important' o prioridad alta)
-          // Asumimos que la tabla notifications puede traer una prioridad. Si no, lo mostramos igual.
           if (notificationLevel === 'important' && newNotif.priority !== 'high' && newNotif.priority !== 'critical') {
             shouldNotify = false;
           }
-
           if (shouldNotify) {
             ipcRenderer.send('show-native-notification', {
               title: newNotif.title || 'Nuevo Aviso',
@@ -48,14 +47,15 @@ export default function MainLayout({ children }) {
           }
         }
       }
-      
-      prevNotifCount.current = data.length; // Guardamos el nuevo contador
+      prevNotifCount.current = data.length; 
     });
-
     return () => unsubscribe();
   }, [user, notificationLevel]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
+  // Lógica para encender puntos rojos en el menú
+  const hasTaskAlerts = notifications.some(n => !n.read && (n.title.toLowerCase().includes('tarea') || n.title.toLowerCase().includes('operacion')));
+  const hasCrmAlerts = notifications.some(n => !n.read && (n.title.toLowerCase().includes('cliente') || n.title.toLowerCase().includes('crm')));
 
   const handleNotificationClick = async (notif) => {
     if (!notif.read) {
@@ -83,18 +83,27 @@ export default function MainLayout({ children }) {
 
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
           <div className="text-[10px] font-black text-zinc-600 uppercase mb-4 tracking-widest px-2 mt-2">Módulos</div>
+          
           <button onClick={() => setCurrentView('tasks')} className={`w-full flex items-center px-4 py-3 rounded-xl text-sm border transition-colors ${currentView === 'tasks' ? 'bg-orange-900/20 text-orange-400 border-orange-500/50' : 'border-transparent text-zinc-400 hover:bg-zinc-800'}`}>
-            <Activity className="w-5 h-5 shrink-0"/> {isSidebarOpen && <span className="ml-3 font-bold truncate">Motor de Tareas</span>}
+            <Activity className="w-5 h-5 shrink-0"/> 
+            {isSidebarOpen && <span className="ml-3 font-bold truncate">Motor de Tareas</span>}
+            {hasTaskAlerts && <span className="ml-auto w-2 h-2 bg-red-500 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span>}
           </button>
+
           <button onClick={() => setCurrentView('crm')} className={`w-full flex items-center px-4 py-3 rounded-xl text-sm border transition-colors ${currentView === 'crm' ? 'bg-orange-900/20 text-orange-400 border-orange-500/50' : 'border-transparent text-zinc-400 hover:bg-zinc-800'}`}>
-            <UserCircle className="w-5 h-5 shrink-0"/> {isSidebarOpen && <span className="ml-3 font-bold truncate">CRM Operativo</span>}
+            <UserCircle className="w-5 h-5 shrink-0"/> 
+            {isSidebarOpen && <span className="ml-3 font-bold truncate">CRM Operativo</span>}
+            {hasCrmAlerts && <span className="ml-auto w-2 h-2 bg-red-500 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span>}
           </button>
+
           <button onClick={() => setCurrentView('calendar')} className={`w-full flex items-center px-4 py-3 rounded-xl text-sm border transition-colors ${currentView === 'calendar' ? 'bg-orange-900/20 text-orange-400 border-orange-500/50' : 'border-transparent text-zinc-400 hover:bg-zinc-800'}`}>
             <CalendarDays className="w-5 h-5 shrink-0"/> {isSidebarOpen && <span className="ml-3 font-bold truncate">Agenda y Rutas</span>}
           </button>
+          
           <button onClick={() => setCurrentView('reports')} className={`w-full flex items-center px-4 py-3 rounded-xl text-sm border transition-colors ${currentView === 'reports' ? 'bg-orange-900/20 text-orange-400 border-orange-500/50' : 'border-transparent text-zinc-400 hover:bg-zinc-800'}`}>
             <BarChart3 className="w-5 h-5 shrink-0"/> {isSidebarOpen && <span className="ml-3 font-bold truncate">Estadísticas</span>}
           </button>
+          
           <button onClick={() => setCurrentView('admin')} className={`w-full flex items-center px-4 py-3 rounded-xl text-sm border transition-colors ${currentView === 'admin' ? 'bg-orange-900/20 text-orange-400 border-orange-500/50' : 'border-transparent text-zinc-400 hover:bg-zinc-800'}`}>
             <Wrench className="w-5 h-5 shrink-0"/> {isSidebarOpen && <span className="ml-3 font-bold truncate">Administración</span>}
           </button>
@@ -110,7 +119,7 @@ export default function MainLayout({ children }) {
            {isSidebarOpen && (
              <div className="mb-4 text-center">
                <span className="text-[10px] text-zinc-500 font-bold tracking-widest uppercase bg-zinc-900 px-3 py-1 rounded-full border border-zinc-800">
-                 Versión 1.3.0
+                 Versión 1.6.2
                </span>
              </div>
            )}
@@ -143,8 +152,6 @@ export default function MainLayout({ children }) {
             </div>
             
             <div className="flex items-center gap-2 border-l border-zinc-800 pl-4 sm:pl-6">
-              
-              {/* BOTÓN DE CONFIGURACIÓN */}
               <button 
                 onClick={() => setIsSettingsOpen(true)}
                 className="p-2 hover:bg-zinc-800 rounded-xl transition-colors text-zinc-400 hover:text-white"
@@ -157,10 +164,9 @@ export default function MainLayout({ children }) {
                 <button onClick={() => setShowNotifs(!showNotifs)} className="relative p-2 hover:bg-zinc-800 rounded-xl transition-colors">
                   <Bell className="w-5 h-5 text-zinc-400 hover:text-white"/>
                   {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-orange-500 rounded-full border-2 border-zinc-900"></span>
+                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-orange-500 rounded-full border-2 border-zinc-900 shadow-[0_0_8px_rgba(249,115,22,0.8)]"></span>
                   )}
                 </button>
-
                 {showNotifs && (
                   <div className="absolute right-0 top-full mt-2 w-80 max-h-96 overflow-y-auto bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl z-[100] custom-scrollbar">
                     <div className="p-4 border-b border-zinc-800 bg-black/20 flex justify-between items-center sticky top-0 backdrop-blur-md">
@@ -178,7 +184,7 @@ export default function MainLayout({ children }) {
                           className={`p-4 cursor-pointer transition-colors ${!notif.read ? 'bg-orange-500/5 hover:bg-orange-500/10' : 'hover:bg-zinc-800/50'}`}
                         >
                           <div className="flex items-start gap-3">
-                            {!notif.read ? <span className="w-2 h-2 rounded-full bg-orange-500 mt-1.5 shrink-0"></span> : <CheckCircle2 className="w-4 h-4 text-zinc-600 mt-0.5 shrink-0"/>}
+                            {!notif.read ? <span className="w-2 h-2 rounded-full bg-orange-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(249,115,22,0.8)]"></span> : <CheckCircle2 className="w-4 h-4 text-zinc-600 mt-0.5 shrink-0"/>}
                             <div>
                               <p className={`text-sm ${!notif.read ? 'text-white font-bold' : 'text-zinc-400'}`}>{notif.title}</p>
                               <p className="text-xs text-zinc-500 mt-1 leading-relaxed">{notif.message}</p>
@@ -198,7 +204,6 @@ export default function MainLayout({ children }) {
           {children}
         </main>
       </div>
-
       {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
     </div>
   );

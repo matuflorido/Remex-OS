@@ -3,7 +3,7 @@ import {
   CheckCircle2, AlertTriangle, UserCircle, ShieldCheck, 
   Plus, Link as LinkIcon, FileText, Settings2,
   CheckSquare, History, ArrowRight, CalendarDays, Clock, Database,
-  ChevronLeft, ChevronRight, Paperclip, Repeat, GripVertical, Eye, PenTool, Send, RefreshCw, User, Building2, EyeOff, Edit2
+  ChevronLeft, ChevronRight, Paperclip, Repeat, GripVertical, Eye, PenTool, Send, RefreshCw, User, Building2, EyeOff, Edit2, Lock
 } from 'lucide-react';
 import { X } from 'lucide-react';
 import { useAuthStore } from '../../../store/useAuthStore';
@@ -256,11 +256,24 @@ export default function TaskBoard() {
   };
 
   const filteredTasks = tasks.filter(task => {
+    // 1. Filtro de Búsqueda de texto
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       if (!task.title.toLowerCase().includes(q) && !task.id.toLowerCase().includes(q) && !(task.associatedContactName || '').toLowerCase().includes(q)) return false;
     }
     
+    const myName = user?.name || '';
+    
+    // 2. Filtro de Privacidad
+    if (task.isPrivate && !isSuperUser) {
+      const isCreator = task.creatorArea?.includes(myName);
+      const isAssignee = task.assignedEmployees?.includes(myName);
+      if (!isCreator && !isAssignee) {
+        return false; // Totalmente invisible si es privada y no le pertenece
+      }
+    }
+
+    // 3. Filtro de Vistas y Departamentos
     if (isSuperUser) {
       let matchArea = true;
       let matchEmployee = true;
@@ -268,11 +281,19 @@ export default function TaskBoard() {
         matchArea = task.creatorArea?.includes(adminArea) || task.assignedArea?.includes(adminArea) || task.assignedEmployees?.includes(adminArea);
       }
       if (adminEmployee !== 'Todos') {
-        matchEmployee = task.creatorArea?.includes(adminEmployee) || task.assignedArea?.includes(adminEmployee) || task.assignedEmployees?.includes(adminEmployee);
+        matchEmployee = task.assignedEmployees?.includes(adminEmployee);
       }
       return matchArea && matchEmployee;
     } else {
-      return task.assignedEmployees?.includes(user?.name) || task.creatorArea?.includes(user?.name) || task.assignedArea?.includes(user?.name);
+      const isAssignee = task.assignedEmployees?.includes(myName);
+      const isCreator = task.creatorArea?.includes(myName);
+      
+      if (task.isPrivate) {
+         return isAssignee || isCreator;
+      } else {
+         const isMyArea = userRoles.some(r => task.assignedArea?.includes(r));
+         return isAssignee || isCreator || isMyArea;
+      }
     }
   });
 
@@ -421,7 +442,9 @@ export default function TaskBoard() {
                       className={`bg-zinc-900 border border-zinc-800 hover:border-orange-500/50 p-4 rounded-xl cursor-grab active:cursor-grabbing transition-all shadow-lg hover:shadow-[0_0_15px_rgba(249,115,22,0.15)] flex flex-col gap-3 group ${draggedTaskId === task.id ? 'opacity-40 scale-95 border-orange-500 border-dashed' : 'opacity-100'}`}
                     >
                       <div className="flex justify-between items-start">
-                        <span className="text-[10px] font-black tracking-widest text-zinc-500">{task.id}</span>
+                        <span className="text-[10px] font-black tracking-widest text-zinc-500 flex items-center gap-1">
+                          {task.id} {task.isPrivate && <Lock className="w-3 h-3 text-red-500" title="Tarea Privada" />}
+                        </span>
                         <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${getPriorityColor(task.priority)}`}>
                           {task.priority}
                         </span>
@@ -503,6 +526,11 @@ export default function TaskBoard() {
                   <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${getPriorityColor(selectedTask.priority)}`}>
                     Prioridad: {selectedTask.priority}
                   </span>
+                  {selectedTask.isPrivate && (
+                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded border text-red-400 bg-red-500/10 border-red-500/20 flex items-center gap-1">
+                      <Lock className="w-3 h-3"/> Privada
+                    </span>
+                  )}
                 </div>
                 <h2 className="text-2xl font-black text-white leading-tight">{selectedTask.title}</h2>
               </div>
@@ -586,6 +614,7 @@ export default function TaskBoard() {
                   </button>
                 </div>
               </div>
+
             </div>
 
             <div className="px-8 py-5 border-t border-zinc-800 bg-zinc-900 shrink-0 flex items-center justify-between">
