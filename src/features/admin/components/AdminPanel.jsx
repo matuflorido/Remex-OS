@@ -5,6 +5,7 @@ import { db } from '../../../config/firebase';
 import CreateUserModal from './CreateUserModal';
 import AreaManagerModal from './AreaManagerModal';
 import { useAuthStore } from '../../../store/useAuthStore';
+import HelpTooltip from '../../../components/ui/HelpTooltip';
 
 export default function AdminPanel() {
   const { user } = useAuthStore();
@@ -19,12 +20,14 @@ export default function AdminPanel() {
 
   useEffect(() => {
     if (!isSuperUser) return;
+
     const q = query(collection(db, 'users'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setUsersList(usersData);
       setIsLoading(false);
     });
+
     return () => unsubscribe();
   }, [isSuperUser]);
 
@@ -71,6 +74,7 @@ export default function AdminPanel() {
         <div>
           <h2 className="text-2xl font-black text-white flex items-center gap-3">
             <Shield className="w-7 h-7 text-orange-500" /> Centro de Administración
+            <HelpTooltip text="Crea áreas dinámicas que alimentarán a toda la app. Forzar el cambio de una clave requiere y dispara una Cloud Function en la nube. (Manual, Cap 6)" />
           </h2>
           <p className="text-sm text-zinc-500 mt-1">Gestión de usuarios, áreas y accesos al sistema.</p>
         </div>
@@ -133,7 +137,7 @@ export default function AdminPanel() {
                             {role}
                           </span>
                         )) : (
-                          <span className="text-[10px] uppercase font-bold px-2 py-1 rounded-md border bg-zinc-800 text-zinc-300 border-zinc-700">{u.role || 'Sin área'}</span>
+                          <span className="text-[10px] uppercase font-bold px-2 py-1 rounded-md border bg-zinc-800 text-zinc-300 border-zinc-700">{u.role || 'Sin Área'}</span>
                         )}
                       </div>
                     </td>

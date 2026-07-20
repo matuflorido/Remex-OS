@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { 
   CheckCircle2, AlertTriangle, UserCircle, ShieldCheck, 
-  Plus, Link as LinkIcon, FileText, Settings2,
-  CheckSquare, History, ArrowRight, CalendarDays, Clock, Database,
-  ChevronLeft, ChevronRight, Paperclip, Repeat, GripVertical, Eye, PenTool, Send, RefreshCw, User, Building2, EyeOff, Edit2, Lock
+  Plus, Link as LinkIcon, FileText, Settings2, 
+  CheckSquare, History, ArrowRight, CalendarDays, Clock, Database, 
+  ChevronLeft, ChevronRight, Paperclip, Repeat, GripVertical, Eye, PenTool, Send, RefreshCw, User, Building2, EyeOff, Edit2, Lock, Trash2 
 } from 'lucide-react';
 import { X } from 'lucide-react';
 import { useAuthStore } from '../../../store/useAuthStore';
 import useUIStore from '../../../store/useUIStore';
-import { subscribeToTasks, updateTaskStatusInDb, addTaskCommentInDb, updateTaskInDb, createTaskInDb } from '../services/taskService';
-import { subscribeToUsers } from '../../admin/services/adminService';
+import { subscribeToTasks, updateTaskStatusInDb, addTaskCommentInDb, updateTaskInDb, createTaskInDb, deleteTaskWithLogInDb } from '../services/taskService';
+import { subscribeToUsers, subscribeToAreas } from '../../admin/services/adminService';
 import CreateTaskModal from './CreateTaskModal';
 import HelpTooltip from '../../../components/ui/HelpTooltip';
 
@@ -26,28 +26,27 @@ const defaultCols = [
 
 export default function TaskBoard() {
   const { user } = useAuthStore();
-  const { searchQuery } = useUIStore(); 
+  const { searchQuery } = useUIStore();
+  
   const [tasks, setTasks] = useState([]);
   const [selectedTask, setSelectedTask] = useState(null);
   const [taskToEdit, setTaskToEdit] = useState(null);
   const [newTaskComment, setNewTaskComment] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  
   const [collapsedColumns, setCollapsedColumns] = useState({});
   const [draggedTaskId, setDraggedTaskId] = useState(null);
   const [draggedOverColId, setDraggedOverColId] = useState(null);
   const [draggedColId, setDraggedColId] = useState(null);
   const [actionError, setActionError] = useState(null);
-  
   const [adminArea, setAdminArea] = useState('Todas');
   const [adminEmployee, setAdminEmployee] = useState('Todos');
   const [systemUsers, setSystemUsers] = useState([]);
+  const [systemAreas, setSystemAreas] = useState([]);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
-
   const [isColumnSettingsOpen, setIsColumnSettingsOpen] = useState(false);
-  
-  // Guardado de columnas con soporte de orden y visibilidad
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+
   const [kanbanColumns, setKanbanColumns] = useState(() => {
     const saved = localStorage.getItem('remex_board_cols');
     if (saved) {
@@ -80,15 +79,21 @@ export default function TaskBoard() {
     });
 
     let unsubscribeUsers = () => {};
+    let unsubscribeAreas = () => {};
+
     if (isSuperUser) {
       unsubscribeUsers = subscribeToUsers((usersData) => {
         setSystemUsers(usersData);
+      });
+      unsubscribeAreas = subscribeToAreas((areasData) => {
+        setSystemAreas(areasData);
       });
     }
 
     return () => {
       unsubscribeTasks();
       unsubscribeUsers();
+      unsubscribeAreas();
     };
   }, [selectedTask, isSuperUser]);
 
@@ -130,7 +135,6 @@ export default function TaskBoard() {
     else if (taskToClone.recurrence === 'annually') nextDate.setFullYear(nextDate.getFullYear() + 1);
 
     const randomId = `TSK-${Math.floor(1000 + Math.random() * 9000)}`;
-
     const resetBlocks = taskToClone.blocks?.map(block => {
       if (block.type === 'checklist') {
         return { ...block, items: block.items.map(item => ({ ...item, done: false })) };
@@ -158,7 +162,7 @@ export default function TaskBoard() {
 
   const updateTaskStatus = async (taskId, newStatus) => {
     const task = tasks.find(t => t.id === taskId);
-    if ((newStatus === 'in_progress' || newStatus === 'closed') && task && !checkDependencies(task)) return; 
+    if ((newStatus === 'in_progress' || newStatus === 'closed') && task && !checkDependencies(task)) return;
     
     if (newStatus === 'closed' && task) {
       await handleRecurringClone(task);
@@ -173,19 +177,22 @@ export default function TaskBoard() {
     const requiredAreas = selectedTask.assignedArea.split(',').map(a => a.trim());
     
     const myRelevantRoles = userRoles.filter(role => requiredAreas.includes(role));
+
     if (!isSuperUser && myRelevantRoles.length > 0 && myRelevantRoles.every(r => currentApprovals.includes(r))) {
       return; 
     }
     
-    const newApprovals = [...new Set([...currentApprovals, ...myRelevantRoles])]; 
-    const isFullyApproved = isSuperUser || requiredAreas.every(area => newApprovals.includes(area));
+    const newApprovals = [...new Set([...currentApprovals, ...myRelevantRoles])];
+    
+    const finalApprovals = isSuperUser ? requiredAreas : newApprovals;
+    const isFullyApproved = requiredAreas.every(area => finalApprovals.includes(area));
 
     if (isFullyApproved) {
       await handleRecurringClone(selectedTask);
-      await updateTaskInDb(selectedTask.id, { approvedBy: isSuperUser ? requiredAreas : newApprovals, status: 'closed' });
+      await updateTaskInDb(selectedTask.id, { approvedBy: finalApprovals, status: 'closed' });
       setTimeout(() => setSelectedTask(null), 300);
     } else {
-      await updateTaskInDb(selectedTask.id, { approvedBy: newApprovals });
+      await updateTaskInDb(selectedTask.id, { approvedBy: finalApprovals });
     }
   };
 
@@ -196,19 +203,33 @@ export default function TaskBoard() {
       date: now.toISOString().split('T')[0], 
       time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       user: user.name, 
-      comment: newTaskComment.trim()
+      comment: newTaskComment.trim() 
     };
     await addTaskCommentInDb(selectedTask.id, newHistoryEntry);
     setNewTaskComment("");
   };
 
-  // ARRASTRE DE TAREAS
+  const handleDeleteTask = async () => {
+    if (!selectedTask) return;
+    setIsLoading(true);
+    try {
+      await deleteTaskWithLogInDb(selectedTask, user.name);
+      setDeleteConfirmOpen(false);
+      setSelectedTask(null);
+    } catch (error) {
+      console.error("Error al eliminar la tarea:", error);
+      showError("Hubo un error al intentar eliminar la tarea.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleTaskDragStart = (e, taskId) => {
-    e.stopPropagation(); // Evita que se mueva la columna
+    e.stopPropagation();
     setDraggedTaskId(taskId);
     e.dataTransfer.effectAllowed = 'move';
   };
-  
+
   const handleTaskDrop = async (e, colId) => {
     e.preventDefault();
     e.stopPropagation();
@@ -226,7 +247,6 @@ export default function TaskBoard() {
     }
   };
 
-  // ARRASTRE DE COLUMNAS
   const handleColDragStart = (e, colId) => {
     setDraggedColId(colId);
     e.dataTransfer.effectAllowed = 'move';
@@ -256,7 +276,6 @@ export default function TaskBoard() {
   };
 
   const filteredTasks = tasks.filter(task => {
-    // 1. Filtro de Búsqueda de texto
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       if (!task.title.toLowerCase().includes(q) && !task.id.toLowerCase().includes(q) && !(task.associatedContactName || '').toLowerCase().includes(q)) return false;
@@ -264,28 +283,32 @@ export default function TaskBoard() {
     
     const myName = user?.name || '';
     
-    // 2. Filtro de Privacidad
     if (task.isPrivate && !isSuperUser) {
       const isCreator = task.creatorArea?.includes(myName);
-      const isAssignee = task.assignedEmployees?.includes(myName);
+      const isAssignee = (task.assignedEmployees && task.assignedEmployees.includes(myName)) || task.assignedArea?.includes(myName);
       if (!isCreator && !isAssignee) {
-        return false; // Totalmente invisible si es privada y no le pertenece
+        return false;
       }
     }
 
-    // 3. Filtro de Vistas y Departamentos
     if (isSuperUser) {
       let matchArea = true;
       let matchEmployee = true;
       if (adminArea !== 'Todas') {
-        matchArea = task.creatorArea?.includes(adminArea) || task.assignedArea?.includes(adminArea) || task.assignedEmployees?.includes(adminArea);
+        const employeesInArea = systemUsers.filter(u => (u.roles || []).includes(adminArea) || u.role === adminArea).map(u => u.name);
+        
+        matchArea = task.creatorArea?.includes(adminArea) ||
+                    task.assignedArea?.includes(adminArea) ||
+                    (task.assignedEmployees && task.assignedEmployees.some(emp => employeesInArea.includes(emp))) ||
+                    employeesInArea.some(emp => task.assignedArea?.includes(emp));
       }
       if (adminEmployee !== 'Todos') {
-        matchEmployee = task.assignedEmployees?.includes(adminEmployee);
+        matchEmployee = (task.assignedEmployees && task.assignedEmployees.includes(adminEmployee)) ||
+                        task.assignedArea?.includes(adminEmployee);
       }
       return matchArea && matchEmployee;
     } else {
-      const isAssignee = task.assignedEmployees?.includes(myName);
+      const isAssignee = (task.assignedEmployees && task.assignedEmployees.includes(myName)) || task.assignedArea?.includes(myName);
       const isCreator = task.creatorArea?.includes(myName);
       
       if (task.isPrivate) {
@@ -316,34 +339,32 @@ export default function TaskBoard() {
         </div>
       )}
 
-      {}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div>
           <h2 className="text-2xl font-black text-white flex items-center gap-3">
             Tablero de Operaciones
-            <HelpTooltip text="Arrastra y suelta las tareas o columnas. Desde 'Columnas' puedes renombrar u ocultar tableros." />
-
+            <HelpTooltip text="Arrastra tarjetas entre columnas. Tareas privadas y Firmas Conjuntas disponibles al crear tareas. Los borrados dejan auditoría. (Manual, Cap 2)" />
             {isSuperUser && (
               <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-lg ml-2 shadow-inner">
                 <Eye className="w-4 h-4 text-orange-500" />
                 <span className="text-xs text-zinc-500 font-bold uppercase hidden sm:inline">Ver:</span>
                 
-                <select 
-                  value={adminArea} 
-                  onChange={(e) => { setAdminArea(e.target.value); setAdminEmployee('Todos'); }} 
-                  className="bg-transparent text-orange-400 font-bold text-sm outline-none cursor-pointer border-r border-zinc-700 pr-2"
+                <select
+                   value={adminArea}
+                   onChange={(e) => { setAdminArea(e.target.value); setAdminEmployee('Todos'); }}
+                   className="bg-transparent text-orange-400 font-bold text-sm outline-none cursor-pointer border-r border-zinc-700 pr-2"
                 >
                   <option value="Todas" className="bg-zinc-900">Todas las áreas</option>
-                  <option value="Ventas" className="bg-zinc-900">Ventas</option>
-                  <option value="Operaciones" className="bg-zinc-900">Operaciones</option>
-                  <option value="Administración" className="bg-zinc-900">Administración</option>
-                  <option value="Marketing" className="bg-zinc-900">Marketing</option>
+                  {systemAreas.map(a => (
+                    <option key={a.id} value={a.name} className="bg-zinc-900">{a.name}</option>
+                  ))}
                 </select>
+
                 {adminArea !== 'Todas' && (
-                  <select 
-                    value={adminEmployee} 
-                    onChange={(e) => setAdminEmployee(e.target.value)} 
-                    className="bg-transparent text-emerald-400 font-bold text-sm outline-none cursor-pointer pl-2"
+                  <select
+                     value={adminEmployee}
+                     onChange={(e) => setAdminEmployee(e.target.value)}
+                     className="bg-transparent text-emerald-400 font-bold text-sm outline-none cursor-pointer pl-2"
                   >
                     <option value="Todos" className="bg-zinc-900">Todos los empleados</option>
                     {systemUsers.filter(u => (u.roles || []).includes(adminArea) || u.role === adminArea).map(u => (
@@ -363,36 +384,34 @@ export default function TaskBoard() {
           <button onClick={() => setIsColumnSettingsOpen(true)} className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors border border-zinc-700">
             <Settings2 className="w-4 h-4"/> <span className="hidden sm:inline">Columnas</span>
           </button>
-          <button 
-            onClick={handleCheckUpdate} 
-            disabled={isCheckingUpdate}
+          <button
+             onClick={handleCheckUpdate}
+             disabled={isCheckingUpdate}
             className="hidden sm:flex bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold px-4 py-2.5 rounded-xl text-sm items-center gap-2 transition-colors disabled:opacity-50 border border-zinc-700"
           >
             <RefreshCw className={`w-4 h-4 ${isCheckingUpdate ? 'animate-spin text-orange-500' : ''}`}/> 
             <span>{isCheckingUpdate ? 'Buscando...' : 'Actualizar'}</span>
           </button>
-
           <button onClick={() => setIsCreateModalOpen(true)} className="bg-orange-600 hover:bg-orange-500 text-black font-black px-6 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 flex-1 md:flex-none hover:-translate-y-0.5">
             <Plus className="w-4 h-4"/> NUEVA TAREA
           </button>
         </div>
       </div>
 
-      {}
       <div className="flex-1 overflow-x-auto custom-scrollbar flex gap-6 pb-4">
         {visibleColumns.map(col => {
           const columnTasks = filteredTasks.filter(t => t.status === col.id);
           const isCollapsed = collapsedColumns[col.id];
-          const isOver = draggedOverColId === col.id && draggedTaskId; // Solo ilumina si arrastramos tarea
+          const isOver = draggedOverColId === col.id && draggedTaskId;
 
           return (
-            <div 
-              key={col.id} 
-              draggable 
-              onDragStart={(e) => handleColDragStart(e, col.id)}
+            <div
+               key={col.id}
+               draggable
+               onDragStart={(e) => handleColDragStart(e, col.id)}
               onDragOver={(e) => {
-                if (draggedColId) handleColDragOver(e); // Para columnas
-                else if (draggedTaskId) { e.preventDefault(); setDraggedOverColId(col.id); } // Para tareas
+                if (draggedColId) handleColDragOver(e);
+                else if (draggedTaskId) { e.preventDefault(); setDraggedOverColId(col.id); }
               }}
               onDragLeave={() => setDraggedOverColId(null)}
               onDrop={(e) => {
@@ -434,10 +453,10 @@ export default function TaskBoard() {
               {!isCollapsed && (
                 <div className="flex-1 p-3 overflow-y-auto custom-scrollbar space-y-3">
                   {!isLoading && columnTasks.map(task => (
-                    <div 
-                      key={task.id} 
-                      draggable 
-                      onDragStart={(e) => handleTaskDragStart(e, task.id)}
+                    <div
+                       key={task.id}
+                       draggable
+                       onDragStart={(e) => handleTaskDragStart(e, task.id)}
                       onClick={() => setSelectedTask(task)}
                       className={`bg-zinc-900 border border-zinc-800 hover:border-orange-500/50 p-4 rounded-xl cursor-grab active:cursor-grabbing transition-all shadow-lg hover:shadow-[0_0_15px_rgba(249,115,22,0.15)] flex flex-col gap-3 group ${draggedTaskId === task.id ? 'opacity-40 scale-95 border-orange-500 border-dashed' : 'opacity-100'}`}
                     >
@@ -449,6 +468,7 @@ export default function TaskBoard() {
                           {task.priority}
                         </span>
                       </div>
+                      
                       <h4 className="font-bold text-white text-sm leading-snug group-hover:text-orange-400 transition-colors">
                         {task.title}
                       </h4>
@@ -464,11 +484,13 @@ export default function TaskBoard() {
                           <PenTool className="w-3 h-3"/> Firma Conjunta
                         </div>
                       )}
+
                       {task.dependencies && task.dependencies.length > 0 && task.status === 'blocked' && (
                         <div className="flex items-center gap-1 text-[10px] text-red-400 font-bold bg-red-950/30 w-fit px-2 py-0.5 rounded border border-red-500/30">
                           <LinkIcon className="w-3 h-3"/> Bloqueada
                         </div>
                       )}
+
                       <div className="mt-2 pt-3 border-t border-zinc-800 flex justify-between items-center text-xs pointer-events-none">
                         <div className="flex items-center gap-2 text-zinc-400">
                           <UserCircle className="w-4 h-4"/>
@@ -490,7 +512,6 @@ export default function TaskBoard() {
         })}
       </div>
 
-      {}
       {isColumnSettingsOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex justify-center items-center p-4">
           <div className="bg-zinc-950 border border-zinc-800 rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col">
@@ -515,7 +536,6 @@ export default function TaskBoard() {
         </div>
       )}
 
-      {}
       {selectedTask && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex justify-center items-center p-4">
           <div className="bg-zinc-950 border border-zinc-800 rounded-3xl w-full max-w-4xl max-h-[95vh] flex flex-col shadow-2xl overflow-hidden">
@@ -535,9 +555,21 @@ export default function TaskBoard() {
                 <h2 className="text-2xl font-black text-white leading-tight">{selectedTask.title}</h2>
               </div>
               <div className="flex items-center gap-2">
-                <button 
-                  onClick={() => { setTaskToEdit(selectedTask); setIsCreateModalOpen(true); setSelectedTask(null); }} 
-                  className="p-2 bg-zinc-800 hover:bg-orange-600 rounded-xl text-zinc-400 hover:text-white transition-colors"
+                
+                {/* BOTÓN DE ELIMINAR (SOLO SUPER USUARIO) */}
+                {isSuperUser && (
+                  <button
+                    onClick={() => setDeleteConfirmOpen(true)}
+                    className="p-2 bg-red-950/40 hover:bg-red-600 border border-red-900/50 rounded-xl text-red-500 hover:text-white transition-colors"
+                    title="Eliminar Tarea Permanentemente"
+                  >
+                    <Trash2 className="w-5 h-5"/>
+                  </button>
+                )}
+
+                <button
+                   onClick={() => { setTaskToEdit(selectedTask); setIsCreateModalOpen(true); setSelectedTask(null); }}
+                   className="p-2 bg-zinc-800 hover:bg-orange-600 rounded-xl text-zinc-400 hover:text-white transition-colors"
                   title="Editar Tarea"
                 >
                   <Edit2 className="w-5 h-5"/>
@@ -554,6 +586,7 @@ export default function TaskBoard() {
                   <span className="text-xs text-zinc-500 font-bold uppercase block mb-1">Equipos / Personas Asignadas</span>
                   <span className="text-white font-bold text-sm">{selectedTask.assignedEmployees?.join(', ') || selectedTask.assignedArea || 'Sin Asignar'}</span>
                 </div>
+                
                 {selectedTask.associatedContactName && (
                   <div className="bg-blue-900/10 border border-blue-900/30 p-4 rounded-2xl md:col-span-2">
                     <span className="text-xs text-blue-500 font-bold uppercase block mb-1">Asociado a Cliente</span>
@@ -597,42 +630,42 @@ export default function TaskBoard() {
                 </div>
 
                 <div className="flex gap-3">
-                  <input 
-                    type="text" 
-                    value={newTaskComment} 
-                    onChange={(e) => setNewTaskComment(e.target.value)} 
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
-                    placeholder="Escribir una actualización o comentario..." 
-                    className="flex-1 bg-black border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white focus:border-orange-500 outline-none transition-colors"
+                  <input
+                     type="text"
+                     value={newTaskComment}
+                     onChange={(e) => setNewTaskComment(e.target.value)}
+                     onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
+                    placeholder="Escribir una actualización o comentario..."
+                     className="flex-1 bg-black border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white focus:border-orange-500 outline-none transition-colors"
                   />
-                  <button 
-                    onClick={handleAddComment} 
-                    disabled={!newTaskComment.trim()}
+                  <button
+                     onClick={handleAddComment}
+                     disabled={!newTaskComment.trim()}
                     className="bg-zinc-800 hover:bg-orange-600 text-zinc-400 hover:text-white px-5 rounded-xl transition-colors disabled:opacity-50 flex items-center gap-2 font-bold text-sm"
                   >
                     <Send className="w-4 h-4"/>
                   </button>
                 </div>
               </div>
-
             </div>
 
             <div className="px-8 py-5 border-t border-zinc-800 bg-zinc-900 shrink-0 flex items-center justify-between">
               <div className="text-xs text-zinc-500 font-bold uppercase">Estado Actual: <span className="text-white ml-1">{selectedTask.status.replace('_', ' ')}</span></div>
+              
               <div className="flex gap-3 items-center">
-                
-                {selectedTask.status === 'in_progress' && (
+                 {selectedTask.status === 'in_progress' && (
                    <button onClick={() => updateTaskStatus(selectedTask.id, 'pending_validation')} className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm border border-zinc-700">MARCAR TERMINADO</button>
                 )}
-                
+                 
                 {selectedTask.status === 'pending_validation' && (
                   selectedTask.requireJointApproval ? (
                     <div className="flex items-center gap-4 bg-orange-950/20 border border-orange-900/30 p-2 rounded-xl">
                       <div className="flex flex-col gap-1">
-                        <span className="text-[10px] text-zinc-500 font-bold uppercase">Firmas Requeridas:</span>
+                        <span className="text-[10px] text-zinc-500 font-bold uppercase">Áreas Requeridas:</span>
                         <div className="flex gap-2">
-                          {(selectedTask.assignedEmployees || []).map(emp => {
-                            const a = emp.trim();
+                          {(selectedTask.assignedArea ? selectedTask.assignedArea.split(',') : []).map(areaStr => {
+                            const a = areaStr.trim();
+                            if(!a) return null;
                             const hasSigned = (selectedTask.approvedBy || []).includes(a);
                             return <span key={a} className={`px-2 py-1 text-[10px] rounded font-bold ${hasSigned ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-zinc-800 text-zinc-500 border border-zinc-700'}`}>{a} {hasSigned && '✓'}</span>
                           })}
@@ -640,15 +673,16 @@ export default function TaskBoard() {
                       </div>
                       
                       {(() => {
-                        const requiredEmp = selectedTask.assignedEmployees || [];
-                        const myName = user?.name || '';
-                        const hasSigned = (selectedTask.approvedBy || []).includes(myName);
-                        const canSign = isSuperUser || (requiredEmp.includes(myName) && !hasSigned);
+                        const requiredAreas = selectedTask.assignedArea ? selectedTask.assignedArea.split(',').map(a=>a.trim()) : [];
+                        const myRelevantRoles = userRoles.filter(role => requiredAreas.includes(role));
                         
+                        const hasMissingSignatures = myRelevantRoles.some(role => !(selectedTask.approvedBy || []).includes(role));
+                        const canSign = isSuperUser || hasMissingSignatures;
+
                         return canSign && (
-                          <button 
-                            onClick={handleJointApprove} 
-                            className="bg-orange-600 hover:bg-orange-500 text-black font-black px-6 py-2 rounded-xl text-sm shadow-[0_0_15px_rgba(249,115,22,0.3)] ml-4"
+                          <button
+                             onClick={handleJointApprove}
+                             className="bg-orange-600 hover:bg-orange-500 text-black font-black px-6 py-2 rounded-xl text-sm shadow-[0_0_15px_rgba(249,115,22,0.3)] ml-4"
                           >
                             <PenTool className="w-4 h-4 inline mr-2"/> FIRMAR APROBACIÓN
                           </button>
@@ -672,11 +706,31 @@ export default function TaskBoard() {
         </div>
       )}
 
+      {deleteConfirmOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex justify-center items-center p-4">
+          <div className="bg-zinc-950 border border-red-900/50 rounded-3xl w-full max-w-md shadow-[0_0_50px_rgba(220,38,38,0.3)] overflow-hidden flex flex-col p-8 text-center">
+            <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <h3 className="text-xl font-black text-white mb-2">¿Eliminar Tarea?</h3>
+            <p className="text-sm text-zinc-400 mb-6">
+              Esta acción quitará la tarea del tablero permanentemente. Quedará un registro de auditoría indicando que <b>{user?.name}</b> la eliminó.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteConfirmOpen(false)} className="flex-1 px-4 py-3 rounded-xl font-bold text-sm text-zinc-300 bg-zinc-800 hover:bg-zinc-700 transition-colors">
+                CANCELAR
+              </button>
+              <button onClick={handleDeleteTask} className="flex-1 px-4 py-3 rounded-xl font-black text-sm text-white bg-red-600 hover:bg-red-500 transition-colors">
+                SÍ, ELIMINAR
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isCreateModalOpen && (
-        <CreateTaskModal 
-          onClose={() => { setIsCreateModalOpen(false); setTaskToEdit(null); }} 
-          taskToEdit={taskToEdit} 
-        />
+        <CreateTaskModal
+           onClose={() => { setIsCreateModalOpen(false); setTaskToEdit(null); }}
+           taskToEdit={taskToEdit} 
+         />
       )}
     </div>
   );
