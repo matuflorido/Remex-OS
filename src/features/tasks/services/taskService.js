@@ -28,41 +28,29 @@ export const createTaskInDb = async (taskData) => {
   const taskRef = doc(db, 'tasks', taskData.id);
   await setDoc(taskRef, {
     ...taskData,
-    createdAt: serverTimestamp() 
+    createdAt: serverTimestamp()
   });
 };
 
-// NUEVO: Función para eliminar una tarea
-export const deleteTaskInDb = async (taskId) => {
-  const taskRef = doc(db, 'tasks', taskId);
-  await deleteDoc(taskRef);
-};
-
-export const loadMockData = async () => {
+// ==========================================
+// ELIMINACIÓN CON REGISTRO DE AUDITORÍA
+// ==========================================
+export const deleteTaskWithLogInDb = async (task, userName) => {
   const batch = writeBatch(db);
-  const INITIAL_TASKS = [
-    {
-      id: 'TSK-1001',
-      title: 'Actualizar Lista de Precios YPF',
-      type: 'Diaria',
-      creatorArea: 'Super_Usuario',
-      assignedArea: 'Administración',
-      status: 'in_progress',
-      priority: 'high',
-      dueDate: '2026-06-25',
-      blocks: [
-        { type: 'text', content: 'Descargar el último Excel del portal de YPF y actualizar los precios en el sistema 1.' },
-        { type: 'checklist', items: [{ title: 'Descargar Excel', done: true }, { title: 'Impactar en Sistema', done: false }] }
-      ],
-      dependencies: [],
-      history: [],
-      requireJointApproval: false,
-      approvedBy: []
-    }
-  ];
-  INITIAL_TASKS.forEach(task => {
-    const docRef = doc(db, 'tasks', task.id);
-    batch.set(docRef, task);
+
+  // 1. Guardar un registro exacto en la colección oculta de auditoría
+  const auditRef = doc(collection(db, 'deleted_tasks'));
+  batch.set(auditRef, {
+    ...task,
+    deletedAt: serverTimestamp(),
+    deletedBy: userName,
+    originalId: task.id
   });
+
+  // 2. Eliminar la tarea del tablero principal
+  const taskRef = doc(db, 'tasks', task.id);
+  batch.delete(taskRef);
+
+  // Ejecutar ambas acciones al mismo tiempo
   await batch.commit();
 };

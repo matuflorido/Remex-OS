@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X, Shield, Plus, Check, Mail, Lock, User, AlertTriangle, Layers } from 'lucide-react';
-import { registerUser, updateUserData, subscribeToAreas } from '../services/adminService'; 
+import { X, Shield, Plus, Lock, User, AlertTriangle, Layers, Mail } from 'lucide-react';
+import { registerUser, updateUserData, subscribeToAreas, forceUserPasswordChange } from '../services/adminService';
 
 export default function CreateUserModal({ onClose, userToEdit = null }) {
   const isEditing = !!userToEdit;
-
   const [formData, setFormData] = useState({ name: '', email: '', password: '' });
   const [selectedRoles, setSelectedRoles] = useState([]);
   const [dbAreas, setDbAreas] = useState([]);
-  
   const [tempArea, setTempArea] = useState('');
   const [tempSubArea, setTempSubArea] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -24,7 +22,7 @@ export default function CreateUserModal({ onClose, userToEdit = null }) {
       setFormData({
         name: userToEdit.name || '',
         email: userToEdit.email || '',
-        password: '', 
+        password: '', // Lo dejamos en blanco para que solo lo cambie si escribe algo
       });
       const userRoles = userToEdit.roles || (userToEdit.role ? [userToEdit.role] : []);
       setSelectedRoles(userRoles);
@@ -50,14 +48,20 @@ export default function CreateUserModal({ onClose, userToEdit = null }) {
       setError('Debes asignar al menos un área o rol al empleado para que pueda recibir tareas.');
       return;
     }
-
     setIsLoading(true);
     try {
       if (isEditing) {
+        // 1. Actualizamos datos de Firestore
         await updateUserData(userToEdit.id, {
           name: formData.name, email: formData.email, roles: selectedRoles, role: selectedRoles[0]
-        }, formData.password);
+        });
+        
+        // 2. Si el administrador escribió una nueva clave, llamamos a la Cloud Function
+        if (formData.password.trim() !== '') {
+          await forceUserPasswordChange(userToEdit.id, formData.password);
+        }
       } else {
+        // 3. Crear un usuario nuevo
         await registerUser(formData.email, formData.password, {
           name: formData.name, roles: selectedRoles, role: selectedRoles[0], isActive: true
         });
@@ -112,15 +116,17 @@ export default function CreateUserModal({ onClose, userToEdit = null }) {
                     <input type="email" name="email" required value={formData.email} onChange={handleChange} disabled={isEditing} placeholder="ana@empresa.com" className="w-full bg-black border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:border-orange-500 outline-none transition-colors disabled:opacity-50" />
                   </div>
                 </div>
+                
                 <div className="md:col-span-2">
                   <label className="block text-xs font-bold text-zinc-400 mb-1.5 ml-1">
-                    {isEditing ? 'Nueva Contraseña (Opcional)' : 'Contraseña Temporal'}
+                    {isEditing ? 'Forzar Nueva Contraseña (Dejar vacío si no se cambia)' : 'Contraseña Temporal'}
                   </label>
                   <div className="relative">
                     <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"/>
-                    <input type="password" name="password" required={!isEditing} value={formData.password} onChange={handleChange} placeholder={isEditing ? 'Dejar en blanco para no cambiarla' : 'Mínimo 6 caracteres'} className="w-full bg-black border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:border-orange-500 outline-none transition-colors" />
+                    <input type="text" name="password" required={!isEditing} value={formData.password} onChange={handleChange} placeholder={isEditing ? 'Solo llenar para forzar un cambio de clave' : 'Mínimo 6 caracteres'} className="w-full bg-black border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:border-orange-500 outline-none transition-colors" />
                   </div>
                 </div>
+
               </div>
             </div>
 
@@ -134,7 +140,7 @@ export default function CreateUserModal({ onClose, userToEdit = null }) {
                   <div className="flex-1 w-full">
                     <label className="block text-xs font-bold text-zinc-400 mb-1.5 ml-1">Área Principal</label>
                     <select value={tempArea} onChange={(e) => { setTempArea(e.target.value); setTempSubArea(''); }} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white outline-none">
-                      <option value="">Seleccionar Área...</option>
+                      <option value="">Seleccionar área...</option>
                       <option value="Super_Usuario" className="text-orange-500 font-bold">Super Administrador (Todo el sistema)</option>
                       {dbAreas.map(a => <option key={a.id} value={a.name}>{a.name}</option>)}
                     </select>
@@ -142,13 +148,14 @@ export default function CreateUserModal({ onClose, userToEdit = null }) {
                   
                   {activeAreaObj?.subareas?.length > 0 && (
                     <div className="flex-1 w-full">
-                      <label className="block text-xs font-bold text-zinc-400 mb-1.5 ml-1">Sub-Área (Opcional)</label>
+                      <label className="block text-xs font-bold text-zinc-400 mb-1.5 ml-1">Sub-área (Opcional)</label>
                       <select value={tempSubArea} onChange={(e) => setTempSubArea(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white outline-none">
                         <option value="">Cualquiera...</option>
                         {activeAreaObj.subareas.map((sa, i) => <option key={i} value={sa}>{sa}</option>)}
                       </select>
                     </div>
                   )}
+
                   <button type="button" onClick={handleAddRole} disabled={!tempArea} className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold px-6 py-3 rounded-xl text-sm transition-colors disabled:opacity-50">
                     Asignar
                   </button>

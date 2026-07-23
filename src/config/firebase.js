@@ -1,8 +1,8 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
-import { getAuth } from "firebase/auth"; // <-- IMPORTACIÓN NUEVA
+import { getAuth } from "firebase/auth";
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyCgB0r-dp6zA-YfFQr2Qh2SYpycOeKU7YI",
   authDomain: "check-oil-work-os.firebaseapp.com",
   projectId: "check-oil-work-os",
@@ -12,6 +12,6 @@ const firebaseConfig = {
 };
 
 // Inicializamos los servicios
-const app = initializeApp(firebaseConfig);
+export const app = initializeApp(firebaseConfig); // <-- EXPORTAMOS APP AQUÍ
 export const db = getFirestore(app);
-export const auth = getAuth(app); // <-- EXPORTACIÓN NUEVA PARA USARLA EN TODA LA APP
+export const auth = getAuth(app);

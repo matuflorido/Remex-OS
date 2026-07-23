@@ -4,19 +4,19 @@ import { subscribeToContacts, deleteContactInDb, subscribeToZones } from '../ser
 import CreateContactModal from './CreateContactModal';
 import CreateEventModal from '../../calendar/components/CreateEventModal';
 import ZoneManagerModal from './ZoneManagerModal';
-import HelpTooltip from '../../../components/ui/HelpTooltip'; // NUEVO
+import HelpTooltip from '../../../components/ui/HelpTooltip';
 
 export default function CRMBoard() {
   const [contacts, setContacts] = useState([]);
-  const [zones, setZones] = useState([]); 
+  const [zones, setZones] = useState([]);
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState('cliente');
   
-  // Controladores de Modales
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isZoneModalOpen, setIsZoneModalOpen] = useState(false); 
   const [contactToEdit, setContactToEdit] = useState(null);
-  const [eventPrefill, setEventPrefill] = useState(null); // Para atajo calendario
+  const [eventPrefill, setEventPrefill] = useState(null);
 
   useEffect(() => {
     const unsubscribeContacts = subscribeToContacts(setContacts);
@@ -58,9 +58,7 @@ export default function CRMBoard() {
           <h2 className="text-2xl font-black text-white flex items-center gap-3">
             {selectedType === 'cliente' ? <Users className="w-7 h-7 text-orange-500" /> : <Building2 className="w-7 h-7 text-orange-500" />}
             Directorio {selectedType === 'cliente' ? 'Comercial' : 'de Proveedores'}
-            
-            {/* NUEVO: Botón de ayuda */}
-            <HelpTooltip text="Utiliza el botón ZONAS para crear tus rutas. Luego, puedes usar el icono de calendario naranja en cada cliente para agendarle rápidamente una visita o llamada." />
+            <HelpTooltip text="Gestiona tus Zonas para colorear el calendario logístico. Usa el ícono de agenda en las filas para crear eventos con atajos. (Manual, Cap 3 y 4)" />
           </h2>
           <p className="text-sm text-zinc-500 mt-1">Gestiona contactos y zonas de logística.</p>
         </div>
@@ -73,13 +71,12 @@ export default function CRMBoard() {
           </button>
         </div>
       </div>
-
+      
       <div className="flex flex-col sm:flex-row justify-between gap-4 mb-6">
         <div className="flex bg-zinc-900 border border-zinc-800 rounded-xl p-1 w-fit">
           <button onClick={() => {setSelectedType('cliente'); setSelectedZoneFilter('Todas');}} className={`px-6 py-2 rounded-lg text-sm font-bold transition-colors ${selectedType === 'cliente' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-white'}`}>Clientes</button>
           <button onClick={() => {setSelectedType('proveedor'); setSelectedZoneFilter('Todas');}} className={`px-6 py-2 rounded-lg text-sm font-bold transition-colors ${selectedType === 'proveedor' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-white'}`}>Proveedores</button>
         </div>
-
         <div className="flex gap-2 items-center overflow-x-auto custom-scrollbar pb-2 sm:pb-0">
           <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest shrink-0">Filtrar Zona:</span>
           <button onClick={() => setSelectedZoneFilter('Todas')} className={`px-3 py-1.5 rounded-lg text-xs font-bold border shrink-0 ${selectedZoneFilter === 'Todas' ? 'bg-orange-500/10 text-orange-500 border-orange-500/30' : 'bg-black text-zinc-400 border-zinc-800'}`}>Todas</button>
@@ -119,15 +116,13 @@ export default function CRMBoard() {
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                        {/* BOTÓN ATAJO CALENDARIO */}
                         <button 
-                          onClick={() => setEventPrefill({ title: `Llamada a ${contact.name}`, type: 'llamada', contactId: contact.id })} 
+                          onClick={() => setEventPrefill({ title: `Llamada a ${contact.name}`, type: 'llamada', contactId: contact.id })}
                           className="p-2 bg-orange-950/50 hover:bg-orange-600 text-orange-500 hover:text-white border border-orange-900/50 rounded-lg transition-colors"
                           title="Agendar Tarea/Llamada"
                         >
                           <CalendarDays className="w-4 h-4" />
                         </button>
-                        
                         <button onClick={() => handleEdit(contact)} className="p-2 bg-zinc-800 hover:bg-blue-600 text-zinc-400 hover:text-white rounded-lg transition-colors"><Edit2 className="w-4 h-4" /></button>
                         <button onClick={() => handleDelete(contact.id)} className="p-2 bg-zinc-800 hover:bg-red-600 text-zinc-400 hover:text-white rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
                       </div>
