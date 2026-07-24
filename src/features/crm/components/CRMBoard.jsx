@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Building2, Map, Search, Plus, Edit2, Trash2, CalendarDays, Settings } from 'lucide-react';
+import { Users, Building2, Map, Search, Plus, Edit2, Trash2, CalendarDays, Settings, UploadCloud } from 'lucide-react';
 import { subscribeToContacts, deleteContactInDb, subscribeToZones } from '../services/crmService';
 import CreateContactModal from './CreateContactModal';
 import CreateEventModal from '../../calendar/components/CreateEventModal';
 import ZoneManagerModal from './ZoneManagerModal';
+import ImportContactsModal from './ImportContactsModal';
 import HelpTooltip from '../../../components/ui/HelpTooltip';
 
 export default function CRMBoard() {
   const [contacts, setContacts] = useState([]);
   const [zones, setZones] = useState([]);
-  
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState('cliente');
-  
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isZoneModalOpen, setIsZoneModalOpen] = useState(false); 
+  const [isZoneModalOpen, setIsZoneModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [contactToEdit, setContactToEdit] = useState(null);
   const [eventPrefill, setEventPrefill] = useState(null);
 
@@ -38,7 +38,9 @@ export default function CRMBoard() {
   };
 
   const handleDelete = async (id) => {
-    await deleteContactInDb(id);
+    if(window.confirm("¿Seguro que deseas eliminar este registro?")) {
+      await deleteContactInDb(id);
+    }
   };
 
   const uniqueZones = zones.map(z => z.name);
@@ -46,8 +48,13 @@ export default function CRMBoard() {
 
   const filteredContacts = contacts.filter(c => {
     const matchesType = c.type === selectedType;
-    const matchesSearch = c.name?.toLowerCase().includes(searchQuery.toLowerCase()) || c.zone?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesZone = selectedZoneFilter === 'Todas' || c.zone === selectedZoneFilter;
+    const matchesSearch = c.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          c.fantasyName?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // Adaptación para Zonas Múltiples
+    const cZones = c.zones || (c.zone ? [c.zone] : []);
+    const matchesZone = selectedZoneFilter === 'Todas' || cZones.includes(selectedZoneFilter);
+    
     return matchesType && matchesSearch && matchesZone;
   });
 
@@ -58,16 +65,19 @@ export default function CRMBoard() {
           <h2 className="text-2xl font-black text-white flex items-center gap-3">
             {selectedType === 'cliente' ? <Users className="w-7 h-7 text-orange-500" /> : <Building2 className="w-7 h-7 text-orange-500" />}
             Directorio {selectedType === 'cliente' ? 'Comercial' : 'de Proveedores'}
-            <HelpTooltip text="Gestiona tus Zonas para colorear el calendario logístico. Usa el ícono de agenda en las filas para crear eventos con atajos. (Manual, Cap 3 y 4)" />
+            <HelpTooltip text="Si un cliente tiene múltiples rutas, usa el Gestor de Zonas para 'Vincular Clientes Importados' y el sistema armará las conexiones." />
           </h2>
-          <p className="text-sm text-zinc-500 mt-1">Gestiona contactos y zonas de logística.</p>
+          <p className="text-sm text-zinc-500 mt-1">Gestiona contactos, zonas de logística e importaciones.</p>
         </div>
         <div className="flex gap-3">
+          <button onClick={() => setIsImportModalOpen(true)} className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold px-4 py-3 rounded-xl text-sm flex items-center gap-2 transition-colors border border-zinc-700">
+            <UploadCloud className="w-5 h-5 text-orange-500"/> IMPORTAR CSV
+          </button>
           <button onClick={() => setIsZoneModalOpen(true)} className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold px-4 py-3 rounded-xl text-sm flex items-center gap-2 transition-colors">
             <Settings className="w-5 h-5"/> ZONAS
           </button>
           <button onClick={handleCreate} className="bg-orange-600 hover:bg-orange-500 text-black font-black px-6 py-3 rounded-xl text-sm flex items-center gap-2 shadow-[0_0_15px_rgba(249,115,22,0.2)]">
-            <Plus className="w-5 h-5"/> NUEVO REGISTRO
+            <Plus className="w-5 h-5"/> NUEVO
           </button>
         </div>
       </div>
@@ -91,25 +101,34 @@ export default function CRMBoard() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-zinc-950/50 border-b border-zinc-800">
-                <th className="p-4 text-xs font-black text-zinc-500 uppercase">Empresa / Contacto</th>
+                <th className="p-4 text-xs font-black text-zinc-500 uppercase">Empresa / Razón Social</th>
                 <th className="p-4 text-xs font-black text-zinc-500 uppercase">Teléfono</th>
-                <th className="p-4 text-xs font-black text-zinc-500 uppercase">Zona Asignada</th>
+                <th className="p-4 text-xs font-black text-zinc-500 uppercase">Localidad</th>
+                <th className="p-4 text-xs font-black text-zinc-500 uppercase">Zonas Asignadas</th>
                 <th className="p-4 text-xs font-black text-zinc-500 uppercase text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/50">
               {filteredContacts.length === 0 ? (
-                <tr><td colSpan="4" className="p-8 text-center text-zinc-500 font-bold">No hay registros en esta vista.</td></tr>
+                <tr><td colSpan="5" className="p-8 text-center text-zinc-500 font-bold">No hay registros en esta vista.</td></tr>
               ) : (
                 filteredContacts.map((contact) => (
                   <tr key={contact.id} className="hover:bg-zinc-800/30 transition-colors group">
-                    <td className="p-4 font-bold text-white text-sm">{contact.name}</td>
-                    <td className="p-4 text-zinc-400 text-sm">{contact.phone || '-'}</td>
                     <td className="p-4">
-                      {contact.zone ? (
-                        <span className="flex items-center gap-1.5 text-[10px] font-bold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-2 py-1 rounded w-fit uppercase">
-                          <Map className="w-3 h-3"/> {contact.zone}
-                        </span>
+                      <div className="font-bold text-white text-sm">{contact.name}</div>
+                      {contact.fantasyName && <div className="text-[10px] text-zinc-500 uppercase font-bold mt-0.5">{contact.fantasyName}</div>}
+                    </td>
+                    <td className="p-4 text-zinc-400 text-sm font-bold">{contact.phone || contact.whatsapp || '-'}</td>
+                    <td className="p-4 text-zinc-400 text-sm">{contact.city || '-'}</td>
+                    <td className="p-4">
+                      {contact.zones && contact.zones.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {contact.zones.map(z => (
+                            <span key={z} className="flex items-center gap-1 text-[9px] font-bold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-1.5 py-0.5 rounded uppercase">
+                              <Map className="w-2.5 h-2.5"/> {z}
+                            </span>
+                          ))}
+                        </div>
                       ) : (
                         <span className="text-xs text-zinc-600 font-bold">Sin zona</span>
                       )}
@@ -138,6 +157,7 @@ export default function CRMBoard() {
       {isModalOpen && <CreateContactModal onClose={() => setIsModalOpen(false)} contactToEdit={contactToEdit} />}
       {eventPrefill && <CreateEventModal onClose={() => setEventPrefill(null)} prefilledData={eventPrefill} />}
       {isZoneModalOpen && <ZoneManagerModal onClose={() => setIsZoneModalOpen(false)} />}
+      {isImportModalOpen && <ImportContactsModal onClose={() => setIsImportModalOpen(false)} />}
     </div>
   );
 }

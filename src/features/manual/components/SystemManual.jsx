@@ -5,7 +5,7 @@ const manualTopics = [
   {
     id: 'updates',
     title: '⭐ Últimas Actualizaciones',
-    content: '¡El sistema ha sido actualizado con nuevas funciones clave para mejorar la logística y seguridad!\n\n 🗓️ Nuevo Calendario y Ciclos Logísticos: Se rediseñó la Agenda Operativa. Ahora el calendario tiene scroll infinito (mostrando semanas continuas sin cortar viajes largos). Además, se agregó la función "Ciclo Logístico" para programar campañas con una fase de "Preventa" (días de llamadas) y una fase de "Reparto" (viaje), coloreando automáticamente los días en la grilla.\n\n 🗑️ Eliminación y Auditoría de Tareas: Los Super Usuarios ahora tienen un ícono de papelera para eliminar tareas. Por seguridad, la tarea no desaparece, sino que se archiva en una base de datos de auditoría oculta junto con el nombre de quién la borró.\n\n 🏢 Filtros de Áreas Dinámicos: El Tablero de Operaciones y las Firmas Conjuntas ahora leen en tiempo real las áreas exactas que hayas configurado en el panel de Administración, mejorando la precisión al delegar trabajos.\n\n 🔐 Seguridad Avanzada de Contraseñas: Se integró una Cloud Function (servidor en la nube) que permite a los administradores forzar el cambio de contraseña de cualquier empleado directamente desde la interfaz, saltando las restricciones estándar de Firebase.'
+    content: '¡El sistema ha sido actualizado a la versión 1.7.2 incorporando métricas de empleados e importación inteligente!\n\n 📊 Estadísticas de Personal: El panel de reportes ahora incluye el rendimiento individual de cada empleado (tareas asignadas, cerradas, bloqueadas) y un ranking de efectividad en tiempo real.\n\n ☁️ Importación Masiva (CSV): Nuevo módulo en el CRM para subir bases de datos enteras de clientes desde un archivo Excel/CSV en segundos.\n\n 🗺️ Zonas Múltiples por Cliente: Ahora un mismo cliente o proveedor puede pertenecer a varias zonas logísticas simultáneamente. Ideal para gestionar zonas "Mix" o de temporada baja.\n\n ✨ Sincronización Inteligente de Zonas: El Gestor de Zonas ahora cuenta con un algoritmo patagónico que lee los textos de tus archivos importados y vincula automáticamente a los clientes con sus zonas correspondientes.\n\n 💬 Centro de Mensajes (Inbox): Módulo dedicado en el menú lateral para ver todos los chats de todas las tareas en un solo lugar. Filtra por leídos, enviados y busca por palabras clave.'
   },
   {
     id: 'intro',
@@ -15,44 +15,48 @@ const manualTopics = [
   {
     id: 'tasks',
     title: '2. Motor de Tareas y Auditoría',
-    content: 'El tablero de tareas funciona arrastrando y soltando tarjetas (Drag & Drop) a través de los diferentes estados (Nuevas, En Proceso, Validación, Cerradas). \n\n Tareas Privadas: Al crear una tarea, puedes marcarla como privada (ícono de candado). Solo tú, el creador, y los empleados asignados podrán verla en el tablero. Para el resto del equipo será invisible.\n\n Firmas Conjuntas: Si una tarea involucra a varias áreas (ej. Ventas y Operaciones), el sistema exigirá que un usuario de CADA área haga clic en "Firmar Aprobación" antes de poder cerrarla.\n\n Eliminación y Auditoría: Solo el Super Usuario puede eliminar tareas permanentemente. Sin embargo, por seguridad, la tarea no se borra en el aire; el sistema ejecuta una transacción de bases de datos que crea un registro de auditoría oculto con la fecha, la hora y el nombre de quién la borró.'
+    content: 'El tablero de tareas funciona arrastrando y soltando tarjetas (Drag & Drop) a través de los diferentes estados (Nuevas, En Proceso, Validación, Cerradas). \n\n Chat Interno: Dentro de cada tarea, los usuarios asignados pueden comunicarse en tiempo real para dejar registro de las decisiones y adjuntar novedades.\n\n Tareas Privadas: Al crear una tarea, puedes marcarla como privada (ícono de candado). Solo tú, el creador, y los empleados asignados podrán verla en el tablero. Para el resto del equipo será invisible.\n\n Firmas Conjuntas: Si una tarea involucra a varias áreas (ej. Ventas y Operaciones), el sistema exigirá que un usuario de CADA área haga clic en "Firmar Aprobación" antes de poder cerrarla.\n\n Eliminación y Auditoría: Solo el Super Usuario puede eliminar tareas permanentemente. Por seguridad, la tarea se archiva en una base de datos de auditoría oculta junto con el nombre de quién la borró.'
+  },
+  {
+    id: 'inbox',
+    title: '3. Centro de Mensajes (Inbox)',
+    content: 'El Centro de Mensajes, accesible desde el menú lateral, funciona como una bandeja de entrada clásica que centraliza toda la comunicación interna de la empresa sin tener que buscar tarea por tarea.\n\n Filtros Inteligentes: Puedes visualizar rápidamente qué mensajes no has leído, cuáles enviaste tú y cuáles recibiste.\n\n Búsqueda Global: Si no recuerdas en qué tarea se habló de un tema específico, usa el buscador del Centro de Mensajes para encontrar palabras clave, nombres de empleados o números de tarea.\n\n Salto Directo: Cada mensaje tiene un botón "Ir a Tarea" que te teletransportará exactamente a la tarjeta en el Tablero de Operaciones para que puedas responder al instante.'
   },
   {
     id: 'crm',
-    title: '3. Directorio CRM y Clientes',
-    content: 'En este directorio se guardan Clientes y Proveedores. \n\nPara agilizar el trabajo, al lado de cada cliente en la tabla verás un ícono de Calendario naranja. Al presionarlo, el sistema abrirá la agenda y completará automáticamente los datos del cliente para que programes una llamada o visita en segundos. \n\nAdemás, dentro del perfil de cada cliente, puedes usar la "Bitácora" para anotar detalles de tus interacciones (llamadas, acuerdos, promesas de pago, etc.).'
+    title: '4. Directorio CRM y Clientes',
+    content: 'En este directorio se guardan Clientes y Proveedores. \n\n Importación CSV: Usa el botón "Importar CSV" para cargar bases de datos completas desde Excel. Asegúrate de que el archivo esté separado por punto y coma (;).\n\n Atajos Rápidos: Al lado de cada cliente verás un ícono de Calendario. Al presionarlo, se abrirá la agenda y autocompletará los datos para programar una llamada o visita.\n\n Bitácora: Dentro del perfil de cada cliente, puedes anotar los detalles de tus interacciones (llamadas, acuerdos, promesas de pago).'
   },
   {
     id: 'zones',
-    title: '4. Gestor de Zonas Logísticas',
-    content: 'Las Zonas (ej. "Ruta Sur", "Valle") son esenciales para ordenar los recorridos y colorear el calendario. \n\nNo se escriben a mano al crear un cliente. Debes presionar el botón "ZONAS" en el panel de CRM para crear la ruta oficial y asignarle un color único. \n\nLa gran ventaja es que si en el futuro decides renombrar o cambiar el color de una Zona, el sistema actualizará automáticamente a todos los cientos de clientes y tareas que pertenecían a esa ruta al instante.'
+    title: '5. Gestor de Zonas Logísticas',
+    content: 'Las Zonas (ej. "Ruta Sur", "Valle") son esenciales para ordenar los recorridos y colorear el calendario. \n\n Zonas Múltiples: Un cliente puede pertenecer a más de una zona a la vez. Al editar un cliente, simplemente tilda todas las zonas que correspondan.\n\n Sincronización Inteligente: Si importaste clientes desde un Excel, usa el botón "Vincular Clientes Importados" dentro del Gestor de Zonas. El algoritmo escaneará los datos y los asignará automáticamente a las zonas oficiales creadas (incluso si tienen nombres diferentes en tu planilla vieja).\n\n Actualización Dinámica: Si renombras o cambias el color de una Zona, el sistema actualizará cientos de clientes y tareas que pertenecían a esa ruta al instante.'
   },
   {
     id: 'calendar',
-    title: '5. Calendario y Ciclos Logísticos',
-    content: 'La Agenda Operativa te permite organizar el trabajo de todo el mes de forma visual. Puedes crear 4 tipos de eventos: \n\n Tarea General: Un evento simple sin zona obligatoria. Aparece como una pastilla verde.\n Llamada: Se vincula directamente a un contacto de tu CRM. Aparece azul.\n Recorrido Fijo: Se vincula a una Zona de un solo día. Aparece naranja.\n Ciclo Logístico (Multi-día): Es la herramienta más potente. Permite programar un viaje largo definiendo una Fase de Preventa (días de llamadas para levantar pedidos) y una Fase de Reparto (los días en ruta). \n\nEl Ciclo Logístico teñirá el fondo del calendario del color de la Zona y mostrará un pasillo con bordes para la preventa. La grilla del calendario es dinámica, por lo que los viajes que terminen al mes siguiente se verán de forma continua sin tener que cambiar de pantalla.'
+    title: '6. Calendario y Ciclos Logísticos',
+    content: 'La Agenda Operativa te permite organizar el trabajo de todo el mes de forma visual. Puedes crear 4 tipos de eventos: \n\n Tarea General: Un evento simple sin zona obligatoria. Aparece como una pastilla verde.\n Llamada: Se vincula directamente a un contacto de tu CRM. Aparece azul.\n Recorrido Fijo: Se vincula a una Zona de un solo día. Aparece naranja.\n Ciclo Logístico (Multi-día): Es la herramienta más potente. Permite programar un viaje largo definiendo una Fase de Preventa (días de llamadas para levantar pedidos) y una Fase de Reparto (los días en ruta). \n\nEl Ciclo Logístico teñirá el fondo del calendario del color de la Zona y mostrará un pasillo con bordes para la preventa. La grilla del calendario es dinámica con scroll infinito.'
   },
   {
     id: 'admin',
-    title: '6. Administración y Seguridad',
+    title: '7. Administración y Seguridad',
     content: 'Panel exclusivo para el Super Usuario.\n\n Gestor de Áreas: Aquí creas los departamentos de tu empresa (Ventas, Mantenimiento, etc.) y sus subdivisiones. Estos datos alimentan automáticamente los selectores de creación de usuarios y los filtros del Tablero de Tareas.\n\n Control de Contraseñas: Por estrictas reglas de seguridad de Google, un administrador no puede cambiar la contraseña de un empleado desde la interfaz del cliente. Nuestro sistema soluciona esto disparando una orden cifrada a un servidor en la nube (Cloud Function) que fuerza la actualización de la clave del usuario.'
   },
   {
     id: 'stats',
-    title: '7. Estadísticas y Reportes',
-    content: 'Este panel lee la base de datos en tiempo real y grafica el rendimiento de la empresa (volumen de tareas, efectividad de cierre y carga de trabajo por zona logística). \n\nPuedes utilizar el botón "Exportar PDF" en la esquina superior derecha para generar automáticamente un documento listo para presentar a gerencia con todos los indicadores actuales.'
+    title: '8. Estadísticas y Reportes',
+    content: 'Este panel lee la base de datos en tiempo real y grafica el rendimiento de la empresa (volumen de tareas, efectividad de cierre y carga de trabajo por zona logística). \n\n Rendimiento del Personal: Analiza automáticamente las tareas de todo tu equipo para mostrarte en una gráfica apilada cuántas tienen en curso, cuántas bloqueadas, y un ranking global con su efectividad (porcentaje de resolución de tareas asignadas).\n\n Exportación: Puedes utilizar el botón "Exportar PDF" en la esquina superior derecha para generar automáticamente un documento listo para presentar a gerencia con todos los indicadores actuales.'
   },
   {
     id: 'settings',
-    title: '8. Preferencias de Notificaciones',
-    content: 'El ícono de la campana en la barra superior te avisará de cualquier movimiento en las áreas a las que perteneces. \n\nSi haces clic en la tuerca (Ajustes) al lado de la campana, puedes configurar si deseas recibir alertas de sonido/Windows para todas las acciones, solo para las de prioridad Crítica/Alta (como Firmas Conjuntas), o silenciarlas por completo mediante el Modo Concentración.'
+    title: '9. Preferencias de Notificaciones',
+    content: 'A través del ícono de tuerca (Ajustes) al lado de la campana superior, puedes configurar cómo deseas recibir los avisos del sistema.\n\n Alertas Nativas y Sonido: Por defecto, recibirás un sonido de alerta y una tarjeta nativa de Windows/Mac en tu pantalla cada vez que te envíen un mensaje.\n\n Modo Importante: Utilízalo para silenciar los chats cotidianos. Solo recibirás notificaciones visuales/sonoras cuando una tarea sea Crítica, de Alta prioridad o requiera tu Firma Conjunta.\n\n Modo Concentración: Apaga completamente los sonidos y carteles del sistema operativo. Solo verás las burbujas naranjas titilando cuando entres voluntariamente a la aplicación.'
   }
 ];
 
 export default function SystemManual() {
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Al inicializar, seleccionamos el ID 'updates' para que sea la pantalla de bienvenida
   const [activeTopicId, setActiveTopicId] = useState(manualTopics[0].id);
 
   const filteredTopics = manualTopics.filter(t => 

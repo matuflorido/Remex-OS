@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Map, Plus, Edit2, Trash2, Check, AlertTriangle } from 'lucide-react';
-import { subscribeToZones, createZoneInDb, updateZoneAndContacts, deleteZoneAndUnlinkContacts } from '../services/crmService';
+import { X, Map, Plus, Edit2, Trash2, Check, AlertTriangle, RefreshCw, Sparkles } from 'lucide-react';
+import { subscribeToZones, createZoneInDb, updateZoneAndContacts, deleteZoneAndUnlinkContacts, smartSyncZones } from '../services/crmService';
 
 // Paleta de colores predefinida para las zonas
 const ZONE_COLORS = ['#f97316', '#10b981', '#3b82f6', '#eab308', '#a855f7', '#ec4899', '#06b6d4', '#f43f5e', '#84cc16', '#64748b'];
@@ -19,6 +19,10 @@ export default function ZoneManagerModal({ onClose }) {
   
   const [deletingId, setDeletingId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // NUEVO: Estados para la Sincronización Inteligente
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('');
 
   useEffect(() => {
     const unsub = subscribeToZones(setZones);
@@ -36,7 +40,6 @@ export default function ZoneManagerModal({ onClose }) {
   };
 
   const handleSaveEdit = async (zone) => {
-    // Si no hay texto, o si el nombre y el color son idénticos a los actuales, cancelamos sin guardar
     if(!editName.trim() || (editName === zone.name && editColor === zone.color)) {
       setEditingId(null);
       return;
@@ -52,6 +55,32 @@ export default function ZoneManagerModal({ onClose }) {
     await deleteZoneAndUnlinkContacts(zone.id, zone.name);
     setDeletingId(null);
     setIsLoading(false);
+  };
+
+  // NUEVO: Función que llama a la limpieza de la base de datos
+  const handleSmartSync = async () => {
+    if (zones.length === 0) {
+        setSyncMessage("Debes crear al menos una zona primero.");
+        setTimeout(() => setSyncMessage(''), 3000);
+        return;
+    }
+    
+    setIsSyncing(true);
+    setSyncMessage('');
+    try {
+      const count = await smartSyncZones(zones);
+      if (count > 0) {
+          setSyncMessage(`¡Éxito! Se vincularon y corrigieron ${count} clientes importados.`);
+      } else {
+          setSyncMessage("Todo está en orden. No se encontraron clientes desconectados.");
+      }
+    } catch (error) {
+      console.error(error);
+      setSyncMessage("Ocurrió un error al sincronizar.");
+    } finally {
+      setIsSyncing(false);
+      setTimeout(() => setSyncMessage(''), 6000);
+    }
   };
 
   return (
@@ -76,7 +105,7 @@ export default function ZoneManagerModal({ onClose }) {
                 type="text" 
                 value={newZoneName} 
                 onChange={(e) => setNewZoneName(e.target.value)} 
-                placeholder="Ej. Ruta 40 Norte..." 
+                placeholder="Ej. Bariloche, Bolson..." 
                 className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-orange-500 outline-none"
                 disabled={isLoading}
               />
@@ -104,7 +133,7 @@ export default function ZoneManagerModal({ onClose }) {
         {/* LISTADO DE ZONAS */}
         <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-3 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-zinc-900/40 via-zinc-950 to-zinc-950">
           {zones.length === 0 && (
-            <p className="text-center text-zinc-500 text-sm font-bold">No hay zonas creadas.</p>
+            <p className="text-center text-zinc-500 text-sm font-bold">No hay zonas creadas en el sistema.</p>
           )}
           
           {zones.map(zone => (
@@ -138,7 +167,6 @@ export default function ZoneManagerModal({ onClose }) {
               ) : (
                 <div className="flex justify-between items-center px-1">
                   <div className="flex items-center gap-3">
-                    {/* Muestra el color actual de la zona o naranja por defecto */}
                     <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: zone.color || ZONE_COLORS[0] }}></div>
                     <span className="font-bold text-white text-sm">{zone.name}</span>
                   </div>
@@ -148,9 +176,26 @@ export default function ZoneManagerModal({ onClose }) {
                   </div>
                 </div>
               )}
-
             </div>
           ))}
+        </div>
+
+        {/* BOTÓN MÁGICO DE SINCRONIZACIÓN */}
+        <div className="p-5 border-t border-zinc-800 bg-zinc-900 shrink-0 flex flex-col gap-3">
+          {syncMessage && (
+            <div className={`text-xs font-bold text-center p-2 rounded-lg ${syncMessage.includes('Éxito') ? 'bg-emerald-500/10 text-emerald-400' : 'bg-zinc-800 text-zinc-400'}`}>
+              {syncMessage}
+            </div>
+          )}
+          <button 
+            onClick={handleSmartSync}
+            disabled={isSyncing || zones.length === 0}
+            className="w-full bg-blue-900/30 hover:bg-blue-600 border border-blue-500/50 text-blue-400 hover:text-white font-bold px-4 py-3 rounded-xl text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+            title="Conecta los clientes del Excel con las Zonas de este menú."
+          >
+            {isSyncing ? <RefreshCw className="w-4 h-4 animate-spin"/> : <Sparkles className="w-4 h-4"/>}
+            {isSyncing ? 'ANALIZANDO BASE DE DATOS...' : 'VINCULAR CLIENTES IMPORTADOS'}
+          </button>
         </div>
 
       </div>

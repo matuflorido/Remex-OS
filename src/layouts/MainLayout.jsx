@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Activity, UserCircle, Wrench, Search, Bell, LogOut, Menu, X, CheckCircle2, BarChart3, CalendarDays, Settings, BookOpen } from 'lucide-react';
+import { Activity, UserCircle, Wrench, Search, Bell, LogOut, Menu, X, CheckCircle2, BarChart3, CalendarDays, Settings, BookOpen, MessageSquare, Inbox } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import useUIStore from '../store/useUIStore';
 import useSettingsStore from '../store/useSettingsStore';
 import { subscribeToNotifications, markNotificationAsRead } from '../features/notifications/services/notificationService';
 import SettingsModal from '../features/settings/components/SettingsModal';
+import packageJson from '../../package.json';
 
 const electron = window.require ? window.require('electron') : null;
 const ipcRenderer = electron ? electron.ipcRenderer : null;
@@ -12,55 +13,84 @@ const ipcRenderer = electron ? electron.ipcRenderer : null;
 export default function MainLayout({ children }) {
   const { user, logout } = useAuthStore();
   const { currentView, setCurrentView, searchQuery, setSearchQuery } = useUIStore();
-  const { notificationLevel } = useSettingsStore(); 
+  const { notificationLevel } = useSettingsStore();
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [notifications, setNotifications] = useState([]);
   const [showNotifs, setShowNotifs] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false); 
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
   const prevNotifCount = useRef(0);
 
   useEffect(() => {
-    if (!user) return;
-    const unsubscribe = subscribeToNotifications(user.role, (data) => {
-      setNotifications(data);
+    if (window.Notification && Notification.permission !== "granted" && Notification.permission !== "denied") {
+      Notification.requestPermission();
+    }
+  }, []);
 
+  useEffect(() => {
+    if (!user) return;
+    
+    const unsubscribe = subscribeToNotifications(user.role, user.name, (data) => {
+      setNotifications(data);
       const unread = data.filter(n => !n.read).length;
 
-      // Actualizar el globo en el ícono de Windows/Mac
       if (ipcRenderer) {
         ipcRenderer.send('update-badge-count', unread);
       }
 
       if (data.length > prevNotifCount.current && prevNotifCount.current !== 0) {
-        const newNotif = data[0]; 
+        const newNotif = data[0];
         
-        if (notificationLevel !== 'none' && ipcRenderer) {
+        if (notificationLevel !== 'none') {
           let shouldNotify = true;
           if (notificationLevel === 'important' && newNotif.priority !== 'high' && newNotif.priority !== 'critical') {
             shouldNotify = false;
           }
+          
           if (shouldNotify) {
-            ipcRenderer.send('show-native-notification', {
-              title: newNotif.title || 'Nuevo Aviso',
-              body: newNotif.message || 'Tienes actualizaciones en Remex OS.'
-            });
+            try {
+              const audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+              audio.volume = 0.8;
+              audio.play().catch(e => console.log("Navegador bloqueó el sonido", e));
+            } catch(e){}
+
+            if (window.Notification && Notification.permission === "granted") {
+              new Notification(newNotif.title || 'Remex OS', {
+                body: newNotif.message,
+                icon: 'https://cdn-icons-png.flaticon.com/512/1000/1000086.png'
+              });
+            } else if (ipcRenderer) {
+              ipcRenderer.send('show-native-notification', {
+                title: newNotif.title,
+                body: newNotif.message
+              });
+            }
           }
         }
       }
-      prevNotifCount.current = data.length; 
+      prevNotifCount.current = data.length;
     });
+
     return () => unsubscribe();
   }, [user, notificationLevel]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
-  // Lógica para encender puntos rojos en el menú
-  const hasTaskAlerts = notifications.some(n => !n.read && (n.title.toLowerCase().includes('tarea') || n.title.toLowerCase().includes('operacion')));
+  
+  const unreadMessageCount = notifications.filter(n => !n.read && n.title.toLowerCase().includes('mensaje')).length;
+  const hasTaskAlerts = notifications.some(n => !n.read && (n.title.toLowerCase().includes('tarea') || n.title.toLowerCase().includes('operacion')) && !n.title.toLowerCase().includes('mensaje'));
   const hasCrmAlerts = notifications.some(n => !n.read && (n.title.toLowerCase().includes('cliente') || n.title.toLowerCase().includes('crm')));
 
   const handleNotificationClick = async (notif) => {
     if (!notif.read) {
       await markNotificationAsRead(notif.id);
     }
+  };
+
+  const markAllAsRead = () => {
+    notifications.forEach(n => {
+      if (!n.read) markNotificationAsRead(n.id);
+    });
   };
 
   return (
@@ -82,24 +112,37 @@ export default function MainLayout({ children }) {
         </div>
 
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          <div className="text-[10px] font-black text-zinc-600 uppercase mb-4 tracking-widest px-2 mt-2">Módulos</div>
+          <div className="text-[10px] font-black text-zinc-600 uppercase mb-4 tracking-widest px-2 mt-2">Operaciones</div>
           
-          <button onClick={() => setCurrentView('tasks')} className={`w-full flex items-center px-4 py-3 rounded-xl text-sm border transition-colors ${currentView === 'tasks' ? 'bg-orange-900/20 text-orange-400 border-orange-500/50' : 'border-transparent text-zinc-400 hover:bg-zinc-800'}`}>
+          <button onClick={() => setCurrentView('tasks')} className={`w-full flex items-center px-4 py-3 rounded-xl text-sm border transition-colors relative ${currentView === 'tasks' ? 'bg-orange-900/20 text-orange-400 border-orange-500/50' : 'border-transparent text-zinc-400 hover:bg-zinc-800'}`}>
             <Activity className="w-5 h-5 shrink-0"/> 
             {isSidebarOpen && <span className="ml-3 font-bold truncate">Motor de Tareas</span>}
-            {hasTaskAlerts && <span className="ml-auto w-2 h-2 bg-red-500 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span>}
+            {hasTaskAlerts && <span className={`ml-auto w-2 h-2 bg-red-500 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)] ${!isSidebarOpen ? 'absolute top-2 right-2' : ''}`}></span>}
+          </button>
+
+          <button onClick={() => setCurrentView('inbox')} className={`w-full flex items-center px-4 py-3 rounded-xl text-sm border transition-colors relative ${currentView === 'inbox' ? 'bg-orange-900/20 text-orange-400 border-orange-500/50' : 'border-transparent text-zinc-400 hover:bg-zinc-800'}`}>
+            <Inbox className="w-5 h-5 shrink-0"/> 
+            {isSidebarOpen && <span className="ml-3 font-bold truncate">Centro de Mensajes</span>}
+            
+            {unreadMessageCount > 0 && (
+              <span className={`ml-auto flex items-center justify-center min-w-[24px] h-6 px-2 bg-orange-500 text-black text-xs font-black rounded-full shadow-[0_0_15px_rgba(249,115,22,1)] animate-pulse ${!isSidebarOpen ? 'absolute -top-1 -right-1' : ''}`}>
+                {unreadMessageCount}
+              </span>
+            )}
           </button>
 
           <button onClick={() => setCurrentView('crm')} className={`w-full flex items-center px-4 py-3 rounded-xl text-sm border transition-colors ${currentView === 'crm' ? 'bg-orange-900/20 text-orange-400 border-orange-500/50' : 'border-transparent text-zinc-400 hover:bg-zinc-800'}`}>
             <UserCircle className="w-5 h-5 shrink-0"/> 
             {isSidebarOpen && <span className="ml-3 font-bold truncate">CRM Operativo</span>}
-            {hasCrmAlerts && <span className="ml-auto w-2 h-2 bg-red-500 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span>}
+            {hasCrmAlerts && <span className={`ml-auto w-2 h-2 bg-red-500 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)] ${!isSidebarOpen ? 'absolute top-2 right-2' : ''}`}></span>}
           </button>
 
           <button onClick={() => setCurrentView('calendar')} className={`w-full flex items-center px-4 py-3 rounded-xl text-sm border transition-colors ${currentView === 'calendar' ? 'bg-orange-900/20 text-orange-400 border-orange-500/50' : 'border-transparent text-zinc-400 hover:bg-zinc-800'}`}>
             <CalendarDays className="w-5 h-5 shrink-0"/> {isSidebarOpen && <span className="ml-3 font-bold truncate">Agenda y Rutas</span>}
           </button>
           
+          <div className="text-[10px] font-black text-zinc-600 uppercase mb-4 mt-6 tracking-widest px-2">Gestión</div>
+
           <button onClick={() => setCurrentView('reports')} className={`w-full flex items-center px-4 py-3 rounded-xl text-sm border transition-colors ${currentView === 'reports' ? 'bg-orange-900/20 text-orange-400 border-orange-500/50' : 'border-transparent text-zinc-400 hover:bg-zinc-800'}`}>
             <BarChart3 className="w-5 h-5 shrink-0"/> {isSidebarOpen && <span className="ml-3 font-bold truncate">Estadísticas</span>}
           </button>
@@ -113,13 +156,15 @@ export default function MainLayout({ children }) {
           <button onClick={() => setCurrentView('manual')} className={`w-full flex items-center px-4 py-3 rounded-xl text-sm border transition-colors ${currentView === 'manual' ? 'bg-orange-900/20 text-orange-400 border-orange-500/50' : 'border-transparent text-zinc-400 hover:bg-zinc-800'}`}>
             <BookOpen className="w-5 h-5 shrink-0"/> {isSidebarOpen && <span className="ml-3 font-bold truncate">Manual de Uso</span>}
           </button>
+
         </nav>
 
         <div className="p-4 border-t border-zinc-800 bg-black/40">
            {isSidebarOpen && (
              <div className="mb-4 text-center">
+               {/* LECTURA AUTOMÁTICA DESDE PACKAGE.JSON */}
                <span className="text-[10px] text-zinc-500 font-bold tracking-widest uppercase bg-zinc-900 px-3 py-1 rounded-full border border-zinc-800">
-                 Versión 1.6.2
+                 Versión {packageJson.version}
                </span>
              </div>
            )}
@@ -162,36 +207,55 @@ export default function MainLayout({ children }) {
 
               <div className="relative">
                 <button onClick={() => setShowNotifs(!showNotifs)} className="relative p-2 hover:bg-zinc-800 rounded-xl transition-colors">
-                  <Bell className="w-5 h-5 text-zinc-400 hover:text-white"/>
+                  <Bell className={`w-6 h-6 ${unreadCount > 0 ? 'text-orange-500 animate-bounce' : 'text-zinc-400 hover:text-white'}`}/>
                   {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-orange-500 rounded-full border-2 border-zinc-900 shadow-[0_0_8px_rgba(249,115,22,0.8)]"></span>
+                    <span className="absolute top-0.5 right-0.5 w-3 h-3 bg-red-500 rounded-full border-2 border-zinc-900 shadow-[0_0_8px_rgba(239,68,68,1)] animate-ping"></span>
                   )}
                 </button>
+
                 {showNotifs && (
-                  <div className="absolute right-0 top-full mt-2 w-80 max-h-96 overflow-y-auto bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl z-[100] custom-scrollbar">
-                    <div className="p-4 border-b border-zinc-800 bg-black/20 flex justify-between items-center sticky top-0 backdrop-blur-md">
-                      <h3 className="font-bold text-sm text-white">Notificaciones</h3>
-                      <span className="text-[10px] bg-orange-500/10 text-orange-500 px-2 py-1 rounded font-bold">{unreadCount} Nuevas</span>
+                  <div className="absolute right-0 top-full mt-4 w-[450px] max-h-[85vh] flex flex-col bg-zinc-950 border border-zinc-700 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.8)] z-[100] overflow-hidden">
+                    <div className="p-5 border-b border-zinc-800 bg-gradient-to-r from-zinc-900 to-zinc-950 flex justify-between items-center shrink-0">
+                      <div className="flex items-center gap-2">
+                        <Bell className="w-5 h-5 text-orange-500"/>
+                        <h3 className="font-black text-base text-white">Avisos del Sistema</h3>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] bg-orange-500 text-black px-2 py-1 rounded-full font-black">{unreadCount} Nuevos</span>
+                        <button onClick={markAllAsRead} className="text-xs text-zinc-500 hover:text-white font-bold transition-colors">Marcar todo leído</button>
+                      </div>
                     </div>
-                    <div className="divide-y divide-zinc-800/50">
+
+                    <div className="overflow-y-auto custom-scrollbar flex-1 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-zinc-900/40 via-zinc-950 to-zinc-950 divide-y divide-zinc-800/50">
                       {notifications.length === 0 && (
-                        <div className="p-6 text-center text-zinc-500 text-xs font-bold">No hay avisos recientes.</div>
+                        <div className="p-12 text-center text-zinc-500 text-sm font-bold flex flex-col items-center gap-3">
+                          <CheckCircle2 className="w-10 h-10 text-emerald-500/50" />
+                          No tienes mensajes ni avisos pendientes.
+                        </div>
                       )}
-                      {notifications.map(notif => (
-                        <div 
-                          key={notif.id} 
-                          onClick={() => handleNotificationClick(notif)}
-                          className={`p-4 cursor-pointer transition-colors ${!notif.read ? 'bg-orange-500/5 hover:bg-orange-500/10' : 'hover:bg-zinc-800/50'}`}
-                        >
-                          <div className="flex items-start gap-3">
-                            {!notif.read ? <span className="w-2 h-2 rounded-full bg-orange-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(249,115,22,0.8)]"></span> : <CheckCircle2 className="w-4 h-4 text-zinc-600 mt-0.5 shrink-0"/>}
-                            <div>
-                              <p className={`text-sm ${!notif.read ? 'text-white font-bold' : 'text-zinc-400'}`}>{notif.title}</p>
-                              <p className="text-xs text-zinc-500 mt-1 leading-relaxed">{notif.message}</p>
+                      {notifications.map(notif => {
+                        const isMessage = notif.title.toLowerCase().includes('mensaje');
+                        return (
+                          <div 
+                            key={notif.id} 
+                            onClick={() => handleNotificationClick(notif)}
+                            className={`p-5 cursor-pointer transition-all hover:bg-zinc-800/50 group ${!notif.read ? 'bg-orange-500/5 border-l-4 border-l-orange-500' : 'border-l-4 border-l-transparent opacity-70'}`}
+                          >
+                            <div className="flex items-start gap-4">
+                              <div className={`mt-1 p-2 rounded-xl shrink-0 ${isMessage ? 'bg-blue-500/20 text-blue-400' : 'bg-orange-500/20 text-orange-400'}`}>
+                                {isMessage ? <MessageSquare className="w-4 h-4"/> : <Activity className="w-4 h-4"/>}
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex justify-between items-start mb-1">
+                                  <p className={`text-sm ${!notif.read ? 'text-white font-black' : 'text-zinc-400 font-bold'}`}>{notif.title}</p>
+                                  {!notif.read && <span className="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,1)] shrink-0"></span>}
+                                </div>
+                                <p className={`text-sm leading-relaxed ${!notif.read ? 'text-zinc-300' : 'text-zinc-500'}`}>{notif.message}</p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -204,6 +268,7 @@ export default function MainLayout({ children }) {
           {children}
         </main>
       </div>
+
       {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
     </div>
   );

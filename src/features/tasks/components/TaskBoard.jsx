@@ -11,6 +11,7 @@ import { useAuthStore } from '../../../store/useAuthStore';
 import useUIStore from '../../../store/useUIStore';
 import { subscribeToTasks, updateTaskStatusInDb, addTaskCommentInDb, updateTaskInDb, createTaskInDb, deleteTaskWithLogInDb } from '../services/taskService';
 import { subscribeToUsers, subscribeToAreas } from '../../admin/services/adminService';
+import { createNotification } from '../../notifications/services/notificationService';
 import CreateTaskModal from './CreateTaskModal';
 import HelpTooltip from '../../../components/ui/HelpTooltip';
 
@@ -27,7 +28,9 @@ const defaultCols = [
 
 export default function TaskBoard() {
   const { user } = useAuthStore();
-  const { searchQuery } = useUIStore();
+  
+  // AQUÍ IMPORTAMOS EL NUEVO activeTaskId
+  const { searchQuery, activeTaskId, setActiveTaskId } = useUIStore();
   
   const [tasks, setTasks] = useState([]);
   const [selectedTask, setSelectedTask] = useState(null);
@@ -40,14 +43,12 @@ export default function TaskBoard() {
   const [draggedOverColId, setDraggedOverColId] = useState(null);
   const [draggedColId, setDraggedColId] = useState(null);
   const [actionError, setActionError] = useState(null);
-  
-  // Estados para el Chat Interno
+
   const [messageTarget, setMessageTarget] = useState("");
   const [replyingTo, setReplyingTo] = useState(null);
 
   const [adminArea, setAdminArea] = useState('Todas');
   const [adminEmployee, setAdminEmployee] = useState('Todos');
-  
   const [systemUsers, setSystemUsers] = useState([]);
   const [systemAreas, setSystemAreas] = useState([]);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
@@ -74,6 +75,17 @@ export default function TaskBoard() {
 
   const userRoles = user?.roles || (user?.role ? [user.role] : []);
   const isSuperUser = userRoles.includes('Super_Usuario');
+
+  // NUEVO: Este Effect detecta si venimos del Inbox, abre la tarea y borra la memoria.
+  useEffect(() => {
+    if (activeTaskId && tasks.length > 0) {
+      const targetTask = tasks.find(t => t.id === activeTaskId);
+      if (targetTask) {
+        setSelectedTask(targetTask);
+        setActiveTaskId(null); // Limpiamos la orden para que no se abra de nuevo sola
+      }
+    }
+  }, [activeTaskId, tasks, setActiveTaskId]);
 
   useEffect(() => {
     const unsubscribeTasks = subscribeToTasks((data) => {
@@ -106,12 +118,11 @@ export default function TaskBoard() {
     };
   }, [isSuperUser]);
 
-  // Lógica de Doble Tilde (Read Receipts)
   useEffect(() => {
     if (!selectedTask || !selectedTask.history) return;
 
     const unreadCount = selectedTask.history.filter(h => h.isMessage && h.targetUser === user?.name && h.status === 'sent').length;
-
+    
     if (unreadCount > 0) {
       const updatedHistory = selectedTask.history.map(h => {
         if (h.isMessage && h.targetUser === user?.name && h.status === 'sent') {
@@ -119,7 +130,7 @@ export default function TaskBoard() {
         }
         return h;
       });
-
+      
       updateTaskInDb(selectedTask.id, { history: updatedHistory });
       setSelectedTask(prev => ({ ...prev, history: updatedHistory }));
     }
@@ -152,6 +163,7 @@ export default function TaskBoard() {
 
   const handleRecurringClone = async (taskToClone) => {
     if (!taskToClone.recurrence || taskToClone.recurrence === 'none') return;
+
     const nextDate = new Date();
     if (taskToClone.recurrence === 'daily') nextDate.setDate(nextDate.getDate() + 1);
     else if (taskToClone.recurrence === 'weekly') nextDate.setDate(nextDate.getDate() + 7);
@@ -185,6 +197,7 @@ export default function TaskBoard() {
         comment: `Rutina generada automáticamente a partir del cierre de la tarea ${taskToClone.id}.`
       }]
     };
+
     await createTaskInDb(clonedTask);
   };
 
@@ -195,6 +208,7 @@ export default function TaskBoard() {
     if (newStatus === 'closed' && task) {
       await handleRecurringClone(task);
     }
+
     await updateTaskStatusInDb(taskId, newStatus);
     if(newStatus === 'closed') setTimeout(() => setSelectedTask(null), 300);
   };
@@ -205,7 +219,6 @@ export default function TaskBoard() {
     const requiredAreas = selectedTask.assignedArea.split(',').map(a => a.trim());
     
     const myRelevantRoles = userRoles.filter(role => requiredAreas.includes(role));
-
     if (!isSuperUser && myRelevantRoles.length > 0 && myRelevantRoles.every(r => currentApprovals.includes(r))) {
       return; 
     }
@@ -244,11 +257,22 @@ export default function TaskBoard() {
       history: [...(prev.history || []), newHistoryEntry]
     }));
     
+    const currentMessageTarget = messageTarget; 
+
     setNewTaskComment("");
     setReplyingTo(null);
     setMessageTarget("");
 
     await addTaskCommentInDb(selectedTask.id, newHistoryEntry);
+
+    if (currentMessageTarget) {
+      await createNotification(
+        'Personal', 
+        `Mensaje en Tarea ${selectedTask.id}`, 
+        `${user.name}: "${newHistoryEntry.comment.substring(0, 30)}..."`, 
+        currentMessageTarget 
+      );
+    }
   };
 
   const handleDeleteTask = async () => {
@@ -276,6 +300,7 @@ export default function TaskBoard() {
     e.preventDefault();
     e.stopPropagation();
     setDraggedOverColId(null);
+    
     if (draggedTaskId) {
       const task = tasks.find(t => t.id === draggedTaskId);
       if (task && task.status !== colId) {
@@ -328,6 +353,7 @@ export default function TaskBoard() {
     if (task.isPrivate && !isSuperUser) {
       const isCreator = task.creatorArea?.includes(myName);
       const isAssignee = (task.assignedEmployees && task.assignedEmployees.includes(myName)) || task.assignedArea?.includes(myName);
+      
       if (!isCreator && !isAssignee) {
         return false;
       }
@@ -343,11 +369,11 @@ export default function TaskBoard() {
       if (task.creatorArea) taskPeopleOrAreas.push(task.creatorArea);
 
       if (adminArea !== 'Todas') {
-        const employeesInArea = systemUsers.filter(u =>
+        const employeesInArea = systemUsers.filter(u => 
             (u.roles || []).some(r => r.startsWith(adminArea)) || u.role?.startsWith(adminArea)
         ).map(u => u.name);
 
-        matchArea = taskPeopleOrAreas.some(item =>
+        matchArea = taskPeopleOrAreas.some(item => 
             item.startsWith(adminArea) || employeesInArea.includes(item)
         );
       }
@@ -408,9 +434,9 @@ export default function TaskBoard() {
             <button onClick={() => setIsColumnSettingsOpen(true)} className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors border border-zinc-700">
               <Settings2 className="w-4 h-4"/> <span className="hidden sm:inline">Columnas</span>
             </button>
-            <button
-               onClick={handleCheckUpdate}
-               disabled={isCheckingUpdate}
+            <button 
+              onClick={handleCheckUpdate} 
+              disabled={isCheckingUpdate}
               className="hidden sm:flex bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold px-4 py-2.5 rounded-xl text-sm items-center gap-2 transition-colors disabled:opacity-50 border border-zinc-700"
             >
               <RefreshCw className={`w-4 h-4 ${isCheckingUpdate ? 'animate-spin text-orange-500' : ''}`}/> 
@@ -431,12 +457,12 @@ export default function TaskBoard() {
             </div>
             
             <div className="flex-1 flex flex-col sm:flex-row gap-2 w-full">
-              <select
-                 value={adminArea}
-                 onChange={(e) => { setAdminArea(e.target.value); setAdminEmployee('Todos'); }}
-                 className="flex-1 bg-black text-orange-400 border border-zinc-800 rounded-xl px-4 py-2 font-bold text-sm outline-none cursor-pointer focus:border-orange-500 transition-colors"
+              <select 
+                value={adminArea} 
+                onChange={(e) => { setAdminArea(e.target.value); setAdminEmployee('Todos'); }} 
+                className="flex-1 bg-black text-orange-400 border border-zinc-800 rounded-xl px-4 py-2 font-bold text-sm outline-none cursor-pointer focus:border-orange-500 transition-colors"
               >
-                <option value="Todas">Todas las áreas</option>
+                <option value="Todas">Todas las Áreas</option>
                 {systemAreas.map(a => (
                   <optgroup key={a.id} label={a.name}>
                     <option value={a.name}>{a.name} (Completa)</option>
@@ -449,10 +475,10 @@ export default function TaskBoard() {
                 ))}
               </select>
 
-              <select
-                 value={adminEmployee}
-                 onChange={(e) => setAdminEmployee(e.target.value)}
-                 className="flex-1 bg-black text-emerald-400 border border-zinc-800 rounded-xl px-4 py-2 font-bold text-sm outline-none cursor-pointer focus:border-emerald-500 transition-colors"
+              <select 
+                value={adminEmployee} 
+                onChange={(e) => setAdminEmployee(e.target.value)} 
+                className="flex-1 bg-black text-emerald-400 border border-zinc-800 rounded-xl px-4 py-2 font-bold text-sm outline-none cursor-pointer focus:border-emerald-500 transition-colors"
               >
                 <option value="Todos">Todos los empleados</option>
                 {systemUsers
@@ -473,10 +499,10 @@ export default function TaskBoard() {
           const isOver = draggedOverColId === col.id && draggedTaskId;
 
           return (
-            <div
-               key={col.id}
-               draggable
-               onDragStart={(e) => handleColDragStart(e, col.id)}
+            <div 
+              key={col.id} 
+              draggable 
+              onDragStart={(e) => handleColDragStart(e, col.id)}
               onDragOver={(e) => {
                 if (draggedColId) handleColDragOver(e);
                 else if (draggedTaskId) { e.preventDefault(); setDraggedOverColId(col.id); }
@@ -521,10 +547,10 @@ export default function TaskBoard() {
               {!isCollapsed && (
                 <div className="flex-1 p-3 overflow-y-auto custom-scrollbar space-y-3">
                   {!isLoading && columnTasks.map(task => (
-                    <div
-                       key={task.id}
-                       draggable
-                       onDragStart={(e) => handleTaskDragStart(e, task.id)}
+                    <div 
+                      key={task.id} 
+                      draggable 
+                      onDragStart={(e) => handleTaskDragStart(e, task.id)}
                       onClick={() => setSelectedTask(task)}
                       className={`bg-zinc-900 border border-zinc-800 hover:border-orange-500/50 p-4 rounded-xl cursor-grab active:cursor-grabbing transition-all shadow-lg hover:shadow-[0_0_15px_rgba(249,115,22,0.15)] flex flex-col gap-3 group ${draggedTaskId === task.id ? 'opacity-40 scale-95 border-orange-500 border-dashed' : 'opacity-100'}`}
                     >
@@ -607,6 +633,7 @@ export default function TaskBoard() {
       {selectedTask && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex justify-center items-center p-4">
           <div className="bg-zinc-950 border border-zinc-800 rounded-3xl w-full max-w-4xl max-h-[95vh] flex flex-col shadow-2xl overflow-hidden">
+            
             <div className="px-8 py-6 border-b border-zinc-800 bg-zinc-900/50 flex justify-between items-start shrink-0">
               <div>
                 <div className="flex items-center gap-3 mb-2">
@@ -623,9 +650,9 @@ export default function TaskBoard() {
                 <h2 className="text-2xl font-black text-white leading-tight">{selectedTask.title}</h2>
               </div>
               <div className="flex items-center gap-2">
-                
+                 
                 {isSuperUser && (
-                  <button
+                  <button 
                     onClick={() => setDeleteConfirmOpen(true)}
                     className="p-2 bg-red-950/40 hover:bg-red-600 border border-red-900/50 rounded-xl text-red-500 hover:text-white transition-colors"
                     title="Eliminar Tarea Permanentemente"
@@ -634,9 +661,9 @@ export default function TaskBoard() {
                   </button>
                 )}
 
-                <button
-                   onClick={() => { setTaskToEdit(selectedTask); setIsCreateModalOpen(true); setSelectedTask(null); }}
-                   className="p-2 bg-zinc-800 hover:bg-orange-600 rounded-xl text-zinc-400 hover:text-white transition-colors"
+                <button 
+                  onClick={() => { setTaskToEdit(selectedTask); setIsCreateModalOpen(true); setSelectedTask(null); }} 
+                  className="p-2 bg-zinc-800 hover:bg-orange-600 rounded-xl text-zinc-400 hover:text-white transition-colors"
                   title="Editar Tarea"
                 >
                   <Edit2 className="w-5 h-5"/>
@@ -648,6 +675,7 @@ export default function TaskBoard() {
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar p-8 flex flex-col gap-8 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-zinc-900/40 via-zinc-950 to-zinc-950">
+              
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl md:col-span-2">
                   <span className="text-xs text-zinc-500 font-bold uppercase block mb-1">Equipos / Personas Asignadas</span>
@@ -742,33 +770,53 @@ export default function TaskBoard() {
                   
                   <div className="flex gap-3 items-center mb-2">
                     <MessageCircle className="w-4 h-4 text-zinc-500"/>
-                    <select 
-                      value={messageTarget} 
-                      onChange={e => setMessageTarget(e.target.value)} 
-                      className="bg-black border border-zinc-800 rounded-lg px-2 py-1.5 text-xs font-bold text-zinc-400 outline-none focus:border-orange-500 focus:text-white"
-                    >
-                      <option value="">Cargar como Nota General</option>
-                      {selectedTask.creatorArea && selectedTask.creatorArea !== user?.name && (
-                         <option value={selectedTask.creatorArea}>Enviar Aviso al Creador ({selectedTask.creatorArea})</option>
-                      )}
-                      {selectedTask.assignedEmployees?.map(emp => (
-                         emp !== user?.name && <option key={emp} value={emp}>Enviar Aviso a {emp}</option>
-                      ))}
-                    </select>
+                    
+                    {(() => {
+                      const targets = new Set();
+                      
+                      if (selectedTask.creatorArea) targets.add(selectedTask.creatorArea);
+                      if (selectedTask.assignedArea) {
+                        selectedTask.assignedArea.split(',').forEach(a => {
+                          if (a.trim()) targets.add(a.trim());
+                        });
+                      }
+                      if (selectedTask.assignedEmployees) {
+                        selectedTask.assignedEmployees.forEach(e => {
+                          if (e) targets.add(e);
+                        });
+                      }
+
+                      targets.delete(user?.name);
+                      const uniqueTargets = Array.from(targets);
+
+                      return (
+                        <select 
+                          value={messageTarget} 
+                          onChange={e => setMessageTarget(e.target.value)}
+                          className="bg-black border border-zinc-800 rounded-lg px-2 py-1.5 text-xs font-bold text-zinc-400 outline-none focus:border-orange-500 focus:text-white"
+                        >
+                          <option value="">Cargar como Nota General</option>
+                          {uniqueTargets.map(target => (
+                             <option key={target} value={target}>Enviar Aviso a {target}</option>
+                          ))}
+                        </select>
+                      );
+                    })()}
+
                   </div>
 
                   <div className="flex gap-3">
-                    <input
-                       type="text"
-                       value={newTaskComment}
-                       onChange={(e) => setNewTaskComment(e.target.value)}
-                       onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
-                       placeholder={messageTarget ? `Escribir mensaje a ${messageTarget}...` : "Escribir una actualización general..."}
-                       className="flex-1 bg-black border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white focus:border-orange-500 outline-none transition-colors"
+                    <input 
+                      type="text" 
+                      value={newTaskComment} 
+                      onChange={(e) => setNewTaskComment(e.target.value)} 
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
+                      placeholder={messageTarget ? `Escribir mensaje a ${messageTarget}...` : "Escribir una actualización general..."} 
+                      className="flex-1 bg-black border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white focus:border-orange-500 outline-none transition-colors"
                     />
-                    <button
-                       onClick={handleAddComment}
-                       disabled={!newTaskComment.trim()}
+                    <button 
+                      onClick={handleAddComment} 
+                      disabled={!newTaskComment.trim()}
                       className="bg-zinc-800 hover:bg-orange-600 text-zinc-400 hover:text-white px-5 rounded-xl transition-colors disabled:opacity-50 flex items-center gap-2 font-bold text-sm"
                     >
                       <Send className="w-4 h-4"/>
@@ -776,6 +824,7 @@ export default function TaskBoard() {
                   </div>
                 </div>
               </div>
+
             </div>
 
             <div className="px-8 py-5 border-t border-zinc-800 bg-zinc-900 shrink-0 flex items-center justify-between">
@@ -785,7 +834,7 @@ export default function TaskBoard() {
                  {selectedTask.status === 'in_progress' && (
                    <button onClick={() => updateTaskStatus(selectedTask.id, 'pending_validation')} className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm border border-zinc-700">MARCAR TERMINADO</button>
                 )}
-                 
+                
                 {selectedTask.status === 'pending_validation' && (
                   selectedTask.requireJointApproval ? (
                     <div className="flex items-center gap-4 bg-orange-950/20 border border-orange-900/30 p-2 rounded-xl">
@@ -809,9 +858,9 @@ export default function TaskBoard() {
                         const canSign = isSuperUser || hasMissingSignatures;
 
                         return canSign && (
-                          <button
-                             onClick={handleJointApprove}
-                             className="bg-orange-600 hover:bg-orange-500 text-black font-black px-6 py-2 rounded-xl text-sm shadow-[0_0_15px_rgba(249,115,22,0.3)] ml-4"
+                          <button 
+                            onClick={handleJointApprove} 
+                            className="bg-orange-600 hover:bg-orange-500 text-black font-black px-6 py-2 rounded-xl text-sm shadow-[0_0_15px_rgba(249,115,22,0.3)] ml-4"
                           >
                             <PenTool className="w-4 h-4 inline mr-2"/> FIRMAR APROBACIÓN
                           </button>
@@ -831,6 +880,7 @@ export default function TaskBoard() {
                 )}
               </div>
             </div>
+
           </div>
         </div>
       )}
@@ -856,10 +906,10 @@ export default function TaskBoard() {
       )}
 
       {isCreateModalOpen && (
-        <CreateTaskModal
-           onClose={() => { setIsCreateModalOpen(false); setTaskToEdit(null); }}
-           taskToEdit={taskToEdit} 
-         />
+        <CreateTaskModal 
+          onClose={() => { setIsCreateModalOpen(false); setTaskToEdit(null); }} 
+          taskToEdit={taskToEdit}
+        />
       )}
     </div>
   );

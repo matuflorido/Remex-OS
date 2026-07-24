@@ -17,14 +17,6 @@ function createWindow () {
   win.loadFile(path.join(__dirname, 'dist', 'index.html'));
 }
 
-// Configurar el token de GitHub para poder descargar la actualización privada
-autoUpdater.setFeedURL({
-  provider: 'github',
-  owner: 'matuflorido',
-  repo: 'Remex-OS',
-  token: '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'
-});
-
 app.whenReady().then(() => {
   // ID de la app para que Windows 10/11 permita lanzar las notificaciones
   app.setAppUserModelId("com.remex.workos");

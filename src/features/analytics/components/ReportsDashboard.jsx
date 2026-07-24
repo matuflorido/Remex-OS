@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  PieChart, Download, TrendingUp, CheckCircle, 
-  AlertTriangle, Activity, MapPin, Layers, Loader2 
+  PieChart, Download, CheckCircle, 
+  AlertTriangle, Activity, MapPin, Layers, Loader2, Users as UsersIcon 
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -9,22 +9,24 @@ import {
   LinearScale,
   PointElement,
   LineElement,
+  BarElement,
   Title,
   Tooltip,
   Legend,
   ArcElement,
   Filler
 } from 'chart.js';
-import { Line, Doughnut } from 'react-chartjs-2';
+import { Line, Doughnut, Bar } from 'react-chartjs-2';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
 // Importamos los servicios reales de la base de datos
 import { subscribeToTasks } from '../../tasks/services/taskService';
 import { subscribeToContacts, subscribeToZones } from '../../crm/services/crmService';
+import { subscribeToUsers } from '../../admin/services/adminService';
 
 ChartJS.register(
-  CategoryScale, LinearScale, PointElement, LineElement, 
+  CategoryScale, LinearScale, PointElement, LineElement, BarElement,
   Title, Tooltip, Legend, ArcElement, Filler
 );
 
@@ -35,6 +37,8 @@ export default function ReportsDashboard() {
   const [tasks, setTasks] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [zones, setZones] = useState([]);
+  const [users, setUsers] = useState([]);
+  
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   
@@ -45,6 +49,7 @@ export default function ReportsDashboard() {
     const unsubTasks = subscribeToTasks(setTasks);
     const unsubContacts = subscribeToContacts(setContacts);
     const unsubZones = subscribeToZones(setZones);
+    const unsubUsers = subscribeToUsers(setUsers);
     
     setIsLoading(false);
 
@@ -52,31 +57,26 @@ export default function ReportsDashboard() {
       unsubTasks();
       unsubContacts();
       unsubZones();
+      unsubUsers();
     };
   }, []);
 
   const handleExportPDF = async () => {
     if (!dashboardRef.current) return;
     setIsExporting(true);
-
     try {
-      // 1. Tomamos una "foto" del elemento
       const canvas = await html2canvas(dashboardRef.current, {
-        scale: 2, // Mayor calidad
-        backgroundColor: '#09090b', // Fondo zinc-950 para que no salga blanco
+        scale: 2, 
+        backgroundColor: '#09090b', 
         useCORS: true,
         logging: false
       });
 
-      // 2. Convertimos la foto a imagen
       const imgData = canvas.toDataURL('image/jpeg', 1.0);
-
-      // 3. Calculamos proporciones para hoja A4 (Vertical)
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 
-      // 4. Insertamos la imagen y guardamos
       pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
       
       const today = new Date().toISOString().split('T')[0];
@@ -89,6 +89,9 @@ export default function ReportsDashboard() {
     }
   };
 
+  // ==========================================
+  // MÉTRICAS GLOBALES
+  // ==========================================
   const totalTasks = tasks.length;
   const closedTasks = tasks.filter(t => t.status === 'closed').length;
   const closureRate = totalTasks === 0 ? 0 : ((closedTasks / totalTasks) * 100).toFixed(1);
@@ -101,7 +104,6 @@ export default function ReportsDashboard() {
 
   tasks.forEach(task => {
     if (task.startDate) {
-      // Extraemos el mes de la fecha de inicio de la tarea
       const monthIndex = new Date(task.startDate + 'T00:00:00').getMonth();
       if (monthIndex >= 0 && monthIndex <= 11) {
         createdPerMonth[monthIndex]++;
@@ -141,8 +143,10 @@ export default function ReportsDashboard() {
     }
   };
 
+  // ==========================================
+  // MÉTRICAS DE ZONAS
+  // ==========================================
   const zoneLabels = zones.length > 0 ? zones.map(z => z.name) : ['Sin Zonas Creadas'];
-  
   const zoneTasksCount = zones.map(z => {
     return tasks.filter(t => t.assignedArea && t.assignedArea.includes(z.name)).length;
   });
@@ -175,7 +179,6 @@ export default function ReportsDashboard() {
 
     let statusLabel = 'Crítico';
     let statusColor = 'bg-red-500/10 text-red-500 border-red-500/20';
-
     if (efficiency >= 90) {
       statusLabel = 'Óptimo';
       statusColor = 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
@@ -189,6 +192,56 @@ export default function ReportsDashboard() {
 
     return { name: zone.name, created, closed, efficiency, statusLabel, statusColor };
   });
+
+  // ==========================================
+  // NUEVO: MÉTRICAS DEL PERSONAL
+  // ==========================================
+  const employeeData = users.filter(u => u.isActive !== false).map(user => {
+    const assignedTasks = tasks.filter(t => 
+      (t.assignedEmployees && t.assignedEmployees.includes(user.name)) || 
+      (t.assignedArea && t.assignedArea.includes(user.name))
+    );
+    
+    const total = assignedTasks.length;
+    const closed = assignedTasks.filter(t => t.status === 'closed').length;
+    const blocked = assignedTasks.filter(t => t.status === 'blocked').length;
+    const open = total - closed - blocked; 
+    
+    const efficiency = total > 0 ? Math.round((closed / total) * 100) : 0;
+    
+    return { name: user.name, total, closed, open, blocked, efficiency };
+  }).filter(e => e.total > 0).sort((a, b) => b.total - a.total); // Ocultar los que tienen 0 tareas
+
+  const barChartData = {
+    labels: employeeData.map(e => e.name),
+    datasets: [
+      {
+        label: 'Cerradas',
+        data: employeeData.map(e => e.closed),
+        backgroundColor: '#10b981', // emerald-500
+      },
+      {
+        label: 'En Proceso',
+        data: employeeData.map(e => e.open),
+        backgroundColor: '#3b82f6', // blue-500
+      },
+      {
+        label: 'Bloqueadas',
+        data: employeeData.map(e => e.blocked),
+        backgroundColor: '#ef4444', // red-500
+      }
+    ]
+  };
+
+  const barChartOptions = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8 } } },
+    scales: {
+      x: { stacked: true, grid: { display: false } },
+      y: { stacked: true, grid: { color: '#27272a' }, beginAtZero: true, ticks: { stepSize: 1 } }
+    }
+  };
+
 
   if (isLoading) return <div className="p-8 text-orange-500 font-bold">Cargando datos en tiempo real...</div>;
 
@@ -219,7 +272,7 @@ export default function ReportsDashboard() {
         </div>
       </div>
 
-      {}
+      {/* ÁREA DE EXPORTACIÓN */}
       <div ref={dashboardRef} className="px-6 lg:px-8 pb-8 space-y-6 pt-4">
         
         {/* KPI Cards */}
@@ -230,21 +283,18 @@ export default function ReportsDashboard() {
             <h3 className="text-4xl font-black text-white">{totalTasks}</h3>
             <p className="text-[10px] text-zinc-500 font-bold mt-2 uppercase tracking-wide">Registros históricos</p>
           </div>
-
           <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl relative overflow-hidden shadow-lg">
             <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-bl-full -mr-4 -mt-4"></div>
             <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Tasa de Cierre Global</p>
             <h3 className="text-4xl font-black text-white">{closureRate}%</h3>
             <p className="text-sm text-emerald-500 font-bold mt-2 flex items-center gap-1"><CheckCircle className="w-4 h-4"/> Tareas completadas</p>
           </div>
-
           <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl relative overflow-hidden shadow-lg">
             <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-bl-full -mr-4 -mt-4"></div>
             <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Cartera Activa CRM</p>
             <h3 className="text-4xl font-black text-white">{activeContacts}</h3>
             <p className="text-[10px] text-zinc-500 font-bold mt-2 uppercase tracking-wide">Clientes y Proveedores</p>
           </div>
-
           <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl relative overflow-hidden shadow-lg">
             <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/10 rounded-bl-full -mr-4 -mt-4"></div>
             <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Cuellos de Botella</p>
@@ -255,7 +305,57 @@ export default function ReportsDashboard() {
           </div>
         </div>
 
-        {}
+        {/* NUEVA SECCIÓN: RENDIMIENTO DEL PERSONAL */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl lg:col-span-2 shadow-xl">
+            <h3 className="text-sm font-black text-white mb-6 uppercase tracking-widest flex items-center gap-2">
+              <UsersIcon className="w-4 h-4 text-blue-500" /> Carga de Trabajo por Empleado
+            </h3>
+            <div className="h-[300px] w-full">
+              <Bar data={barChartData} options={barChartOptions} />
+            </div>
+          </div>
+
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden shadow-xl flex flex-col">
+            <div className="p-6 border-b border-zinc-800 bg-zinc-950/50 shrink-0">
+              <h3 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-emerald-500" /> Ranking de Efectividad
+              </h3>
+            </div>
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-0">
+              <table className="w-full text-left border-collapse">
+                <thead className="sticky top-0 bg-black/80 backdrop-blur-md border-b border-zinc-800 z-10">
+                  <tr>
+                    <th className="p-4 text-xs font-black text-zinc-500 uppercase">Personal</th>
+                    <th className="p-4 text-xs font-black text-zinc-500 uppercase text-center">Tareas</th>
+                    <th className="p-4 text-xs font-black text-zinc-500 uppercase text-center">Eficiencia</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-800/50">
+                  {employeeData.length === 0 ? (
+                    <tr>
+                      <td colSpan="3" className="p-8 text-center text-zinc-500 font-bold">Aún no hay tareas asignadas.</td>
+                    </tr>
+                  ) : (
+                    employeeData.map((emp, idx) => (
+                      <tr key={idx} className="hover:bg-zinc-800/30 transition-colors">
+                        <td className="p-4 font-bold text-white text-sm">{emp.name}</td>
+                        <td className="p-4 text-center text-zinc-400 font-bold">{emp.total}</td>
+                        <td className="p-4 text-center">
+                          <span className={`text-[10px] px-2 py-1 border rounded uppercase font-bold ${emp.efficiency >= 80 ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : emp.efficiency >= 50 ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20'}`}>
+                            {emp.efficiency}%
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* Gráficos Globales Históricos */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl lg:col-span-2 shadow-xl">
             <h3 className="text-sm font-black text-white mb-6 uppercase tracking-widest flex items-center gap-2">
@@ -265,10 +365,9 @@ export default function ReportsDashboard() {
               <Line data={lineChartData} options={lineChartOptions} />
             </div>
           </div>
-
           <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl shadow-xl">
             <h3 className="text-sm font-black text-white mb-6 uppercase tracking-widest flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-emerald-500" /> Carga por Zona
+              <MapPin className="w-4 h-4 text-orange-500" /> Carga por Zona
             </h3>
             <div className="h-[300px] w-full flex justify-center">
               <Doughnut data={doughnutChartData} options={doughnutChartOptions} />
@@ -276,7 +375,7 @@ export default function ReportsDashboard() {
           </div>
         </div>
 
-        {}
+        {/* Tabla de Zonas */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden shadow-xl">
           <div className="p-6 border-b border-zinc-800 bg-zinc-950/50">
             <h3 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
@@ -318,7 +417,6 @@ export default function ReportsDashboard() {
             </table>
           </div>
         </div>
-
       </div>
     </div>
   );
