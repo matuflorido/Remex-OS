@@ -1,7 +1,7 @@
 {
   "name": "remex-work-os",
   "private": true,
-  "version": "1.7.2",
+  "version": "1.8.0",
   "type": "commonjs",
   "main": "main.js",
   "scripts": {

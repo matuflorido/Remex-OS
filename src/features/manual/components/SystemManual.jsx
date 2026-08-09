@@ -4,8 +4,8 @@ import { BookOpen, Search, ChevronRight, FileText, CheckCircle2, Star } from 'lu
 const manualTopics = [
   {
     id: 'updates',
-    title: '⭐ Últimas Actualizaciones',
-    content: '¡El sistema ha sido actualizado a la versión 1.7.2 incorporando métricas de empleados e importación inteligente!\n\n 📊 Estadísticas de Personal: El panel de reportes ahora incluye el rendimiento individual de cada empleado (tareas asignadas, cerradas, bloqueadas) y un ranking de efectividad en tiempo real.\n\n ☁️ Importación Masiva (CSV): Nuevo módulo en el CRM para subir bases de datos enteras de clientes desde un archivo Excel/CSV en segundos.\n\n 🗺️ Zonas Múltiples por Cliente: Ahora un mismo cliente o proveedor puede pertenecer a varias zonas logísticas simultáneamente. Ideal para gestionar zonas "Mix" o de temporada baja.\n\n ✨ Sincronización Inteligente de Zonas: El Gestor de Zonas ahora cuenta con un algoritmo patagónico que lee los textos de tus archivos importados y vincula automáticamente a los clientes con sus zonas correspondientes.\n\n 💬 Centro de Mensajes (Inbox): Módulo dedicado en el menú lateral para ver todos los chats de todas las tareas en un solo lugar. Filtra por leídos, enviados y busca por palabras clave.'
+    title: 'Últimas Actualizaciones',
+    content: '¡El sistema ha sido actualizado a la versión 1.8.0 incorporando el Módulo Logístico Integral!\n\n ✓ Hojas de Ruta: Ahora los Ciclos Logísticos y Recorridos crean automáticamente un documento contable para liquidar viáticos, combustible y recaudación.\n\n ✓ Tablero de Viajes: Un nuevo Kanban dentro de la agenda operativa te permite arrastrar los viajes entre los estados "Preparación", "En Ruta" y "Liquidado".\n\n ✓ Plan de Cuentas: Crea categorías personalizadas de gastos (Macro y Micro) para mantener tus costos organizados al dedillo.\n\n ✓ Métricas de Flota: Análisis automático de kilómetros recorridos, dinero gastado y cálculo exacto del costo operativo por kilómetro.'
   },
   {
     id: 'intro',
@@ -34,29 +34,33 @@ const manualTopics = [
   },
   {
     id: 'calendar',
-    title: '6. Calendario y Ciclos Logísticos',
-    content: 'La Agenda Operativa te permite organizar el trabajo de todo el mes de forma visual. Puedes crear 4 tipos de eventos: \n\n Tarea General: Un evento simple sin zona obligatoria. Aparece como una pastilla verde.\n Llamada: Se vincula directamente a un contacto de tu CRM. Aparece azul.\n Recorrido Fijo: Se vincula a una Zona de un solo día. Aparece naranja.\n Ciclo Logístico (Multi-día): Es la herramienta más potente. Permite programar un viaje largo definiendo una Fase de Preventa (días de llamadas para levantar pedidos) y una Fase de Reparto (los días en ruta). \n\nEl Ciclo Logístico teñirá el fondo del calendario del color de la Zona y mostrará un pasillo con bordes para la preventa. La grilla del calendario es dinámica con scroll infinito.'
+    title: '6. Calendario Operativo',
+    content: 'La Agenda Operativa te permite organizar el trabajo de todo el mes de forma visual. Puedes crear 4 tipos de eventos: \n\n Tarea General: Un evento simple sin zona obligatoria. Aparece como una pastilla verde.\n Llamada: Se vincula directamente a un contacto de tu CRM. Aparece azul.\n Recorrido Fijo: Se vincula a una Zona de un solo día. Aparece naranja.\n Ciclo Logístico (Multi-día): Es la herramienta más potente. Permite programar un viaje largo definiendo una Fase de Preventa (días de llamadas para levantar pedidos) y una Fase de Reparto (los días en ruta). \n\nEl Ciclo Logístico tiñe el fondo del calendario del color de la Zona y mostrará un pasillo con bordes para la preventa. La grilla del calendario es dinámica con scroll infinito.'
+  },
+  {
+    id: 'fleet',
+    title: '7. Módulo Logístico y Hoja de Ruta',
+    content: 'Esta herramienta contable está anclada al Calendario Operativo y se accede mediante las pestañas superiores:\n\n Tablero de Viajes: Un entorno Kanban paralelo al de tareas. Aquí verás los Ciclos Logísticos ordenados por fecha. Arrastra la tarjeta a "Liquidado" cuando el chofer regrese del viaje para hacer la rendición de caja.\n\n Liquidación (Hoja de Ruta): Al hacer clic en un viaje, se abre la calculadora. Carga los kilómetros, el efectivo inicial, lo recaudado y los comprobantes físicos para que el sistema te indique el balance exacto.\n\n Plan de Cuentas: Desde la pestaña "Estadísticas de Flota", usa el ícono de engranaje para crear tus Macro y Micro categorías de gastos (ej. Viáticos > Comida). Así evitarás errores humanos al cargar tickets.'
   },
   {
     id: 'admin',
-    title: '7. Administración y Seguridad',
+    title: '8. Administración y Seguridad',
     content: 'Panel exclusivo para el Super Usuario.\n\n Gestor de Áreas: Aquí creas los departamentos de tu empresa (Ventas, Mantenimiento, etc.) y sus subdivisiones. Estos datos alimentan automáticamente los selectores de creación de usuarios y los filtros del Tablero de Tareas.\n\n Control de Contraseñas: Por estrictas reglas de seguridad de Google, un administrador no puede cambiar la contraseña de un empleado desde la interfaz del cliente. Nuestro sistema soluciona esto disparando una orden cifrada a un servidor en la nube (Cloud Function) que fuerza la actualización de la clave del usuario.'
   },
   {
     id: 'stats',
-    title: '8. Estadísticas y Reportes',
+    title: '9. Estadísticas de Empresa',
     content: 'Este panel lee la base de datos en tiempo real y grafica el rendimiento de la empresa (volumen de tareas, efectividad de cierre y carga de trabajo por zona logística). \n\n Rendimiento del Personal: Analiza automáticamente las tareas de todo tu equipo para mostrarte en una gráfica apilada cuántas tienen en curso, cuántas bloqueadas, y un ranking global con su efectividad (porcentaje de resolución de tareas asignadas).\n\n Exportación: Puedes utilizar el botón "Exportar PDF" en la esquina superior derecha para generar automáticamente un documento listo para presentar a gerencia con todos los indicadores actuales.'
   },
   {
     id: 'settings',
-    title: '9. Preferencias de Notificaciones',
+    title: '10. Preferencias de Notificaciones',
     content: 'A través del ícono de tuerca (Ajustes) al lado de la campana superior, puedes configurar cómo deseas recibir los avisos del sistema.\n\n Alertas Nativas y Sonido: Por defecto, recibirás un sonido de alerta y una tarjeta nativa de Windows/Mac en tu pantalla cada vez que te envíen un mensaje.\n\n Modo Importante: Utilízalo para silenciar los chats cotidianos. Solo recibirás notificaciones visuales/sonoras cuando una tarea sea Crítica, de Alta prioridad o requiera tu Firma Conjunta.\n\n Modo Concentración: Apaga completamente los sonidos y carteles del sistema operativo. Solo verás las burbujas naranjas titilando cuando entres voluntariamente a la aplicación.'
   }
 ];
 
 export default function SystemManual() {
   const [searchQuery, setSearchQuery] = useState('');
-  
   const [activeTopicId, setActiveTopicId] = useState(manualTopics[0].id);
 
   const filteredTopics = manualTopics.filter(t => 
@@ -128,11 +132,11 @@ export default function SystemManual() {
               
               <div className="prose prose-invert prose-orange max-w-none">
                 {activeTopic.content.split('\n').map((paragraph, idx) => {
-                  if (paragraph.startsWith(' ')) {
+                  if (paragraph.startsWith(' ✓')) {
                     return (
                       <div key={idx} className="flex items-start gap-2 mb-3 bg-zinc-900/50 p-4 rounded-xl border border-zinc-800/50">
                         <CheckCircle2 className="w-5 h-5 text-emerald-500 mt-0.5 shrink-0" />
-                        <p className="text-zinc-300 leading-relaxed text-sm font-medium m-0">{paragraph.substring(1).trim()}</p>
+                        <p className="text-zinc-300 leading-relaxed text-sm font-medium m-0">{paragraph.substring(2).trim()}</p>
                       </div>
                     );
                   }
@@ -158,7 +162,6 @@ export default function SystemManual() {
              </div>
           )}
         </div>
-
       </div>
     </div>
   );

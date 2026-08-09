@@ -10,10 +10,12 @@ export const subscribeToEvents = (callback) => {
 };
 
 export const createEventInDb = async (eventData) => {
-  await addDoc(collection(db, 'events'), {
+  const docRef = await addDoc(collection(db, 'events'), {
     ...eventData,
     createdAt: serverTimestamp()
   });
+  // Retornamos el ID generado por Firestore para poder vincular la Hoja de Ruta
+  return docRef.id;
 };
 
 export const updateEventInDb = async (eventId, eventData) => {

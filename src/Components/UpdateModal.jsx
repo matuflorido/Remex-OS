@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Sparkles, CheckCircle2 } from 'lucide-react';
 
-const CURRENT_VERSION = '1.7.2';
+const CURRENT_VERSION = '1.8.0';
 
 export default function UpdateModal() {
   const [isOpen, setIsOpen] = useState(false);
@@ -46,7 +46,7 @@ export default function UpdateModal() {
 
         <div className="p-6 md:p-8 overflow-y-auto custom-scrollbar flex-1 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-zinc-900/40 via-zinc-950 to-zinc-950">
           <p className="text-zinc-300 mb-6 text-sm">
-            Hemos implementado herramientas avanzadas para la gestión de tu personal y la base de datos logística. Esto es lo nuevo:
+            Hemos integrado el nuevo <strong>Módulo Logístico</strong> para que tengas control absoluto sobre los costos, viáticos y rendiciones de tus viajes. Esto es lo nuevo:
           </p>
 
           <div className="space-y-4">
@@ -54,9 +54,9 @@ export default function UpdateModal() {
             <div className="bg-zinc-900/80 border border-zinc-800/80 p-4 rounded-xl flex gap-3">
               <CheckCircle2 className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
               <div>
-                <h4 className="text-white font-bold text-sm mb-1">Estadísticas de Personal y Productividad</h4>
+                <h4 className="text-white font-bold text-sm mb-1">Tablero de Viajes y Hojas de Ruta</h4>
                 <p className="text-zinc-400 text-sm leading-relaxed">
-                  El panel de Estadísticas ahora analiza el rendimiento de tus empleados en tiempo real. Visualiza sus tareas asignadas, bloqueadas, y un ranking global de efectividad.
+                  Dentro del calendario encontrarás una nueva pestaña con un panel Kanban. Arrastra los viajes desde "Programados" hasta "Liquidados" para abrir la calculadora automática de viáticos, gastos y cobranzas.
                 </p>
               </div>
             </div>
@@ -64,9 +64,9 @@ export default function UpdateModal() {
             <div className="bg-zinc-900/80 border border-zinc-800/80 p-4 rounded-xl flex gap-3">
               <CheckCircle2 className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
               <div>
-                <h4 className="text-white font-bold text-sm mb-1">Importador Masivo (Archivos CSV)</h4>
+                <h4 className="text-white font-bold text-sm mb-1">Plan de Cuentas (Categorías Dinámicas)</h4>
                 <p className="text-zinc-400 text-sm leading-relaxed">
-                  Ya no necesitas cargar clientes a mano. Sube bases de datos enteras desde un archivo de Excel directamente en el panel de CRM.
+                  Ahora puedes crear tus propios grupos de gastos (Ej. Viáticos, Mantenimiento) y asignarles ítems específicos para estandarizar la carga de comprobantes que traen los choferes.
                 </p>
               </div>
             </div>
@@ -74,9 +74,9 @@ export default function UpdateModal() {
             <div className="bg-zinc-900/80 border border-zinc-800/80 p-4 rounded-xl flex gap-3">
               <CheckCircle2 className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
               <div>
-                <h4 className="text-white font-bold text-sm mb-1">Zonas Múltiples y Centro de Mensajes</h4>
+                <h4 className="text-white font-bold text-sm mb-1">Estadísticas de Flota en Tiempo Real</h4>
                 <p className="text-zinc-400 text-sm leading-relaxed">
-                  Un cliente puede pertenecer a varias zonas simultáneamente (Mix). Además, todos tus chats se centralizan en el nuevo módulo "Centro de Mensajes".
+                  El sistema cruza instantáneamente los kilómetros recorridos con los comprobantes cargados para calcular el costo operativo por kilómetro y visualizar el historial completo de cada zona.
                 </p>
               </div>
             </div>
