@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Sparkles, CheckCircle2 } from 'lucide-react';
 
-const CURRENT_VERSION = '1.8.0';
+const CURRENT_VERSION = '2.0.0';
 
 export default function UpdateModal() {
   const [isOpen, setIsOpen] = useState(false);

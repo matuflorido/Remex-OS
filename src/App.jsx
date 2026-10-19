@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useAuthStore } from './store/useAuthStore';
 import useUIStore from './store/useUIStore';
+
 import MainLayout from './layouts/MainLayout';
 import LoginForm from './features/auth/components/LoginForm';
 import TaskBoard from './features/tasks/components/TaskBoard';
@@ -9,11 +10,9 @@ import AdminPanel from './features/admin/components/AdminPanel';
 import ReportsDashboard from './features/analytics/components/ReportsDashboard';
 import CalendarBoard from './features/calendar/components/CalendarBoard';
 import SystemManual from './features/manual/components/SystemManual';
-
-// Importamos el nuevo Inbox
+import FinanceDashboard from './features/finances/components/FinanceDashboard';
 import InboxBoard from './features/inbox/components/InboxBoard';
-
-import UpdateModal from './components/UpdateModal';
+import BotControlCenter from './features/bot/components/BotControlCenter';
 
 export default function App() {
   const { user, loading, init } = useAuthStore();
@@ -40,12 +39,16 @@ export default function App() {
     switch (currentView) {
       case 'tasks':
         return <TaskBoard />;
-      case 'inbox': // <--- Agregamos la ruta del Inbox
+      case 'inbox':
         return <InboxBoard />;
+      case 'bot':
+        return <BotControlCenter />;
       case 'crm': 
         return <CRMBoard />;
-      case 'calendar':
+      case 'calendar': 
         return <CalendarBoard />;
+      case 'finances':
+        return <FinanceDashboard />;
       case 'admin':
         return <AdminPanel />;
       case 'reports':
@@ -58,11 +61,8 @@ export default function App() {
   };
 
   return (
-    <>
-      <MainLayout>
-        {renderCurrentView()}
-      </MainLayout>
-      <UpdateModal />
-    </>
+    <MainLayout>
+      {renderCurrentView()}
+    </MainLayout>
   );
 }

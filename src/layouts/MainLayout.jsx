@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Activity, UserCircle, Wrench, Search, Bell, LogOut, Menu, X, CheckCircle2, BarChart3, CalendarDays, Settings, BookOpen, MessageSquare, Inbox } from 'lucide-react';
+import { Activity, UserCircle, Wrench, Search, Bell, LogOut, Menu, X, CheckCircle2, BarChart3, CalendarDays, Settings, BookOpen, MessageSquare, Inbox, DollarSign, Bot } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import useUIStore from '../store/useUIStore';
 import useSettingsStore from '../store/useSettingsStore';
@@ -131,6 +131,11 @@ export default function MainLayout({ children }) {
             )}
           </button>
 
+          <button onClick={() => setCurrentView('bot')} className={`w-full flex items-center px-4 py-3 rounded-xl text-sm border transition-colors relative ${currentView === 'bot' ? 'bg-orange-900/20 text-orange-400 border-orange-500/50' : 'border-transparent text-zinc-400 hover:bg-zinc-800'}`}>
+            <Bot className="w-5 h-5 shrink-0"/> 
+            {isSidebarOpen && <span className="ml-3 font-bold truncate">Bot & IA Check-Oil</span>}
+          </button>
+
           <button onClick={() => setCurrentView('crm')} className={`w-full flex items-center px-4 py-3 rounded-xl text-sm border transition-colors ${currentView === 'crm' ? 'bg-orange-900/20 text-orange-400 border-orange-500/50' : 'border-transparent text-zinc-400 hover:bg-zinc-800'}`}>
             <UserCircle className="w-5 h-5 shrink-0"/> 
             {isSidebarOpen && <span className="ml-3 font-bold truncate">CRM Operativo</span>}
@@ -142,6 +147,11 @@ export default function MainLayout({ children }) {
           </button>
           
           <div className="text-[10px] font-black text-zinc-600 uppercase mb-4 mt-6 tracking-widest px-2">Gestión</div>
+
+          {/* NUEVO BOTÓN: Finanzas y Riesgo */}
+          <button onClick={() => setCurrentView('finances')} className={`w-full flex items-center px-4 py-3 rounded-xl text-sm border transition-colors ${currentView === 'finances' ? 'bg-emerald-900/20 text-emerald-400 border-emerald-500/50' : 'border-transparent text-zinc-400 hover:bg-zinc-800'}`}>
+            <DollarSign className="w-5 h-5 shrink-0"/> {isSidebarOpen && <span className="ml-3 font-bold truncate">Finanzas y Riesgo</span>}
+          </button>
 
           <button onClick={() => setCurrentView('reports')} className={`w-full flex items-center px-4 py-3 rounded-xl text-sm border transition-colors ${currentView === 'reports' ? 'bg-orange-900/20 text-orange-400 border-orange-500/50' : 'border-transparent text-zinc-400 hover:bg-zinc-800'}`}>
             <BarChart3 className="w-5 h-5 shrink-0"/> {isSidebarOpen && <span className="ml-3 font-bold truncate">Estadísticas</span>}
