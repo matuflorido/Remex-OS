@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalIcon, Plus, Map, Phone, CalendarDays, AlertTriangle, BarChart3, LayoutDashboard, CheckSquare, Filter } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalIcon, Plus, Map, Phone, CalendarDays, AlertTriangle, BarChart3, LayoutDashboard, CheckSquare, Filter, Truck } from 'lucide-react';
 import { subscribeToEvents } from '../services/calendarService';
 import { subscribeToZones } from '../../crm/services/crmService';
 import { subscribeToTasks } from '../../tasks/services/taskService';
@@ -7,6 +7,7 @@ import CreateEventModal from './CreateEventModal';
 import HelpTooltip from '../../../components/ui/HelpTooltip';
 import FleetDashboard from '../../fleet/components/FleetDashboard';
 import TripBoard from '../../fleet/components/TripBoard';
+import FleetVehiclesManager from '../../fleet/components/FleetVehiclesManager';
 import useUIStore from '../../../store/useUIStore';
 
 export default function CalendarBoard() {
@@ -208,10 +209,16 @@ export default function CalendarBoard() {
               <LayoutDashboard className="w-4 h-4"/> Tablero de Viajes
             </button>
             <button 
+              onClick={() => setActiveTab('fleet')}
+              className={`px-5 py-2 shrink-0 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'fleet' ? 'bg-orange-600 text-black shadow-md' : 'text-zinc-500 hover:text-white'}`}
+            >
+              <Truck className="w-4 h-4"/> Flota y Mantenimiento
+            </button>
+            <button 
               onClick={() => setActiveTab('stats')}
               className={`px-5 py-2 shrink-0 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'stats' ? 'bg-orange-600 text-black shadow-md' : 'text-zinc-500 hover:text-white'}`}
             >
-              <BarChart3 className="w-4 h-4"/> Métricas de Flota
+              <BarChart3 className="w-4 h-4"/> Métricas y Zonas
             </button>
           </div>
         </div>
@@ -394,6 +401,7 @@ export default function CalendarBoard() {
       )}
 
       {activeTab === 'trips' && <TripBoard />}
+      {activeTab === 'fleet' && <FleetVehiclesManager />}
       {activeTab === 'stats' && <FleetDashboard />}
 
       {isModalOpen && <CreateEventModal onClose={() => setIsModalOpen(false)} selectedDate={selectedDate} eventToEdit={eventToEdit} />}

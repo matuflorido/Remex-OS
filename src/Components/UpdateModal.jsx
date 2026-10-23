@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Sparkles, CheckCircle2 } from 'lucide-react';
 
-const CURRENT_VERSION = '2.0.0';
+const CURRENT_VERSION = '2.1.0';
 
 export default function UpdateModal() {
   const [isOpen, setIsOpen] = useState(false);
@@ -46,7 +46,7 @@ export default function UpdateModal() {
 
         <div className="p-6 md:p-8 overflow-y-auto custom-scrollbar flex-1 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-zinc-900/40 via-zinc-950 to-zinc-950">
           <p className="text-zinc-300 mb-6 text-sm">
-            Hemos integrado el nuevo <strong>Módulo Logístico</strong> para que tengas control absoluto sobre los costos, viáticos y rendiciones de tus viajes. Esto es lo nuevo:
+            La versión <strong>2.1.0</strong> incorpora mejoras clave en el <strong>Centro de Control del Bot Check-Oil</strong> y el nuevo circuito completo de <strong>Viajes de Reparto, Rendición y Flota</strong>:
           </p>
 
           <div className="space-y-4">
@@ -54,9 +54,9 @@ export default function UpdateModal() {
             <div className="bg-zinc-900/80 border border-zinc-800/80 p-4 rounded-xl flex gap-3">
               <CheckCircle2 className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
               <div>
-                <h4 className="text-white font-bold text-sm mb-1">Tablero de Viajes y Hojas de Ruta</h4>
+                <h4 className="text-white font-bold text-sm mb-1">Bot Check-Oil: Detección Automática de Teléfono + Diagnóstico de No Derivados</h4>
                 <p className="text-zinc-400 text-sm leading-relaxed">
-                  Dentro del calendario encontrarás una nueva pestaña con un panel Kanban. Arrastra los viajes desde "Programados" hasta "Liquidados" para abrir la calculadora automática de viáticos, gastos y cobranzas.
+                  El bot ahora toma automáticamente el número de teléfono y nombre de WhatsApp del cliente sin pedírselos, evitando charlas truncadas. Además puedes filtrar conversaciones por fecha (Hoy, Ayer, Esta Semana, +1 Semana), auditar por qué no se derivó un contacto e intervenir con 1 clic.
                 </p>
               </div>
             </div>
@@ -64,9 +64,9 @@ export default function UpdateModal() {
             <div className="bg-zinc-900/80 border border-zinc-800/80 p-4 rounded-xl flex gap-3">
               <CheckCircle2 className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
               <div>
-                <h4 className="text-white font-bold text-sm mb-1">Plan de Cuentas (Categorías Dinámicas)</h4>
+                <h4 className="text-white font-bold text-sm mb-1">Liquidación de Reparto: Mercadería, Deuda en Zona y Rendición Triple</h4>
                 <p className="text-zinc-400 text-sm leading-relaxed">
-                  Ahora puedes crear tus propios grupos de gastos (Ej. Viáticos, Mantenimiento) y asignarles ítems específicos para estandarizar la carga de comprobantes que traen los choferes.
+                  Registra la mercadería vendida en reparto y la deuda acumulada en la zona al salir, carga gastos rápidos pre-cargados (Combustible con $ y Litros, Comida, Alojamiento, Mecánico y Manual) y rinde por separado <strong>Efectivo, Cheques y Transferencias</strong>.
                 </p>
               </div>
             </div>
@@ -74,9 +74,9 @@ export default function UpdateModal() {
             <div className="bg-zinc-900/80 border border-zinc-800/80 p-4 rounded-xl flex gap-3">
               <CheckCircle2 className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
               <div>
-                <h4 className="text-white font-bold text-sm mb-1">Estadísticas de Flota en Tiempo Real</h4>
+                <h4 className="text-white font-bold text-sm mb-1">Flota, Mantenimiento y Movimiento Automático en Bariloche</h4>
                 <p className="text-zinc-400 text-sm leading-relaxed">
-                  El sistema cruza instantáneamente los kilómetros recorridos con los comprobantes cargados para calcular el costo operativo por kilómetro y visualizar el historial completo de cada zona.
+                  Nueva pestaña de <strong>Flota y Mantenimiento</strong> con ficha técnica por vehículo (Sprinter, tanque, consumo L/100km), bitácora completa de talleres, lavados y services, y detección automática de los kilómetros recorridos en Bariloche entre viajes.
                 </p>
               </div>
             </div>

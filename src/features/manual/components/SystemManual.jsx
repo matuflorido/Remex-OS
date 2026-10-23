@@ -4,58 +4,58 @@ import { BookOpen, Search, ChevronRight, FileText, CheckCircle2, Star } from 'lu
 const manualTopics = [
   {
     id: 'updates',
-    title: 'Últimas Actualizaciones',
-    content: '¡El sistema ha sido actualizado a la versión 1.8.0 incorporando el Módulo Logístico Integral!\n\n ✓ Hojas de Ruta: Ahora los Ciclos Logísticos y Recorridos crean automáticamente un documento contable para liquidar viáticos, combustible y recaudación.\n\n ✓ Tablero de Viajes: Un nuevo Kanban dentro de la agenda operativa te permite arrastrar los viajes entre los estados "Preparación", "En Ruta" y "Liquidado".\n\n ✓ Plan de Cuentas: Crea categorías personalizadas de gastos (Macro y Micro) para mantener tus costos organizados al dedillo.\n\n ✓ Métricas de Flota: Análisis automático de kilómetros recorridos, dinero gastado y cálculo exacto del costo operativo por kilómetro.'
+    title: 'Últimas Actualizaciones (v2.1.0)',
+    content: '¡El sistema ha sido actualizado a la versión 2.1.0 incorporando el Centro de Control del Bot Check-Oil con Auto-Teléfono y el nuevo Circuito Integral de Viajes de Reparto, Rendición Triple y Flota!\n\n ✓ Bot Check-Oil sin pedir teléfono: El bot ahora detecta automáticamente el número de WhatsApp (remoteJid / remoteJidAlt) y el nombre del perfil del cliente para derivarlo a la sucursal sin preguntarle su número, eliminando el principal motivo de abandono.\n\n ✓ Diagnóstico de No Derivados y Fechas: Clasificación automática de charlas por fecha (Hoy, Ayer, Esta Semana, +1 Semana), motivo exacto de no derivación (Nunca respondió, Dejó a mitad de camino, Buscaba otra cosa, Audio/Foto) y botón de intervención en 1 clic.\n\n ✓ Viajes de Reparto y Deuda en Zona: Registro del valor de mercadería vendida en reparto (ej. $5.000.000) sumado a la deuda acumulada en la zona al salir (ej. $35.000.000 en El Bolsón).\n\n ✓ Gastos Pre-cargados y Rendición Triple: Botones rápidos para Combustible (Total $ + Litros cargados), Comida, Alojamiento, Mecánico en ruta y Gastos Manuales, más rendición separada en Efectivo, Cheques traídos y Transferencias.\n\n ✓ Flota, Mantenimiento y Movimiento en Bariloche: Ficha técnica de cada unidad (ej. Sprinter, capacidad de tanque, consumo L/100km), bitácora completa de todo (viajes, mecánico, lavados, services) y detección automática de kilómetros recorridos en Bariloche entre viajes.'
   },
   {
     id: 'intro',
     title: '1. Introducción al Sistema',
-    content: 'Remex Work-OS es una plataforma integral diseñada para unificar la logística, el seguimiento de clientes (CRM) y la ejecución de tareas. Toda la información está sincronizada en tiempo real. Si alguien actualiza una tarea o un cliente, todos los involucrados lo verán al instante sin necesidad de recargar la página.'
+    content: 'Remex Work-OS es una plataforma integral diseñada para unificar la logística de reparto, el control de flota, la supervisión del Bot de WhatsApp (Check-Oil), el seguimiento de clientes (CRM) y la ejecución de tareas. Toda la información está sincronizada en tiempo real.'
+  },
+  {
+    id: 'bot',
+    title: '2. Bot & IA Check-Oil (WhatsApp)',
+    content: 'Desde el menú lateral "Bot & IA Check-Oil" tienes control total y en vivo sobre el asistente virtual de recepción y derivación conectado a WhatsApp y n8n.\n\n Detección Automática de Teléfono y Nombre: El bot toma automáticamente el número de teléfono real de WhatsApp y el nombre del contacto sin pedírselos al cliente, enviando a la sucursal elegida la ficha completa con link directo wa.me.\n\n Pausa Inteligente por Intervención Humana: Si un operador humano escribe desde WhatsApp o desde Remex OS en una conversación, el bot se pone en pausa automáticamente para ese cliente y pasa a Modo Observador sin interrumpir.\n\n Fechas y Alerta de Seguimiento: Cada conversación muestra si es de Hoy, de Ayer, de Esta Semana o de hace más de una semana. Si un cliente quedó sin respuesta por más de 25 minutos, se activa una alerta con plantillas de seguimiento de 1 clic.\n\n Auditoría de No Derivados y Aprendizaje IA: Puedes filtrar todas las charlas que no llegaron a derivarse y ver por qué (Nunca respondió, Faltó elegir sucursal, Buscaba repuestos mecánicos o Envió audio/imagen), además de aprobar reglas en la Base de Conocimiento para que el bot aprenda.'
   },
   {
     id: 'tasks',
-    title: '2. Motor de Tareas y Auditoría',
+    title: '3. Motor de Tareas y Auditoría',
     content: 'El tablero de tareas funciona arrastrando y soltando tarjetas (Drag & Drop) a través de los diferentes estados (Nuevas, En Proceso, Validación, Cerradas). \n\n Chat Interno: Dentro de cada tarea, los usuarios asignados pueden comunicarse en tiempo real para dejar registro de las decisiones y adjuntar novedades.\n\n Tareas Privadas: Al crear una tarea, puedes marcarla como privada (ícono de candado). Solo tú, el creador, y los empleados asignados podrán verla en el tablero. Para el resto del equipo será invisible.\n\n Firmas Conjuntas: Si una tarea involucra a varias áreas (ej. Ventas y Operaciones), el sistema exigirá que un usuario de CADA área haga clic en "Firmar Aprobación" antes de poder cerrarla.\n\n Eliminación y Auditoría: Solo el Super Usuario puede eliminar tareas permanentemente. Por seguridad, la tarea se archiva en una base de datos de auditoría oculta junto con el nombre de quién la borró.'
   },
   {
     id: 'inbox',
-    title: '3. Centro de Mensajes (Inbox)',
+    title: '4. Centro de Mensajes (Inbox)',
     content: 'El Centro de Mensajes, accesible desde el menú lateral, funciona como una bandeja de entrada clásica que centraliza toda la comunicación interna de la empresa sin tener que buscar tarea por tarea.\n\n Filtros Inteligentes: Puedes visualizar rápidamente qué mensajes no has leído, cuáles enviaste tú y cuáles recibiste.\n\n Búsqueda Global: Si no recuerdas en qué tarea se habló de un tema específico, usa el buscador del Centro de Mensajes para encontrar palabras clave, nombres de empleados o números de tarea.\n\n Salto Directo: Cada mensaje tiene un botón "Ir a Tarea" que te teletransportará exactamente a la tarjeta en el Tablero de Operaciones para que puedas responder al instante.'
   },
   {
     id: 'crm',
-    title: '4. Directorio CRM y Clientes',
+    title: '5. Directorio CRM y Clientes',
     content: 'En este directorio se guardan Clientes y Proveedores. \n\n Importación CSV: Usa el botón "Importar CSV" para cargar bases de datos completas desde Excel. Asegúrate de que el archivo esté separado por punto y coma (;).\n\n Atajos Rápidos: Al lado de cada cliente verás un ícono de Calendario. Al presionarlo, se abrirá la agenda y autocompletará los datos para programar una llamada o visita.\n\n Bitácora: Dentro del perfil de cada cliente, puedes anotar los detalles de tus interacciones (llamadas, acuerdos, promesas de pago).'
   },
   {
     id: 'zones',
-    title: '5. Gestor de Zonas Logísticas',
-    content: 'Las Zonas (ej. "Ruta Sur", "Valle") son esenciales para ordenar los recorridos y colorear el calendario. \n\n Zonas Múltiples: Un cliente puede pertenecer a más de una zona a la vez. Al editar un cliente, simplemente tilda todas las zonas que correspondan.\n\n Sincronización Inteligente: Si importaste clientes desde un Excel, usa el botón "Vincular Clientes Importados" dentro del Gestor de Zonas. El algoritmo escaneará los datos y los asignará automáticamente a las zonas oficiales creadas (incluso si tienen nombres diferentes en tu planilla vieja).\n\n Actualización Dinámica: Si renombras o cambias el color de una Zona, el sistema actualizará cientos de clientes y tareas que pertenecían a esa ruta al instante.'
+    title: '6. Gestor de Zonas Logísticas',
+    content: 'Las Zonas (ej. "El Bolsón", "Ruta Sur", "Valle") son esenciales para ordenar los recorridos y colorear el calendario. \n\n Zonas Múltiples: Un cliente puede pertenecer a más de una zona a la vez. Al editar un cliente, simplemente tilda todas las zonas que correspondan.\n\n Sincronización Inteligente: Si importaste clientes desde un Excel, usa el botón "Vincular Clientes Importados" dentro del Gestor de Zonas. El algoritmo escaneará los datos y los asignará automáticamente a las zonas oficiales creadas.\n\n Actualización Dinámica: Si renombras o cambias el color de una Zona, el sistema actualizará cientos de clientes y tareas que pertenecían a esa ruta al instante.'
   },
   {
     id: 'calendar',
-    title: '6. Calendario Operativo',
-    content: 'La Agenda Operativa te permite organizar el trabajo de todo el mes de forma visual. Puedes crear 4 tipos de eventos: \n\n Tarea General: Un evento simple sin zona obligatoria. Aparece como una pastilla verde.\n Llamada: Se vincula directamente a un contacto de tu CRM. Aparece azul.\n Recorrido Fijo: Se vincula a una Zona de un solo día. Aparece naranja.\n Ciclo Logístico (Multi-día): Es la herramienta más potente. Permite programar un viaje largo definiendo una Fase de Preventa (días de llamadas para levantar pedidos) y una Fase de Reparto (los días en ruta). \n\nEl Ciclo Logístico tiñe el fondo del calendario del color de la Zona y mostrará un pasillo con bordes para la preventa. La grilla del calendario es dinámica con scroll infinito.'
+    title: '7. Calendario Operativo',
+    content: 'La Agenda Operativa te permite organizar el trabajo de todo el mes de forma visual. Puedes crear 4 tipos de eventos: \n\n Tarea General: Un evento simple sin zona obligatoria. Aparece como una pastilla verde.\n Llamada: Se vincula directamente a un contacto de tu CRM. Aparece azul.\n Recorrido Fijo: Se vincula a una Zona de un solo día. Aparece naranja.\n Ciclo Logístico (Multi-día): Permite programar un viaje definiendo una Fase de Preventa y una Fase de Reparto.'
   },
   {
     id: 'fleet',
-    title: '7. Módulo Logístico y Hoja de Ruta',
-    content: 'Esta herramienta contable está anclada al Calendario Operativo y se accede mediante las pestañas superiores:\n\n Tablero de Viajes: Un entorno Kanban paralelo al de tareas. Aquí verás los Ciclos Logísticos ordenados por fecha. Arrastra la tarjeta a "Liquidado" cuando el chofer regrese del viaje para hacer la rendición de caja.\n\n Liquidación (Hoja de Ruta): Al hacer clic en un viaje, se abre la calculadora. Carga los kilómetros, el efectivo inicial, lo recaudado y los comprobantes físicos para que el sistema te indique el balance exacto.\n\n Plan de Cuentas: Desde la pestaña "Estadísticas de Flota", usa el ícono de engranaje para crear tus Macro y Micro categorías de gastos (ej. Viáticos > Comida). Así evitarás errores humanos al cargar tickets.'
+    title: '8. Viajes de Reparto, Liquidación y Flota',
+    content: 'Integrado dentro de Agenda y Rutas mediante 4 pestañas superiores (Calendario, Tablero de Viajes, Rendimiento y Zonas, y Flota y Mantenimiento):\n\n Salida de Reparto y Deuda en Zona: Selecciona el vehículo de la flota (ej. Sprinter), verifica su kilometraje y estado de tanque al salir, e ingresa el valor de la Mercadería Vendida que lleva junto con la Deuda Acumulada en la Zona.\n\n Movimiento en Bariloche entre Viajes: Si en el siguiente viaje la camioneta sale con un kilometraje mayor al que llegó en el viaje anterior, el sistema calcula automáticamente la diferencia y la registra como Movimiento Urbano en Bariloche.\n\n Gastos Pre-cargados y Consumo de Combustible: Al regresar, ingresa los kilómetros de llegada y el estado del tanque. Carga con 1 clic Combustible (Total $ y Litros cargados), Comida, Alojamiento, Mecánico en ruta u Otros gastos manuales.\n\n Rendición en Efectivo, Cheques y Transferencias: Registra por separado el Efectivo cobrado, los Cheques traídos y las Transferencias realizadas durante el viaje. El sistema calcula tanto el Efectivo Físico a entregar en mano como el Saldo Restante de Deuda en la Zona.\n\n Flota y Mantenimiento (El registro entero de todo): En la pestaña "Flota y Mantenimiento" puedes dar de alta vehículos con su consumo por km y capacidad de tanque, registrar arreglos mecánicos, lavados o services, y consultar la Bitácora Completa Unificada.'
   },
   {
     id: 'admin',
-    title: '8. Administración y Seguridad',
+    title: '9. Administración y Seguridad',
     content: 'Panel exclusivo para el Super Usuario.\n\n Gestor de Áreas: Aquí creas los departamentos de tu empresa (Ventas, Mantenimiento, etc.) y sus subdivisiones. Estos datos alimentan automáticamente los selectores de creación de usuarios y los filtros del Tablero de Tareas.\n\n Control de Contraseñas: Por estrictas reglas de seguridad de Google, un administrador no puede cambiar la contraseña de un empleado desde la interfaz del cliente. Nuestro sistema soluciona esto disparando una orden cifrada a un servidor en la nube (Cloud Function) que fuerza la actualización de la clave del usuario.'
   },
   {
     id: 'stats',
-    title: '9. Estadísticas de Empresa',
-    content: 'Este panel lee la base de datos en tiempo real y grafica el rendimiento de la empresa (volumen de tareas, efectividad de cierre y carga de trabajo por zona logística). \n\n Rendimiento del Personal: Analiza automáticamente las tareas de todo tu equipo para mostrarte en una gráfica apilada cuántas tienen en curso, cuántas bloqueadas, y un ranking global con su efectividad (porcentaje de resolución de tareas asignadas).\n\n Exportación: Puedes utilizar el botón "Exportar PDF" en la esquina superior derecha para generar automáticamente un documento listo para presentar a gerencia con todos los indicadores actuales.'
-  },
-  {
-    id: 'settings',
-    title: '10. Preferencias de Notificaciones',
-    content: 'A través del ícono de tuerca (Ajustes) al lado de la campana superior, puedes configurar cómo deseas recibir los avisos del sistema.\n\n Alertas Nativas y Sonido: Por defecto, recibirás un sonido de alerta y una tarjeta nativa de Windows/Mac en tu pantalla cada vez que te envíen un mensaje.\n\n Modo Importante: Utilízalo para silenciar los chats cotidianos. Solo recibirás notificaciones visuales/sonoras cuando una tarea sea Crítica, de Alta prioridad o requiera tu Firma Conjunta.\n\n Modo Concentración: Apaga completamente los sonidos y carteles del sistema operativo. Solo verás las burbujas naranjas titilando cuando entres voluntariamente a la aplicación.'
+    title: '10. Estadísticas y Preferencias',
+    content: 'El panel de Estadísticas lee la base de datos en tiempo real y grafica el rendimiento de la empresa, además de permitir exportar reportes en PDF. Desde el ícono de engranaje en la barra superior puedes ajustar las Preferencias de Notificaciones (Todas, Solo Importantes o Silencio).'
   }
 ];
 

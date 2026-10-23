@@ -16,16 +16,17 @@ import {
   Plus,
   Trash2,
   Check,
-  X,
   Phone,
   Car,
   MapPin,
   Clock,
   Eye,
-  ShieldAlert,
   Download,
   Copy,
-  UserCheck,
+  Calendar,
+  BellRing,
+  MessageCircleWarning,
+  HelpCircle,
   Filter
 } from 'lucide-react';
 import { Doughnut, Bar } from 'react-chartjs-2';
@@ -45,10 +46,58 @@ const SUCURSALES_LIST = [
   { name: 'Dominico (Avellaneda)', key: 'Dominico', phone: '5491161217529' }
 ];
 
+const NON_DERIVED_REASONS = {
+  no_respondio: {
+    id: 'no_respondio',
+    label: 'Nunca respondió tras consultar',
+    shortBadge: 'No respondió más',
+    color: 'text-amber-300 bg-amber-500/20 border-amber-500/40',
+    barColor: 'bg-amber-500',
+    description: 'El cliente envió un saludo o primera pregunta, el bot le pidió datos del vehículo y el cliente no volvió a contestar.'
+  },
+  faltaron_datos: {
+    id: 'faltaron_datos',
+    label: 'Dejó a mitad de camino (Faltó sucursal/datos)',
+    shortBadge: 'Faltó confirmar sucursal/datos',
+    color: 'text-orange-300 bg-orange-500/20 border-orange-500/40',
+    barColor: 'bg-orange-500',
+    description: 'Conversó con el bot pero abandonó antes de elegir la sucursal específica o dejar su teléfono de contacto.'
+  },
+  buscaba_otra_cosa: {
+    id: 'buscaba_otra_cosa',
+    label: 'Buscaba otra cosa (Repuestos / Mecánica / Lámparas)',
+    shortBadge: 'Buscaba otra cosa / Fuera de tema',
+    color: 'text-rose-300 bg-rose-500/20 border-rose-500/40',
+    barColor: 'bg-rose-500',
+    description: 'Consultó por repuestos mecánicos, colocación de focos o servicios que no se realizan en esa sucursal.'
+  },
+  audio_imagen: {
+    id: 'audio_imagen',
+    label: 'Envió Audio o Foto sin pasar a texto',
+    shortBadge: 'Envió Audio/Foto sin texto',
+    color: 'text-purple-300 bg-purple-500/20 border-purple-500/40',
+    barColor: 'bg-purple-500',
+    description: 'El cliente envió un audio o imagen y no continuó escribiendo por texto o quedó esperando.'
+  },
+  sin_historial_antiguo: {
+    id: 'sin_historial_antiguo',
+    label: 'Registro antiguo (Pre-actualización sin detalle)',
+    shortBadge: 'Antiguo sin detalle (Pre 15/10)',
+    color: 'text-zinc-400 bg-zinc-800 border-zinc-700',
+    barColor: 'bg-zinc-600',
+    description: 'Contacto de semanas anteriores (antes de activar el nuevo guardado completo de charlas en n8n).'
+  }
+};
+
 const SYSTEM_PROMPT_PREVIEW = `Eres el Asistente Virtual de Recepción y Derivación de Check-Oil, un centro especializado en lubricación y mantenimiento automotriz.
 
 Tu tono debe ser amable, servicial y EXTREMADAMENTE DIRECTO. Mantén la interacción lo más corta posible. Agrupa las preguntas necesarias en un solo mensaje.
-REGLA DE ORO DE COMPORTAMIENTO: IGNORA por completo emojis, stickers o mensajes de cortesía finales (como "ok", "gracias"). No reacciones a ellos ni des respuestas de relleno. Si el cliente solo manda un sticker o un saludo de cierre, NO RESPONDAS.
+REGLA DE ORO DE COMPORTAMIENTO: IGNORA por completo emojis, stickers o mensajes de cortesía finales (como "ok", "gracias"). Si el cliente solo manda un sticker o un saludo de cierre, NO RESPONDAS.
+
+DATOS AUTOMÁTICOS DEL CLIENTE (YA DETECTADOS POR WHATSAPP):
+Teléfono de WhatsApp del cliente (YA DETECTADO): {{ $json.telefonoCliente }}
+Nombre de perfil de WhatsApp del cliente (YA DETECTADO): {{ $json.pushName }}
+REGLA CRÍTICA DE CERO FRICCIÓN: ESTÁ ESTRICTAMENTE PROHIBIDO pedirle al cliente su número de teléfono o su nombre para derivarlo. Usa directamente los datos detectados por WhatsApp.
 
 SUCURSALES DISPONIBLES Y TELÉFONOS INTERNOS (NO LOS PREGUNTES):
 Check Oil Suc. Centro (Bariloche): 5492944579792
@@ -61,9 +110,216 @@ Check Oil Suc. Dominico (Avellaneda): 5491161217529
 FLUJO DE CONVERSACIÓN:
 PASO 1: SALUDO Y DESCUBRIMIENTO (según hora local AR).
 PASO 2: EXTRACCIÓN DE DATOS DEL VEHÍCULO (Marca, Modelo, Año y Motor en una sola pregunta; inferir Marca si el modelo es inconfundible).
-PASO 3: OFRECER ZONAS.
-PASO 4: SELECCIÓN DE SUCURSAL ESPECÍFICA Y CONTACTO.
-PASO 5: CIERRE Y USO DE HERRAMIENTA (Enviar_Derivacion_Sucursal).`;
+PASO 3: OFRECER ZONAS Y SUCURSAL.
+PASO 4: DERIVACIÓN AUTOMÁTICA INMEDIATA (SIN PEDIR TELÉFONO NI NOMBRE) ejecutando Enviar_Derivacion_Sucursal con {{ $json.telefonoCliente }} y link https://wa.me/{{ $json.telefonoCliente }}.`;
+
+/**
+ * Clasifica por qué una sesión NO fue derivada a sucursal
+ */
+function classifyNonDerivedSession(session, historial = [], isDerived = false) {
+  if (isDerived) {
+    return null;
+  }
+
+  const allText = `${session.incompleta_motivo || ''} ${session.pregunta_detectada || ''} ${session.resumen_charla || ''} ${session.resumen_historico || ''} ${historial.map(m => m.texto || '').join(' ')}`.toLowerCase();
+  const clientMsgs = historial.filter(m => m && m.rol === 'cliente');
+
+  // 1. Si no tiene historial ni resumen (registros viejos previos al 15/10)
+  if (historial.length === 0 && (!session.resumen_historico || session.resumen_historico === 'Sin datos previos disponibles')) {
+    return {
+      ...NON_DERIVED_REASONS.sin_historial_antiguo,
+      detail: 'Sesión registrada en la versión anterior del bot (sin mensajes guardados en Firestore).'
+    };
+  }
+
+  // 2. Si envió audio o imagen
+  if (allText.includes('[audio') || allText.includes('[imagen') || allText.includes('audio inicial')) {
+    return {
+      ...NON_DERIVED_REASONS.audio_imagen,
+      detail: session.incompleta_motivo || 'El cliente envió un audio o imagen y faltó completar los datos por escrito.'
+    };
+  }
+
+  // 3. Si buscaba otra cosa (repuestos mecánicos, colocación de focos, fuera de contexto)
+  if (
+    session.estado_charla === 'fuera_de_contexto' ||
+    session.fuera_de_contexto === 'si' ||
+    /foco|lámpara|lampara|colocaci|freno|embrague|correa|distribuci|tren delantero|repuesto|bater[ií]a|cubierta|neum[aá]tico|mec[aá]nic/.test(allText)
+  ) {
+    return {
+      ...NON_DERIVED_REASONS.buscaba_otra_cosa,
+      detail: session.incompleta_motivo || session.pregunta_detectada || 'Consultó por un repuesto o servicio fuera de lubricentro estándar.'
+    };
+  }
+
+  // 4. Si solo mandó 1 mensaje (saludo o pregunta suelta) y nunca más respondió
+  if (clientMsgs.length <= 1) {
+    const firstMsg = clientMsgs[0]?.texto ? `"${clientMsgs[0].texto.slice(0, 50)}"` : 'su saludo inicial';
+    return {
+      ...NON_DERIVED_REASONS.no_respondio,
+      detail: `Escribió ${firstMsg} y no volvió a responder cuando el bot le consultó.`
+    };
+  }
+
+  // 5. Si intercambió varios mensajes pero no llegó al Paso 5 (elegir sucursal / dar contacto)
+  return {
+    ...NON_DERIVED_REASONS.faltaron_datos,
+    detail: session.incompleta_motivo || 'Avanzó en la conversación pero dejó de responder antes de confirmar sucursal o teléfono.'
+  };
+}
+
+/**
+ * Calcula etiquetas de fecha claras (Hoy, Ayer, Hace X días, +1 semana) y tiempo sin respuesta
+ */
+function analyzeSessionTiming(rawDateStr, historial = [], isDerived = false, isPaused = false) {
+  const lastMsg = historial.length > 0 ? historial[historial.length - 1] : null;
+  const effectiveDateStr = (lastMsg && lastMsg.fecha) || rawDateStr || '';
+  const dateObj = effectiveDateStr ? new Date(effectiveDateStr) : null;
+
+  if (!dateObj || isNaN(dateObj.getTime())) {
+    return {
+      effectiveDateStr: '',
+      dateCategory: 'older',
+      badgeLabel: 'Sin fecha',
+      fullDateLabel: 'Fecha no registrada',
+      elapsedText: '',
+      minutesElapsed: 999999,
+      needsFollowUp: false,
+      followUpUrgent: false,
+      followUpReason: ''
+    };
+  }
+
+  const now = new Date();
+  const diffMs = Math.max(0, now.getTime() - dateObj.getTime());
+  const minutesElapsed = Math.floor(diffMs / (1000 * 60));
+  const hoursElapsed = Math.floor(minutesElapsed / 60);
+
+  const fmtDay = new Intl.DateTimeFormat('es-AR', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+  const todayParts = fmtDay.format(now);
+  const yesterdayDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const yesterdayParts = fmtDay.format(yesterdayDate);
+  const itemDayParts = fmtDay.format(dateObj);
+
+  const timeStr = dateObj.toLocaleTimeString('es-AR', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+  const shortDateStr = dateObj.toLocaleDateString('es-AR', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    day: '2-digit',
+    month: '2-digit'
+  });
+  const fullDateStr = dateObj.toLocaleDateString('es-AR', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+
+  const calendarDaysDiff = Math.floor((now.getTime() - dateObj.getTime()) / (1000 * 60 * 60 * 24));
+
+  let dateCategory = 'older'; // 'today' | 'yesterday' | 'week' | 'older'
+  let badgeLabel = '';
+  let fullDateLabel = `${fullDateStr} • ${timeStr} hs`;
+
+  if (itemDayParts === todayParts) {
+    dateCategory = 'today';
+    badgeLabel = `Hoy • ${timeStr} hs`;
+    fullDateLabel = `Hoy (${shortDateStr}) a las ${timeStr} hs`;
+  } else if (itemDayParts === yesterdayParts) {
+    dateCategory = 'yesterday';
+    badgeLabel = `Ayer • ${timeStr} hs`;
+    fullDateLabel = `Ayer (${shortDateStr}) a las ${timeStr} hs`;
+  } else if (calendarDaysDiff < 7) {
+    dateCategory = 'week';
+    const d = Math.max(2, calendarDaysDiff);
+    badgeLabel = `Hace ${d} días (${shortDateStr})`;
+    fullDateLabel = `Hace ${d} días (${fullDateStr} • ${timeStr} hs)`;
+  } else {
+    dateCategory = 'older';
+    const weeks = Math.floor(calendarDaysDiff / 7);
+    badgeLabel = weeks === 1 ? `Hace 1 sem. (${shortDateStr})` : `Hace ${calendarDaysDiff} días (${shortDateStr})`;
+    fullDateLabel = `${fullDateStr} a las ${timeStr} hs (Hace ${calendarDaysDiff} días)`;
+  }
+
+  let elapsedText = '';
+  if (minutesElapsed < 60) {
+    elapsedText = `hace ${Math.max(1, minutesElapsed)} min`;
+  } else if (hoursElapsed < 24) {
+    elapsedText = `hace ${hoursElapsed} h`;
+  } else {
+    const d = Math.max(1, calendarDaysDiff);
+    elapsedText = d === 1 ? 'hace 1 día' : `hace ${d} días`;
+  }
+
+  const hasClientMsg = historial.some(m => m && m.rol === 'cliente');
+  const lastRole = lastMsg?.rol || '';
+
+  const needsFollowUp = !isDerived && hasClientMsg && minutesElapsed >= 25;
+  const followUpUrgent = needsFollowUp && (dateCategory === 'today' || dateCategory === 'yesterday');
+
+  let followUpReason = '';
+  if (needsFollowUp) {
+    if (lastRole === 'cliente') {
+      followUpReason = `El cliente escribió por última vez ${elapsedText} ("${(lastMsg?.texto || '').slice(0, 60)}") y quedó esperando respuesta o derivación.`;
+    } else {
+      followUpReason = `El cliente dejó de responder ${elapsedText} sin completar los datos o la elección de sucursal.`;
+    }
+  }
+
+  return {
+    effectiveDateStr,
+    dateCategory,
+    badgeLabel,
+    fullDateLabel,
+    elapsedText,
+    minutesElapsed,
+    needsFollowUp,
+    followUpUrgent,
+    followUpReason,
+    lastRole
+  };
+}
+
+function formatMessageTimestamp(fechaStr) {
+  if (!fechaStr) return '';
+  const d = new Date(fechaStr);
+  if (isNaN(d.getTime())) return '';
+  const fmtDay = new Intl.DateTimeFormat('es-AR', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+  const now = new Date();
+  const isToday = fmtDay.format(now) === fmtDay.format(d);
+  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const isYesterday = fmtDay.format(yesterday) === fmtDay.format(d);
+
+  const time = d.toLocaleTimeString('es-AR', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+  if (isToday) return `Hoy ${time} hs`;
+  if (isYesterday) return `Ayer ${time} hs`;
+  const dayMonth = d.toLocaleDateString('es-AR', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    day: '2-digit',
+    month: '2-digit',
+    year: '2-digit'
+  });
+  return `${dayMonth} • ${time} hs`;
+}
 
 export default function BotControlCenter() {
   const { user } = useAuthStore();
@@ -86,7 +342,9 @@ export default function BotControlCenter() {
   });
 
   // Filtros en pestaña Charlas
-  const [chatFilter, setChatFilter] = useState('all'); // 'all' | 'paused' | 'incomplete' | 'derived'
+  const [chatFilter, setChatFilter] = useState('all'); // 'all' | 'nonderived' | 'followup' | 'paused' | 'derived'
+  const [nonDerivedSubFilter, setNonDerivedSubFilter] = useState('all'); // 'all' | 'no_respondio' | 'faltaron_datos' | 'buscaba_otra_cosa' | 'audio_imagen' | 'sin_historial_antiguo'
+  const [dateFilter, setDateFilter] = useState('all'); // 'all' | 'today' | 'yesterday' | 'week' | 'older'
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSessionId, setSelectedSessionId] = useState(null);
 
@@ -112,7 +370,6 @@ export default function BotControlCenter() {
         setBotConfig(data.config);
       }
       if (Array.isArray(data?.sessions)) {
-        // Filtrar grupos o sucursales si quedaron de antes
         const sucursalJids = SUCURSALES_LIST.map(s => `${s.phone}@s.whatsapp.net`);
         const cleanSessions = data.sessions
           .filter(s => s.documentId && !s.documentId.endsWith('@g.us') && !sucursalJids.includes(s.documentId))
@@ -124,12 +381,23 @@ export default function BotControlCenter() {
             } catch (e) {
               historial = [];
             }
-            const updatedTime = s.ultima_interaccion || s._updateTime || s._createTime || '';
+            const rawDate = s.ultima_interaccion || s._createTime || s._updateTime || '';
+            const isPaused = s.bot_pausado === 'true' || s.bot_pausado === true;
+            const isDerived =
+              s.estado_charla === 'derivada' ||
+              Boolean(s.resumen_historico && s.resumen_historico.toLowerCase().includes('check oil'));
+
+            const timing = analyzeSessionTiming(rawDate, historial, isDerived, isPaused);
+            const nonDerivedInfo = classifyNonDerivedSession(s, historial, isDerived);
+
             return {
               ...s,
               historial,
-              updatedTime,
-              isPaused: s.bot_pausado === 'true' || s.bot_pausado === true
+              updatedTime: timing.effectiveDateStr || rawDate,
+              isPaused,
+              isDerived,
+              timing,
+              nonDerivedInfo
             };
           })
           .sort((a, b) => new Date(b.updatedTime || 0).getTime() - new Date(a.updatedTime || 0).getTime());
@@ -184,14 +452,12 @@ export default function BotControlCenter() {
   const isAutoPauseActive = botConfig.auto_pausa_humana !== 'false' && botConfig.auto_pausa_humana !== false;
 
   // ==========================================
-  // MÉTRICAS Y ESTADÍSTICAS
+  // MÉTRICAS, FECHAS Y DESGLOSE DE NO DERIVADOS
   // ==========================================
   const stats = useMemo(() => {
     const total = sessions.length;
-    const derived = sessions.filter(s =>
-      s.estado_charla === 'derivada' ||
-      (s.resumen_historico && s.resumen_historico.toLowerCase().includes('check oil'))
-    ).length;
+    const derived = sessions.filter(s => s.isDerived).length;
+    const nonDerived = sessions.filter(s => !s.isDerived).length;
     const paused = sessions.filter(s => s.isPaused).length;
     const incomplete = sessions.filter(s =>
       s.estado_charla === 'incompleta' ||
@@ -199,6 +465,23 @@ export default function BotControlCenter() {
       s.fuera_de_contexto === 'si' ||
       Boolean(s.incompleta_motivo)
     ).length;
+    const needsFollowUp = sessions.filter(s => s.timing?.needsFollowUp).length;
+    const urgentFollowUp = sessions.filter(s => s.timing?.followUpUrgent).length;
+
+    const todayCount = sessions.filter(s => s.timing?.dateCategory === 'today').length;
+    const yesterdayCount = sessions.filter(s => s.timing?.dateCategory === 'yesterday').length;
+    const weekCount = sessions.filter(s => ['today', 'yesterday', 'week'].includes(s.timing?.dateCategory)).length;
+    const olderCount = sessions.filter(s => s.timing?.dateCategory === 'older').length;
+
+    const nonDerivedBreakdown = Object.values(NON_DERIVED_REASONS).map(r => {
+      const items = sessions.filter(s => !s.isDerived && s.nonDerivedInfo?.id === r.id);
+      return {
+        ...r,
+        count: items.length,
+        pct: nonDerived > 0 ? Math.round((items.length / nonDerived) * 100) : 0
+      };
+    });
+
     const pendingLearnings = sessions.filter(s =>
       s.aprendizaje_sugerido && s.estado_aprendizaje !== 'aprobado' && s.estado_aprendizaje !== 'descartado'
     ).length;
@@ -217,8 +500,16 @@ export default function BotControlCenter() {
     return {
       total,
       derived,
+      nonDerived,
+      nonDerivedBreakdown,
       paused,
       incomplete,
+      needsFollowUp,
+      urgentFollowUp,
+      todayCount,
+      yesterdayCount,
+      weekCount,
+      olderCount,
       pendingLearnings,
       totalMessages,
       conversionRate,
@@ -227,7 +518,7 @@ export default function BotControlCenter() {
   }, [sessions]);
 
   // ==========================================
-  // ACCIONES DE CONTROL
+  // ACCIONES DE CONTROL Y SEGUIMIENTO
   // ==========================================
   const handleToggleGlobalBot = async () => {
     const nextState = isGlobalBotActive ? 'false' : 'true';
@@ -253,19 +544,55 @@ export default function BotControlCenter() {
 
   const handleToggleClientPause = async (session) => {
     const nextPaused = !session.isPaused;
+    const nextEstado = nextPaused
+      ? 'atendida_humano'
+      : (session.estado_charla === 'atendida_humano' ? 'en_curso' : session.estado_charla);
     const updatedSession = {
       ...session,
       bot_pausado: nextPaused ? 'true' : 'false',
       motivo_pausa: nextPaused ? `Pausado manualmente por ${user?.name || 'Operador'} en Remex OS` : '',
       pausado_en: nextPaused ? new Date().toISOString() : '',
-      estado_charla: nextPaused ? 'atendida_humano' : (session.estado_charla === 'atendida_humano' ? 'en_curso' : session.estado_charla)
+      estado_charla: nextEstado,
+      ultima_interaccion: session.updatedTime || session.ultima_interaccion
     };
 
-    setSessions(prev => prev.map(s => s.documentId === session.documentId ? { ...updatedSession, isPaused: nextPaused } : s));
+    const nextTiming = analyzeSessionTiming(updatedSession.ultima_interaccion, session.historial || [], session.isDerived, nextPaused);
+    setSessions(prev =>
+      prev.map(s =>
+        s.documentId === session.documentId
+          ? { ...updatedSession, isPaused: nextPaused, timing: nextTiming }
+          : s
+      )
+    );
     try {
       await upsertBotDocumentInN8n(session.documentId, updatedSession);
     } catch (e) {
       alert('Error actualizando pausa del cliente');
+    }
+  };
+
+  const handleMarkSessionClosed = async (session) => {
+    const updatedSession = {
+      ...session,
+      estado_charla: 'derivada',
+      bot_pausado: 'false',
+      motivo_pausa: '',
+      pausado_en: '',
+      incompleta_motivo: '',
+      ultima_interaccion: session.updatedTime || session.ultima_interaccion
+    };
+    const nextTiming = analyzeSessionTiming(updatedSession.ultima_interaccion, session.historial || [], true, false);
+    setSessions(prev =>
+      prev.map(s =>
+        s.documentId === session.documentId
+          ? { ...updatedSession, isPaused: false, isDerived: true, nonDerivedInfo: null, timing: nextTiming }
+          : s
+      )
+    );
+    try {
+      await upsertBotDocumentInN8n(session.documentId, updatedSession);
+    } catch (e) {
+      alert('Error al marcar charla como resuelta');
     }
   };
 
@@ -279,7 +606,8 @@ export default function BotControlCenter() {
           ...s,
           bot_pausado: 'false',
           motivo_pausa: '',
-          pausado_en: ''
+          pausado_en: '',
+          ultima_interaccion: s.updatedTime || s.ultima_interaccion
         };
         await upsertBotDocumentInN8n(s.documentId, updated);
       }
@@ -295,7 +623,8 @@ export default function BotControlCenter() {
     try {
       const updated = {
         ...selectedSession,
-        resumen_historico: editingSummary
+        resumen_historico: editingSummary,
+        ultima_interaccion: selectedSession.updatedTime || selectedSession.ultima_interaccion
       };
       await upsertBotDocumentInN8n(selectedSession.documentId, updated);
       setSessions(prev => prev.map(s => s.documentId === selectedSession.documentId ? updated : s));
@@ -304,42 +633,50 @@ export default function BotControlCenter() {
     }
   };
 
-  const handleSendManualWhatsapp = async (e) => {
-    e.preventDefault();
-    if (!selectedSession || !manualMessage.trim()) return;
+  const sendWhatsappMessageToSession = async (session, textToSend) => {
+    if (!session || !textToSend.trim()) return;
     setIsSendingMsg(true);
     try {
       const now = new Date().toISOString();
       const newHist = [
-        ...(selectedSession.historial || []),
+        ...(session.historial || []),
         {
           rol: 'operador',
           nombre: user?.name || 'Operador Remex OS',
-          texto: manualMessage.trim(),
+          texto: textToSend.trim(),
           fecha: now
         }
       ];
       const updated = {
-        ...selectedSession,
+        ...session,
         bot_pausado: 'true',
         isPaused: true,
-        motivo_pausa: `Intervención de ${user?.name || 'Operador'} desde Remex OS`,
+        motivo_pausa: `Intervención de seguimiento por ${user?.name || 'Operador'} desde Remex OS`,
         pausado_en: now,
         estado_charla: 'atendida_humano',
         historial: newHist,
         historial_json: JSON.stringify(newHist),
         total_mensajes: String(newHist.length),
-        ultima_interaccion: now
+        ultima_interaccion: now,
+        updatedTime: now
       };
+      const nextTiming = analyzeSessionTiming(now, newHist, session.isDerived, true);
+      updated.timing = nextTiming;
 
-      await upsertBotDocumentInN8n(selectedSession.documentId, updated, manualMessage.trim());
-      setSessions(prev => prev.map(s => s.documentId === selectedSession.documentId ? updated : s));
+      await upsertBotDocumentInN8n(session.documentId, updated, textToSend.trim());
+      setSessions(prev => prev.map(s => s.documentId === session.documentId ? updated : s));
       setManualMessage('');
     } catch (err) {
       alert('No se pudo enviar el mensaje por WhatsApp: ' + err.message);
     } finally {
       setIsSendingMsg(false);
     }
+  };
+
+  const handleSendManualWhatsapp = async (e) => {
+    e.preventDefault();
+    if (!selectedSession || !manualMessage.trim()) return;
+    await sendWhatsappMessageToSession(selectedSession, manualMessage);
   };
 
   // ==========================================
@@ -366,7 +703,8 @@ export default function BotControlCenter() {
     const updatedSession = {
       ...session,
       aprendizaje_sugerido: ruleText,
-      estado_aprendizaje: 'aprobado'
+      estado_aprendizaje: 'aprobado',
+      ultima_interaccion: session.updatedTime || session.ultima_interaccion
     };
 
     setBotConfig(updatedConfig);
@@ -380,7 +718,8 @@ export default function BotControlCenter() {
   const handleDiscardLearning = async (session) => {
     const updatedSession = {
       ...session,
-      estado_aprendizaje: 'descartado'
+      estado_aprendizaje: 'descartado',
+      ultima_interaccion: session.updatedTime || session.ultima_interaccion
     };
     setSessions(prev => prev.map(s => s.documentId === session.documentId ? updatedSession : s));
     await upsertBotDocumentInN8n(session.documentId, updatedSession);
@@ -441,18 +780,19 @@ export default function BotControlCenter() {
   };
 
   const handleExportCSV = () => {
-    const headers = ['Telefono', 'Nombre', 'Estado', 'Bot_Pausado', 'Vehiculo', 'Sucursal', 'Resumen_Charla', 'Pregunta_Fuera_Contexto', 'Aprendizaje_Sugerido', 'Ultima_Interaccion'];
+    const headers = ['Fecha_Hora', 'Antiguedad', 'Telefono', 'Nombre', 'Fue_Derivado', 'Motivo_No_Derivacion', 'Alerta_Seguimiento', 'Bot_Pausado', 'Vehiculo', 'Sucursal', 'Resumen_Charla'];
     const rows = sessions.map(s => [
+      `"${s.timing?.fullDateLabel || s.updatedTime || ''}"`,
+      `"${s.timing?.badgeLabel || ''}"`,
       s.cliente_telefono || s.documentId,
       `"${(s.cliente_nombre || '').replace(/"/g, '""')}"`,
-      s.estado_charla || 'en_curso',
+      s.isDerived ? 'SI_DERIVADO' : 'NO_DERIVADO',
+      `"${(s.nonDerivedInfo?.label || 'Derivado exitosamente').replace(/"/g, '""')}"`,
+      s.timing?.needsFollowUp ? 'SIN_RESPUESTA_PENDIENTE' : 'OK',
       s.isPaused ? 'PAUSADO' : 'ACTIVO',
       `"${(s.vehiculo || '').replace(/"/g, '""')}"`,
       `"${(s.sucursal_elegida || '').replace(/"/g, '""')}"`,
-      `"${(s.resumen_charla || s.resumen_historico || '').replace(/\n/g, ' ').replace(/"/g, '""')}"`,
-      `"${(s.pregunta_detectada || s.incompleta_motivo || '').replace(/"/g, '""')}"`,
-      `"${(s.aprendizaje_sugerido || '').replace(/"/g, '""')}"`,
-      s.updatedTime || ''
+      `"${(s.resumen_charla || s.resumen_historico || '').replace(/\n/g, ' ').replace(/"/g, '""')}"`
     ]);
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
@@ -464,34 +804,50 @@ export default function BotControlCenter() {
     document.body.removeChild(link);
   };
 
-  // Filtrado de sesiones para la vista de Charlas
+  // Filtrado de sesiones por estado, sub-motivo de no derivación, fecha y texto
   const filteredSessions = useMemo(() => {
     return sessions.filter(s => {
+      if (chatFilter === 'nonderived') {
+        if (s.isDerived) return false;
+        if (nonDerivedSubFilter !== 'all' && s.nonDerivedInfo?.id !== nonDerivedSubFilter) return false;
+      }
+      if (chatFilter === 'followup' && !s.timing?.needsFollowUp) return false;
       if (chatFilter === 'paused' && !s.isPaused) return false;
-      if (chatFilter === 'incomplete' && s.estado_charla !== 'incompleta' && s.estado_charla !== 'fuera_de_contexto' && !s.incompleta_motivo) return false;
-      if (chatFilter === 'derived' && s.estado_charla !== 'derivada') return false;
+      if (chatFilter === 'derived' && !s.isDerived) return false;
+
+      if (dateFilter === 'today' && s.timing?.dateCategory !== 'today') return false;
+      if (dateFilter === 'yesterday' && s.timing?.dateCategory !== 'yesterday') return false;
+      if (dateFilter === 'week' && !['today', 'yesterday', 'week'].includes(s.timing?.dateCategory)) return false;
+      if (dateFilter === 'older' && s.timing?.dateCategory !== 'older') return false;
 
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const hay = `${s.cliente_nombre || ''} ${s.cliente_telefono || ''} ${s.documentId || ''} ${s.vehiculo || ''} ${s.sucursal_elegida || ''} ${s.resumen_historico || ''} ${s.resumen_charla || ''}`.toLowerCase();
+        const hay = `${s.cliente_nombre || ''} ${s.cliente_telefono || ''} ${s.documentId || ''} ${s.vehiculo || ''} ${s.sucursal_elegida || ''} ${s.resumen_historico || ''} ${s.resumen_charla || ''} ${s.timing?.badgeLabel || ''} ${s.nonDerivedInfo?.label || ''}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [sessions, chatFilter, searchQuery]);
+  }, [sessions, chatFilter, nonDerivedSubFilter, dateFilter, searchQuery]);
 
   // Datos para gráficos Chart.js
   const doughnutData = {
-    labels: ['Derivadas a Sucursal', 'Incompletas / Fuera de Tema', 'En Pausa (Operador Humano)', 'En Curso'],
+    labels: [
+      'Derivadas a Sucursal',
+      'No respondieron / Abandonaron',
+      'Buscaban otra cosa / Audio',
+      'Registros antiguos (pre 15/10)'
+    ],
     datasets: [
       {
         data: [
           stats.derived,
-          stats.incomplete,
-          stats.paused,
-          Math.max(0, stats.total - stats.derived - stats.incomplete - stats.paused)
+          (stats.nonDerivedBreakdown.find(b => b.id === 'no_respondio')?.count || 0) +
+            (stats.nonDerivedBreakdown.find(b => b.id === 'faltaron_datos')?.count || 0),
+          (stats.nonDerivedBreakdown.find(b => b.id === 'buscaba_otra_cosa')?.count || 0) +
+            (stats.nonDerivedBreakdown.find(b => b.id === 'audio_imagen')?.count || 0),
+          stats.nonDerivedBreakdown.find(b => b.id === 'sin_historial_antiguo')?.count || 0
         ],
-        backgroundColor: ['#10b981', '#eab308', '#f97316', '#3b82f6'],
+        backgroundColor: ['#10b981', '#f59e0b', '#f43f5e', '#52525b'],
         borderWidth: 0
       }
     ]
@@ -512,20 +868,19 @@ export default function BotControlCenter() {
   return (
     <div className="flex-1 p-6 lg:p-8 overflow-y-auto custom-scrollbar bg-zinc-950 flex flex-col h-full">
       {/* HEADER SUPERIOR Y CONTROL MAESTRO */}
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-6 shrink-0">
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-5 shrink-0">
         <div>
           <h2 className="text-2xl font-black text-white flex items-center gap-3">
             <Bot className="w-7 h-7 text-orange-500" />
             Centro de Control Bot & IA (Check-Oil)
-            <HelpTooltip text="Monitorea charlas de WhatsApp en tiempo real, pausa el bot cuando un operador escribe, analiza conversaciones incompletas y entrena al asistente con nuevas reglas." />
+            <HelpTooltip text="Monitorea charlas de WhatsApp con fecha exacta, audita por qué algunos clientes no llegaron a derivarse, alerta cuando dejan de responder e inyecta aprendizajes en vivo." />
           </h2>
           <p className="text-sm text-zinc-500 mt-1">
-            Supervisión en vivo de recepción, derivación por sucursales, pausa por intervención humana y aprendizaje continuo.
+            Supervisión en vivo de recepción, diagnóstico de no derivados, control por fechas y aprendizaje continuo.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {/* Switch Global Bot */}
           <button
             onClick={handleToggleGlobalBot}
             className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 border transition-all ${
@@ -538,7 +893,6 @@ export default function BotControlCenter() {
             {isGlobalBotActive ? 'BOT GLOBAL: ACTIVO' : 'BOT GLOBAL: EN PAUSA'}
           </button>
 
-          {/* Switch Auto-Pausa cuando escribe humano */}
           <button
             onClick={handleToggleAutoPause}
             className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 border transition-all ${
@@ -546,7 +900,7 @@ export default function BotControlCenter() {
                 ? 'bg-orange-950/30 text-orange-400 border-orange-500/40'
                 : 'bg-zinc-900 text-zinc-400 border-zinc-800'
             }`}
-            title="Si un operador humano escribe desde WhatsApp, el bot se pausa automáticamente en ese chat y solo observa/resume."
+            title="Si un operador humano escribe desde WhatsApp en una charla activa, el bot se pausa automáticamente y solo observa/resume."
           >
             <Eye className="w-4 h-4" />
             Auto-Pausa al Escribir: {isAutoPauseActive ? 'ON' : 'OFF'}
@@ -571,6 +925,37 @@ export default function BotControlCenter() {
         </div>
       </div>
 
+      {/* BANNER GLOBAL DE ALERTA DE SEGUIMIENTO (CLIENTES SIN RESPUESTA) */}
+      {stats.needsFollowUp > 0 && (
+        <div className="mb-5 bg-amber-950/30 border border-amber-500/40 rounded-2xl p-3.5 px-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-3 text-xs text-amber-200">
+            <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 shrink-0">
+              <BellRing className="w-5 h-5 animate-bounce" />
+            </div>
+            <div>
+              <span className="font-black text-amber-400 uppercase tracking-wide block sm:inline mr-2">
+                Alerta de Seguimiento ({stats.needsFollowUp} {stats.needsFollowUp === 1 ? 'charla sin cerrar' : 'charlas sin cerrar'}):
+              </span>
+              <span>
+                Hay {stats.urgentFollowUp > 0 ? <b>{stats.urgentFollowUp} clientes de hoy/ayer</b> : <b>{stats.needsFollowUp} clientes</b>} que dejaron de responder o quedaron esperando confirmación sin llegar a derivarse.
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setActiveTab('chats');
+              setChatFilter('followup');
+              const firstStalled = sessions.find(s => s.timing?.needsFollowUp);
+              if (firstStalled) setSelectedSessionId(firstStalled.documentId);
+            }}
+            className="bg-amber-500 hover:bg-amber-400 text-black font-black text-xs px-4 py-2 rounded-xl shrink-0 flex items-center gap-1.5 transition-colors"
+          >
+            <MessageCircleWarning className="w-4 h-4" />
+            Ver e Intervenir ({stats.needsFollowUp})
+          </button>
+        </div>
+      )}
+
       {errorMsg && (
         <div className="mb-6 bg-red-950/30 border border-red-500/40 rounded-2xl p-4 flex items-center justify-between text-red-300 text-sm">
           <div className="flex items-center gap-3">
@@ -593,7 +978,7 @@ export default function BotControlCenter() {
             }`}
           >
             <BarChart3 className="w-4 h-4" />
-            Estadísticas y Sucursales
+            Estadísticas y No Derivados
           </button>
 
           <button
@@ -605,10 +990,15 @@ export default function BotControlCenter() {
             }`}
           >
             <MessageSquare className="w-4 h-4" />
-            Monitor de Charlas y Pausa ({stats.total})
+            Monitor de Charlas ({stats.total})
             {stats.paused > 0 && (
               <span className="px-2 py-0.5 text-[10px] rounded-full bg-red-500 text-white font-black">
                 {stats.paused} en pausa
+              </span>
+            )}
+            {stats.needsFollowUp > 0 && (
+              <span className="px-2 py-0.5 text-[10px] rounded-full bg-amber-400 text-black font-black">
+                {stats.needsFollowUp} sin resp.
               </span>
             )}
           </button>
@@ -651,42 +1041,104 @@ export default function BotControlCenter() {
       </div>
 
       {/* =========================================================
-          TAB 1: ESTADÍSTICAS Y DATOS
+          TAB 1: ESTADÍSTICAS, SUCURSALES Y RADIOGRAFÍA DE NO DERIVADOS
       ========================================================= */}
       {activeTab === 'stats' && (
         <div className="space-y-6">
           {/* KPIs */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-3xl relative overflow-hidden">
-              <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-1">Clientes Atendidos</p>
+              <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-1">Clientes Totales</p>
               <h3 className="text-3xl font-black text-white">{stats.total}</h3>
               <p className="text-xs text-zinc-400 mt-2 font-bold">
-                {stats.totalMessages} mensajes procesados
+                Hoy: <b className="text-emerald-400">{stats.todayCount}</b> • Ayer: <b className="text-zinc-200">{stats.yesterdayCount}</b> • +1 Sem: <b className="text-zinc-400">{stats.olderCount}</b>
               </p>
             </div>
 
             <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-3xl relative overflow-hidden">
-              <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-1">Tasa de Derivación</p>
-              <h3 className="text-3xl font-black text-emerald-400">{stats.conversionRate}%</h3>
+              <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-1">Derivados con Éxito</p>
+              <h3 className="text-3xl font-black text-emerald-400">{stats.derived} <span className="text-base text-zinc-500">({stats.conversionRate}%)</span></h3>
               <p className="text-xs text-emerald-500 mt-2 font-bold flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5" /> {stats.derived} clientes derivados a sucursal
+                <CheckCircle2 className="w-3.5 h-3.5" /> Completaron flujo hasta sucursal
               </p>
             </div>
 
             <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-3xl relative overflow-hidden">
-              <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-1">Modo Observación (Pausa)</p>
-              <h3 className="text-3xl font-black text-orange-400">{stats.paused}</h3>
-              <p className="text-xs text-orange-400/80 mt-2 font-bold flex items-center gap-1">
-                <Eye className="w-3.5 h-3.5" /> Intervención humana activa
-              </p>
-            </div>
-
-            <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-3xl relative overflow-hidden">
-              <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-1">Incompletas / Aprendizajes</p>
-              <h3 className="text-3xl font-black text-amber-400">{stats.incomplete}</h3>
+              <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-1">No Derivados (Totales)</p>
+              <h3 className="text-3xl font-black text-amber-400">{stats.nonDerived}</h3>
               <p className="text-xs text-amber-400/80 mt-2 font-bold flex items-center gap-1">
-                <Sparkles className="w-3.5 h-3.5" /> {stats.pendingLearnings} reglas sugeridas por revisar
+                <HelpCircle className="w-3.5 h-3.5" /> Ver desglose de motivos abajo
               </p>
+            </div>
+
+            <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-3xl relative overflow-hidden">
+              <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-1">Para Intervenir Ahora</p>
+              <h3 className="text-3xl font-black text-orange-400">{stats.needsFollowUp}</h3>
+              <p className="text-xs text-orange-400/80 mt-2 font-bold flex items-center gap-1">
+                <BellRing className="w-3.5 h-3.5" /> Clientes con charla inconclusa
+              </p>
+            </div>
+          </div>
+
+          {/* NUEVA SECCIÓN: RADIOGRAFÍA DE NO DERIVADOS (POR QUÉ NO LLEGARON A DERIVARSE) */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-5 border-b border-zinc-800 pb-4">
+              <div>
+                <h3 className="text-base font-black text-white flex items-center gap-2">
+                  <Filter className="w-5 h-5 text-amber-400" />
+                  Radiografía de Clientes No Derivados ({stats.nonDerived} casos): ¿Por qué no llegaron a derivarse?
+                </h3>
+                <p className="text-xs text-zinc-400 mt-1">
+                  Clasificación automática de los motivos por los que una conversación no terminó en derivación a sucursal. Haz clic en cualquier motivo para inspeccionar las charlas.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setActiveTab('chats');
+                  setChatFilter('nonderived');
+                  setNonDerivedSubFilter('all');
+                }}
+                className="bg-zinc-800 hover:bg-zinc-700 text-amber-300 border border-amber-500/30 px-4 py-2 rounded-xl text-xs font-black shrink-0"
+              >
+                Ver todos los No Derivados ({stats.nonDerived})
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+              {stats.nonDerivedBreakdown.map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => {
+                    setActiveTab('chats');
+                    setChatFilter('nonderived');
+                    setNonDerivedSubFilter(item.id);
+                    const firstMatch = sessions.find(s => !s.isDerived && s.nonDerivedInfo?.id === item.id);
+                    if (firstMatch) setSelectedSessionId(firstMatch.documentId);
+                  }}
+                  className="bg-black/50 hover:bg-zinc-800/60 border border-zinc-800 hover:border-orange-500/40 rounded-2xl p-4 cursor-pointer transition-all flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${item.color}`}>
+                        {item.shortBadge}
+                      </span>
+                      <span className="text-xl font-black text-white">{item.count}</span>
+                    </div>
+                    <p className="text-xs font-bold text-zinc-200 mb-1">{item.label}</p>
+                    <p className="text-[11px] text-zinc-500 leading-relaxed">{item.description}</p>
+                  </div>
+
+                  <div className="mt-4">
+                    <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden mb-1.5">
+                      <div className={`h-full ${item.barColor}`} style={{ width: `${item.pct}%` }} />
+                    </div>
+                    <div className="flex justify-between items-center text-[10px] font-bold text-zinc-400">
+                      <span>{item.pct}% de los no derivados</span>
+                      <span className="text-orange-400 underline">Ver charlas →</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -714,7 +1166,7 @@ export default function BotControlCenter() {
 
             <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl">
               <h3 className="text-sm font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-emerald-500" /> Estado de Conversaciones
+                <BarChart3 className="w-4 h-4 text-emerald-500" /> Embudo de Conversaciones
               </h3>
               <div className="h-[260px] flex items-center justify-center">
                 <Doughnut
@@ -770,12 +1222,12 @@ export default function BotControlCenter() {
       )}
 
       {/* =========================================================
-          TAB 2: MONITOR DE CHARLAS Y CONTROL DE PAUSA POR CLIENTE
+          TAB 2: MONITOR DE CHARLAS, FECHAS Y MOTIVOS DE NO DERIVACIÓN
       ========================================================= */}
       {activeTab === 'chats' && (
-        <div className="flex-1 flex flex-col lg:flex-row gap-6 min-h-[620px]">
-          {/* Columna izquierda: Lista de sesiones */}
-          <div className="w-full lg:w-[400px] shrink-0 bg-zinc-900 border border-zinc-800 rounded-3xl flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col lg:flex-row gap-6 min-h-[650px]">
+          {/* Columna izquierda: Lista de sesiones con filtro por Fecha, Estado y Motivo de No Derivación */}
+          <div className="w-full lg:w-[430px] shrink-0 bg-zinc-900 border border-zinc-800 rounded-3xl flex flex-col overflow-hidden">
             <div className="p-4 border-b border-zinc-800 space-y-3 bg-zinc-950/40">
               <div className="relative">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
@@ -783,31 +1235,105 @@ export default function BotControlCenter() {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Buscar cliente, teléfono, vehículo..."
+                  placeholder="Buscar cliente, teléfono, vehículo, motivo..."
                   className="w-full bg-black border border-zinc-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:border-orange-500 outline-none"
                 />
               </div>
 
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  { id: 'all', label: 'Todas' },
-                  { id: 'paused', label: `En Pausa (${stats.paused})` },
-                  { id: 'incomplete', label: `Incompletas (${stats.incomplete})` },
-                  { id: 'derived', label: `Derivadas (${stats.derived})` }
-                ].map(tab => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setChatFilter(tab.id)}
-                    className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-colors ${
-                      chatFilter === tab.id
-                        ? 'bg-orange-500 text-black font-black'
-                        : 'bg-black text-zinc-400 hover:text-white border border-zinc-800'
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
+              {/* FILTRO POR FECHA */}
+              <div>
+                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                  <Calendar className="w-3 h-3 text-orange-500" /> 1. Filtrar por Fecha
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { id: 'all', label: `Todas (${stats.total})` },
+                    { id: 'today', label: `Hoy (${stats.todayCount})` },
+                    { id: 'yesterday', label: `Ayer (${stats.yesterdayCount})` },
+                    { id: 'week', label: `Últ. 7 días (${stats.weekCount})` },
+                    { id: 'older', label: `+1 Semana (${stats.olderCount})` }
+                  ].map(df => (
+                    <button
+                      key={df.id}
+                      onClick={() => setDateFilter(df.id)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors ${
+                        dateFilter === df.id
+                          ? 'bg-emerald-500 text-black font-black'
+                          : 'bg-black text-zinc-400 hover:text-white border border-zinc-800'
+                      }`}
+                    >
+                      {df.label}
+                    </button>
+                  ))}
+                </div>
               </div>
+
+              {/* FILTRO POR ESTADO (DERIVADAS VS NO DERIVADAS VS SIN RESPUESTA) */}
+              <div>
+                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                  <Clock className="w-3 h-3 text-amber-400" /> 2. Filtrar por Resultado
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { id: 'all', label: 'Todos' },
+                    { id: 'nonderived', label: `❌ No Derivados (${stats.nonDerived})` },
+                    { id: 'followup', label: `⚠️ Alerta Sin Resp. (${stats.needsFollowUp})` },
+                    { id: 'derived', label: `✅ Derivados (${stats.derived})` },
+                    { id: 'paused', label: `En Pausa (${stats.paused})` }
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => {
+                        setChatFilter(tab.id);
+                        if (tab.id !== 'nonderived') setNonDerivedSubFilter('all');
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors ${
+                        chatFilter === tab.id
+                          ? 'bg-orange-500 text-black font-black'
+                          : tab.id === 'followup' && stats.needsFollowUp > 0
+                          ? 'bg-amber-950/40 text-amber-300 border border-amber-500/40 hover:bg-amber-900/50'
+                          : 'bg-black text-zinc-400 hover:text-white border border-zinc-800'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* SUB-FILTRO ESPECÍFICO CUANDO SE ELIGE "NO DERIVADOS" */}
+              {chatFilter === 'nonderived' && (
+                <div className="pt-1 border-t border-zinc-800/80">
+                  <p className="text-[10px] font-black text-amber-400 uppercase tracking-wider mb-1.5">
+                    Motivo por el que no se derivó:
+                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    <button
+                      onClick={() => setNonDerivedSubFilter('all')}
+                      className={`px-2 py-1 rounded text-[10px] font-bold ${
+                        nonDerivedSubFilter === 'all'
+                          ? 'bg-amber-400 text-black font-black'
+                          : 'bg-zinc-900 text-zinc-400 border border-zinc-800'
+                      }`}
+                    >
+                      Todos ({stats.nonDerived})
+                    </button>
+                    {stats.nonDerivedBreakdown.map(b => (
+                      <button
+                        key={b.id}
+                        onClick={() => setNonDerivedSubFilter(b.id)}
+                        className={`px-2 py-1 rounded text-[10px] font-bold ${
+                          nonDerivedSubFilter === b.id
+                            ? 'bg-amber-400 text-black font-black'
+                            : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-white'
+                        }`}
+                      >
+                        {b.shortBadge} ({b.count})
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {stats.paused > 0 && (
                 <button
@@ -825,11 +1351,15 @@ export default function BotControlCenter() {
                 <div className="p-8 text-center text-orange-500 text-xs font-bold">Cargando charlas...</div>
               ) : filteredSessions.length === 0 ? (
                 <div className="p-8 text-center text-zinc-500 text-xs font-bold">
-                  No hay conversaciones que coincidan con el filtro.
+                  No hay conversaciones para la combinación de filtros seleccionada.
                 </div>
               ) : (
                 filteredSessions.map((s) => {
                   const isSelected = s.documentId === selectedSessionId;
+                  const t = s.timing || {};
+                  const isToday = t.dateCategory === 'today';
+                  const isYesterday = t.dateCategory === 'yesterday';
+
                   return (
                     <div
                       key={s.documentId}
@@ -840,7 +1370,8 @@ export default function BotControlCenter() {
                           : 'hover:bg-zinc-800/40 border-l-4 border-l-transparent'
                       }`}
                     >
-                      <div className="flex justify-between items-start gap-2 mb-1">
+                      {/* Fila 1: Nombre del Cliente + Estado */}
+                      <div className="flex justify-between items-start gap-2 mb-1.5">
                         <span className="font-black text-sm text-white truncate">
                           {s.cliente_nombre && s.cliente_nombre !== 'Cliente'
                             ? s.cliente_nombre
@@ -850,33 +1381,54 @@ export default function BotControlCenter() {
                           className={`text-[10px] px-2 py-0.5 rounded-full font-black uppercase shrink-0 ${
                             s.isPaused
                               ? 'bg-orange-500/20 text-orange-400 border border-orange-500/40'
-                              : s.estado_charla === 'derivada'
+                              : s.isDerived
                               ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                              : s.estado_charla === 'incompleta'
-                              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                              : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                              : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
                           }`}
                         >
                           {s.isPaused
-                            ? 'PAUSADO (OBSERVANDO)'
-                            : s.estado_charla === 'derivada'
+                            ? 'PAUSADO'
+                            : s.isDerived
                             ? 'DERIVADA'
-                            : s.estado_charla === 'incompleta'
-                            ? 'INCOMPLETA'
-                            : 'ACTIVA'}
+                            : 'NO DERIVADO'}
                         </span>
                       </div>
 
+                      {/* Fila 2: Etiqueta de Fecha + Motivo de No Derivación */}
+                      <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+                        <span
+                          className={`text-[10px] px-2 py-0.5 rounded-md font-black flex items-center gap-1 ${
+                            isToday
+                              ? 'bg-emerald-950/70 text-emerald-300 border border-emerald-500/30'
+                              : isYesterday
+                              ? 'bg-blue-950/60 text-blue-300 border border-blue-500/30'
+                              : 'bg-zinc-800 text-zinc-300 border border-zinc-700'
+                          }`}
+                        >
+                          <Calendar className="w-2.5 h-2.5" />
+                          {t.badgeLabel || 'Sin fecha'}
+                        </span>
+
+                        {!s.isDerived && s.nonDerivedInfo && (
+                          <span className={`text-[10px] px-2 py-0.5 rounded-md font-black border ${s.nonDerivedInfo.color}`}>
+                            {s.nonDerivedInfo.shortBadge}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Fila 3: Teléfono + Sucursal */}
                       <div className="text-[11px] text-zinc-400 font-mono mb-1.5 flex items-center gap-2">
                         <Phone className="w-3 h-3 text-zinc-500" />
                         {s.cliente_telefono || s.documentId.replace('@s.whatsapp.net', '')}
                         {s.sucursal_elegida && s.sucursal_elegida !== 'Sin definir' && (
-                          <span className="text-orange-400 font-bold">• {s.sucursal_elegida}</span>
+                          <span className="text-orange-400 font-bold truncate">• {s.sucursal_elegida}</span>
                         )}
                       </div>
 
                       <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed">
-                        {s.resumen_charla || s.resumen_historico || 'Sin resumen generado aún.'}
+                        {!s.isDerived && s.nonDerivedInfo
+                          ? s.nonDerivedInfo.detail
+                          : (s.resumen_charla || s.resumen_historico || 'Sin resumen generado aún.')}
                       </p>
                     </div>
                   );
@@ -885,24 +1437,28 @@ export default function BotControlCenter() {
             </div>
           </div>
 
-          {/* Columna derecha: Detalle de charla, resumen, pausa y chat */}
+          {/* Columna derecha: Detalle de charla, motivo de no derivación, alerta de intervención, resumen, pausa y chat */}
           <div className="flex-1 bg-zinc-900 border border-zinc-800 rounded-3xl flex flex-col overflow-hidden">
             {!selectedSession ? (
               <div className="flex-1 flex flex-col items-center justify-center p-12 text-zinc-500">
                 <MessageSquare className="w-12 h-12 mb-3 opacity-20" />
-                <p className="font-bold">Selecciona una conversación para ver su resumen y controlar el bot.</p>
+                <p className="font-bold">Selecciona una conversación para ver su fecha, motivo y mensajes.</p>
               </div>
             ) : (
               <>
-                {/* Cabecera del cliente seleccionado */}
+                {/* Cabecera del cliente seleccionado con FECHA EXACTA */}
                 <div className="p-5 border-b border-zinc-800 bg-zinc-950/60 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-2.5">
                       <h3 className="text-lg font-black text-white">
                         {selectedSession.cliente_nombre || 'Cliente WhatsApp'}
                       </h3>
                       <span className="text-xs font-mono text-orange-400 bg-orange-950/40 border border-orange-500/30 px-2.5 py-0.5 rounded-lg">
                         +{selectedSession.cliente_telefono || selectedSession.documentId.replace('@s.whatsapp.net', '')}
+                      </span>
+                      <span className="text-xs font-bold text-emerald-300 bg-emerald-950/50 border border-emerald-500/30 px-2.5 py-0.5 rounded-lg flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+                        {selectedSession.timing?.fullDateLabel || 'Sin fecha registrada'}
                       </span>
                     </div>
                     <div className="flex flex-wrap items-center gap-4 mt-2 text-xs text-zinc-400">
@@ -918,7 +1474,7 @@ export default function BotControlCenter() {
                   </div>
 
                   {/* Botón Pausa / Reactivar Bot para este cliente */}
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleToggleClientPause(selectedSession)}
                       className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 border transition-all ${
@@ -942,6 +1498,64 @@ export default function BotControlCenter() {
                   </div>
                 </div>
 
+                {/* DIAGNÓSTICO DE NO DERIVACIÓN + ALERTA DE INTERVENCIÓN RÁPIDA */}
+                {!selectedSession.isDerived && selectedSession.nonDerivedInfo && (
+                  <div className="bg-amber-950/25 border-b border-amber-500/30 px-5 py-3.5 flex flex-col gap-2.5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-start gap-2.5 text-xs text-amber-100">
+                        <HelpCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                        <div>
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded border mr-2 uppercase ${selectedSession.nonDerivedInfo.color}`}>
+                            ¿Por qué no fue derivado?: {selectedSession.nonDerivedInfo.shortBadge}
+                          </span>
+                          <span>{selectedSession.nonDerivedInfo.detail}</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleMarkSessionClosed(selectedSession)}
+                        className="text-[11px] bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold px-3 py-1.5 rounded-lg shrink-0 flex items-center gap-1 border border-zinc-700"
+                        title="Marcar como ya derivado o resuelto"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                        Marcar como Derivada/Resuelta
+                      </button>
+                    </div>
+
+                    {/* Botones de intervención con 1 clic */}
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <span className="text-[11px] font-black text-amber-400/90 uppercase mr-1">
+                        Intervenir / Consultar al cliente:
+                      </span>
+                      <button
+                        onClick={() => {
+                          const nombre = selectedSession.cliente_nombre && selectedSession.cliente_nombre !== 'Cliente'
+                            ? ` ${selectedSession.cliente_nombre.split(' ')[0]}`
+                            : '';
+                          setManualMessage(
+                            `¡Hola${nombre}! Te escribimos de Check-Oil para saber si pudiste resolver tu consulta o si necesitas que te ayudemos con la cotización o derivación a alguna sucursal.`
+                          );
+                        }}
+                        className="text-[11px] bg-amber-500 hover:bg-amber-400 text-black font-black px-3 py-1.5 rounded-lg transition-colors"
+                      >
+                        👋 Preguntar si necesita algo más
+                      </button>
+                      <button
+                        onClick={() => {
+                          const nombre = selectedSession.cliente_nombre && selectedSession.cliente_nombre !== 'Cliente'
+                            ? ` ${selectedSession.cliente_nombre.split(' ')[0]}`
+                            : '';
+                          setManualMessage(
+                            `¡Hola${nombre}! Quedamos atentos por si querés confirmarnos marca, modelo y motor de tu vehículo y la sucursal de Check-Oil que te quede más cómoda para derivarte.`
+                          );
+                        }}
+                        className="text-[11px] bg-zinc-800 hover:bg-zinc-700 text-amber-300 border border-amber-500/30 font-bold px-3 py-1.5 rounded-lg transition-colors"
+                      >
+                        🚗 Pedir datos faltantes para derivar
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Alerta si está en pausa por intervención humana */}
                 {selectedSession.isPaused && (
                   <div className="bg-orange-950/30 border-b border-orange-500/30 px-5 py-3 flex items-center justify-between text-xs text-orange-300">
@@ -951,24 +1565,6 @@ export default function BotControlCenter() {
                         <b>Bot en Pausa y Observando:</b> {selectedSession.motivo_pausa || 'Un operador humano tomó la conversación.'} El bot no responderá pero seguirá actualizando el resumen y aprendiendo de la charla.
                       </span>
                     </div>
-                  </div>
-                )}
-
-                {/* Alerta si quedó incompleta o fuera de contexto */}
-                {(selectedSession.incompleta_motivo || selectedSession.pregunta_detectada) && (
-                  <div className="bg-amber-950/20 border-b border-amber-500/30 px-5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-amber-200">
-                    <div>
-                      <span className="font-black text-amber-400 uppercase mr-2">Detección IA:</span>
-                      {selectedSession.incompleta_motivo || selectedSession.pregunta_detectada}
-                    </div>
-                    {selectedSession.aprendizaje_sugerido && selectedSession.estado_aprendizaje !== 'aprobado' && (
-                      <button
-                        onClick={() => setActiveTab('learning')}
-                        className="text-[11px] bg-amber-500 text-black font-black px-3 py-1 rounded-lg shrink-0"
-                      >
-                        Ver Aprendizaje Sugerido
-                      </button>
-                    )}
                   </div>
                 )}
 
@@ -983,8 +1579,8 @@ export default function BotControlCenter() {
 
                     <div className="flex-1 p-5 overflow-y-auto custom-scrollbar space-y-3 bg-zinc-950/40">
                       {(!selectedSession.historial || selectedSession.historial.length === 0) ? (
-                        <div className="text-center text-zinc-500 text-xs py-12">
-                          No hay mensajes detallados registrados en esta sesión. Revisa el resumen histórico a la derecha.
+                        <div className="text-center text-zinc-500 text-xs py-12 px-6">
+                          Esta sesión corresponde a un contacto previo a la activación del registro completo de mensajes o solo conserva el resumen histórico a la derecha.
                         </div>
                       ) : (
                         selectedSession.historial.map((m, idx) => {
@@ -1009,11 +1605,13 @@ export default function BotControlCenter() {
                                     {isClient
                                       ? `👤 ${m.nombre || selectedSession.cliente_nombre || 'Cliente'}`
                                       : isOperator
-                                      ? '🧑‍🔧 Operador Humano (Bot en Pausa)'
+                                      ? '🧑‍🔧 Operador Humano (WhatsApp / Remex)'
                                       : '🤖 Bot Check-Oil'}
                                   </span>
                                   {m.fecha && (
-                                    <span>{new Date(m.fecha).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</span>
+                                    <span className="font-mono text-[10px]">
+                                      {formatMessageTimestamp(m.fecha)}
+                                    </span>
                                   )}
                                 </div>
                                 <p className="whitespace-pre-wrap">{m.texto}</p>
@@ -1030,7 +1628,7 @@ export default function BotControlCenter() {
                         type="text"
                         value={manualMessage}
                         onChange={(e) => setManualMessage(e.target.value)}
-                        placeholder="Escribir al cliente por WhatsApp (pausará el bot automáticamente)..."
+                        placeholder="Escribir al cliente por WhatsApp para intervenir o consultar si necesita algo más..."
                         className="flex-1 bg-black border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-white focus:border-orange-500 outline-none"
                       />
                       <button
@@ -1048,10 +1646,10 @@ export default function BotControlCenter() {
                   <div className="xl:col-span-2 p-5 flex flex-col gap-4 overflow-y-auto custom-scrollbar">
                     <div className="bg-black/40 border border-zinc-800 rounded-2xl p-4">
                       <h4 className="text-xs font-black text-orange-400 uppercase tracking-widest mb-2">
-                        Resumen Ejecutivo de la Charla
+                        Resumen Ejecutivo y Diagnóstico
                       </h4>
                       <p className="text-xs text-zinc-300 leading-relaxed">
-                        {selectedSession.resumen_charla || 'El bot generará un resumen ejecutivo en el próximo mensaje.'}
+                        {selectedSession.resumen_charla || selectedSession.nonDerivedInfo?.detail || 'El bot generará un resumen ejecutivo en el próximo mensaje.'}
                       </p>
                     </div>
 
@@ -1091,7 +1689,6 @@ export default function BotControlCenter() {
       ========================================================= */}
       {activeTab === 'learning' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Columna Izquierda: Detecciones de Charlas Incompletas / Preguntas Fuera de Contexto */}
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 flex flex-col">
             <div className="mb-4">
               <h3 className="text-base font-black text-white flex items-center gap-2">
@@ -1131,6 +1728,11 @@ export default function BotControlCenter() {
                             <span className="text-[11px] text-zinc-500 ml-2 font-mono">
                               +{s.cliente_telefono}
                             </span>
+                            {s.timing?.badgeLabel && (
+                              <span className="text-[10px] text-zinc-400 ml-2 bg-zinc-800 px-2 py-0.5 rounded">
+                                {s.timing.badgeLabel}
+                              </span>
+                            )}
                           </div>
                           <span
                             className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${
@@ -1139,13 +1741,13 @@ export default function BotControlCenter() {
                                 : 'bg-amber-500/20 text-amber-300'
                             }`}
                           >
-                            {isApproved ? 'Aprendido y Activo' : s.estado_charla || 'Detectado'}
+                            {isApproved ? 'Aprendido y Activo' : s.nonDerivedInfo?.shortBadge || s.estado_charla || 'Detectado'}
                           </span>
                         </div>
 
                         {(s.pregunta_detectada || s.incompleta_motivo) && (
                           <div className="text-xs text-zinc-300 mb-2 bg-zinc-900/90 p-2.5 rounded-xl border border-zinc-800">
-                            <b className="text-amber-400">Situación / Pregunta detectada:</b>{' '}
+                            <b className="text-amber-400">Situación / Motivo detectado:</b>{' '}
                             {s.pregunta_detectada || s.incompleta_motivo}
                           </div>
                         )}
@@ -1213,7 +1815,6 @@ export default function BotControlCenter() {
             </div>
           </div>
 
-          {/* Columna Derecha: Base de Conocimiento Activa (Reglas Aprendidas en n8n) */}
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 flex flex-col">
             <div className="mb-4">
               <h3 className="text-base font-black text-white flex items-center gap-2">
@@ -1225,7 +1826,6 @@ export default function BotControlCenter() {
               </p>
             </div>
 
-            {/* Formulario para agregar nueva regla aprendida manualmente */}
             <form onSubmit={handleAddManualRule} className="bg-black/50 border border-zinc-800 rounded-2xl p-4 mb-5 space-y-3">
               <p className="text-xs font-black text-orange-400 uppercase tracking-wider">
                 + Enseñar Nueva Regla o Respuesta al Bot
@@ -1252,7 +1852,6 @@ export default function BotControlCenter() {
               </button>
             </form>
 
-            {/* Lista de reglas aprendidas */}
             <div className="space-y-3 flex-1 overflow-y-auto custom-scrollbar pr-1">
               {learnedRules.length === 0 ? (
                 <div className="p-8 text-center text-zinc-500 text-xs font-bold border border-dashed border-zinc-800 rounded-2xl">

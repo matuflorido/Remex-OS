@@ -7,21 +7,52 @@ const N8N_BOT_API_URL = 'https://n8n.check-oil.tech/webhook/remex-bot-api';
  * Obtiene todas las sesiones, configuración y estadísticas directamente desde el webhook API de n8n
  * (conectado a Firestore check-oil-bot).
  */
+const LOCAL_BOT_CACHE_KEY = 'remex_bot_dashboard_cache_v21';
+
 export const fetchBotDashboardFromN8n = async () => {
-  const response = await fetch(N8N_BOT_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ action: 'get_all' }),
-  });
+  try {
+    const response = await fetch(N8N_BOT_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ action: 'get_all' }),
+    });
 
-  if (!response.ok) {
-    throw new Error(`Error comunicando con n8n (${response.status})`);
+    if (!response.ok) {
+      throw new Error(`Error comunicando con n8n (${response.status})`);
+    }
+
+    const data = await response.json();
+    if (Array.isArray(data?.sessions) && data.sessions.length > 0) {
+      try {
+        localStorage.setItem(LOCAL_BOT_CACHE_KEY, JSON.stringify(data));
+      } catch (e) {}
+      return data;
+    }
+
+    // Si por algún motivo remoto vino vacío pero tenemos caché local previa, conservar caché
+    const cachedRaw = localStorage.getItem(LOCAL_BOT_CACHE_KEY);
+    if (cachedRaw) {
+      const cached = JSON.parse(cachedRaw);
+      if (Array.isArray(cached?.sessions) && cached.sessions.length > 0) {
+        return {
+          ...cached,
+          config: data?.config || cached.config,
+          timestamp: data?.timestamp || cached.timestamp,
+        };
+      }
+    }
+    return data;
+  } catch (err) {
+    const cachedRaw = localStorage.getItem(LOCAL_BOT_CACHE_KEY);
+    if (cachedRaw) {
+      try {
+        return JSON.parse(cachedRaw);
+      } catch (e) {}
+    }
+    throw err;
   }
-
-  const data = await response.json();
-  return data;
 };
 
 /**
