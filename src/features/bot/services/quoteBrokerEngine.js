@@ -22,7 +22,7 @@ export const DEFAULT_BUSINESS_HOURS = {
 
 export const DEFAULT_BROKER_CONFIG = {
   modo_presupuesto_intermediario: 'programado', // 'programado' | 'true' | 'false'
-  fecha_inicio_intermediario: '2026-11-10', // Martes 10 de noviembre 2026
+  fecha_inicio_intermediario: '2026-11-09', // Lunes 9 de noviembre 2026
   sucursales_intermediario_json: '["Centro"]',
   sla_recordatorio_minutos: '25',
   horario_comercial_json: JSON.stringify(DEFAULT_BUSINESS_HOURS)

@@ -366,10 +366,13 @@ function formatMessageTimestamp(fechaStr) {
   return `${dayMonth} • ${time} hs`;
 }
 
-export default function BotControlCenter() {
+export default function BotControlCenter({ initialTab = 'stats' }) {
   const { user } = useAuthStore();
 
-  const [activeTab, setActiveTab] = useState('stats'); // 'stats' | 'chats' | 'learning' | 'config'
+  const [activeTab, setActiveTab] = useState(initialTab); // 'quotes' | 'stats' | 'chats' | 'learning' | 'config'
+  useEffect(() => {
+    if (initialTab) setActiveTab(initialTab);
+  }, [initialTab]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -1039,9 +1042,61 @@ export default function BotControlCenter() {
         </div>
       )}
 
+      {/* ACCESO RÁPIDO DESTACADO AL INTERMEDIARIO DE PRESUPUESTOS Y AUDITORÍA PDF (PILOTO SUCURSAL CENTRO) */}
+      {activeTab !== 'quotes' && (
+        <div className="mb-5 bg-gradient-to-r from-orange-950/60 via-amber-950/40 to-zinc-900 border border-orange-500/50 rounded-2xl p-4 px-5 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 shrink-0 shadow-[0_0_25px_rgba(249,115,22,0.12)]">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="p-2.5 rounded-xl bg-orange-500/20 border border-orange-500/40 text-orange-400 shrink-0">
+              <Scale className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-black text-white uppercase tracking-wide">
+                  🧾 Nuevo: Intermediario de Presupuestos, SLA Hábil y Auditoría de PDFs
+                </span>
+                <span className="px-2 py-0.5 text-[10px] font-black rounded-full bg-amber-400 text-black uppercase">
+                  {brokerActivation.statusBadge}
+                </span>
+              </div>
+              <p className="text-xs text-zinc-300 mt-1">
+                Prueba piloto con <b>Check-Oil Centro (desde Lunes 09/11)</b>: el bot pide el presupuesto a la sucursal sin derivar al cliente, mide demora hábil (recordatorio 25 min), traslada repreguntas y audita precios de filtros/aceite en los PDFs.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setActiveTab('quotes')}
+            className="bg-orange-500 hover:bg-orange-400 text-black font-black text-xs px-4 py-2.5 rounded-xl shrink-0 flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(249,115,22,0.4)]"
+          >
+            <Scale className="w-4 h-4" />
+            Abrir Presupuestos, Lector PDF y Simulador →
+          </button>
+        </div>
+      )}
+
       {/* NAVEGACIÓN DE PESTAÑAS */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6 bg-zinc-900/90 border border-zinc-800 p-2 rounded-2xl shrink-0">
         <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setActiveTab('quotes')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all ${
+              activeTab === 'quotes'
+                ? 'bg-orange-500 text-black shadow-[0_0_15px_rgba(249,115,22,0.4)]'
+                : 'bg-orange-950/40 text-orange-300 border border-orange-500/40 hover:bg-orange-900/40'
+            }`}
+          >
+            <Scale className="w-4 h-4" />
+            🧾 Presupuestos, SLA & Precios PDF
+            {brokerQuotesCount > 0 ? (
+              <span className="px-2 py-0.5 text-[10px] rounded-full bg-emerald-400 text-black font-black">
+                {brokerQuotesCount}
+              </span>
+            ) : (
+              <span className="px-2 py-0.5 text-[10px] rounded-full bg-amber-400 text-black font-black">
+                Piloto Lunes 09/11 • Centro
+              </span>
+            )}
+          </button>
+
           <button
             onClick={() => setActiveTab('stats')}
             className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all ${
@@ -1072,27 +1127,6 @@ export default function BotControlCenter() {
             {stats.needsFollowUp > 0 && (
               <span className="px-2 py-0.5 text-[10px] rounded-full bg-amber-400 text-black font-black">
                 {stats.needsFollowUp} sin resp.
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={() => setActiveTab('quotes')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all ${
-              activeTab === 'quotes'
-                ? 'bg-orange-500 text-black shadow-[0_0_15px_rgba(249,115,22,0.4)]'
-                : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-            }`}
-          >
-            <Scale className="w-4 h-4" />
-            Presupuestos, SLA & Precios PDF
-            {brokerQuotesCount > 0 ? (
-              <span className="px-2 py-0.5 text-[10px] rounded-full bg-emerald-400 text-black font-black">
-                {brokerQuotesCount}
-              </span>
-            ) : (
-              <span className="px-2 py-0.5 text-[10px] rounded-full bg-amber-400 text-black font-black">
-                Piloto 10/11
               </span>
             )}
           </button>

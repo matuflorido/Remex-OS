@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Activity, UserCircle, Wrench, Search, Bell, LogOut, Menu, X, CheckCircle2, BarChart3, CalendarDays, Settings, BookOpen, MessageSquare, Inbox, DollarSign, Bot } from 'lucide-react';
+import { Activity, UserCircle, Wrench, Search, Bell, LogOut, Menu, X, CheckCircle2, BarChart3, CalendarDays, Settings, BookOpen, MessageSquare, Inbox, DollarSign, Bot, Scale } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import useUIStore from '../store/useUIStore';
 import useSettingsStore from '../store/useSettingsStore';
 import { subscribeToNotifications, markNotificationAsRead } from '../features/notifications/services/notificationService';
 import SettingsModal from '../features/settings/components/SettingsModal';
+import UpdateModal from '../Components/UpdateModal';
 import packageJson from '../../package.json';
 
 const electron = window.require ? window.require('electron') : null;
@@ -136,6 +137,18 @@ export default function MainLayout({ children }) {
             {isSidebarOpen && <span className="ml-3 font-bold truncate">Bot & IA Check-Oil</span>}
           </button>
 
+          <button onClick={() => setCurrentView('bot_quotes')} className={`w-full flex items-center px-4 py-3 rounded-xl text-sm border transition-colors relative ${currentView === 'bot_quotes' ? 'bg-amber-900/30 text-amber-300 border-amber-500/60 shadow-[0_0_15px_rgba(245,158,11,0.2)]' : 'bg-orange-950/20 border-orange-500/30 text-orange-300 hover:bg-orange-900/30'}`}>
+            <Scale className="w-5 h-5 shrink-0 text-amber-400"/> 
+            {isSidebarOpen && (
+              <>
+                <span className="ml-3 font-black truncate text-xs">Presupuestos & PDF</span>
+                <span className="ml-auto px-1.5 py-0.5 text-[9px] font-black rounded bg-amber-400 text-black uppercase tracking-tight">
+                  Centro
+                </span>
+              </>
+            )}
+          </button>
+
           <button onClick={() => setCurrentView('crm')} className={`w-full flex items-center px-4 py-3 rounded-xl text-sm border transition-colors ${currentView === 'crm' ? 'bg-orange-900/20 text-orange-400 border-orange-500/50' : 'border-transparent text-zinc-400 hover:bg-zinc-800'}`}>
             <UserCircle className="w-5 h-5 shrink-0"/> 
             {isSidebarOpen && <span className="ml-3 font-bold truncate">CRM Operativo</span>}
@@ -198,6 +211,19 @@ export default function MainLayout({ children }) {
                 className="w-full bg-black border border-zinc-800 rounded-xl pl-11 pr-4 py-2.5 text-sm text-white focus:border-orange-500 outline-none transition-colors"
               />
             </div>
+
+            <button
+              onClick={() => setCurrentView('bot_quotes')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-2 border transition-all shrink-0 ${
+                currentView === 'bot_quotes'
+                  ? 'bg-amber-500 text-black border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)]'
+                  : 'bg-amber-950/40 text-amber-300 border-amber-500/40 hover:bg-amber-900/50'
+              }`}
+              title="Abrir Intermediario de Presupuestos, SLA Hábil y Auditoría de PDFs (Piloto Sucursal Centro)"
+            >
+              <Scale className="w-4 h-4 text-orange-400" />
+              <span>🧾 Presupuestos & PDF (Piloto Centro • Lunes 09/11)</span>
+            </button>
           </div>
           
           <div className="flex items-center gap-4 sm:gap-6">
@@ -280,6 +306,7 @@ export default function MainLayout({ children }) {
       </div>
 
       {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
+      <UpdateModal />
     </div>
   );
 }

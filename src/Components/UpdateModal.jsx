@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X, Sparkles, CheckCircle2 } from 'lucide-react';
+import { X, Sparkles, CheckCircle2, Scale } from 'lucide-react';
+import useUIStore from '../store/useUIStore';
 
-const CURRENT_VERSION = '2.2.0';
+const CURRENT_VERSION = '2.3.0';
 
 export default function UpdateModal() {
   const [isOpen, setIsOpen] = useState(false);
+  const { setCurrentView } = useUIStore();
 
   useEffect(() => {
     const lastSeenVersion = localStorage.getItem('remex_last_version_seen');
@@ -16,6 +18,12 @@ export default function UpdateModal() {
   const handleClose = () => {
     localStorage.setItem('remex_last_version_seen', CURRENT_VERSION);
     setIsOpen(false);
+  };
+
+  const handleOpenQuotes = () => {
+    localStorage.setItem('remex_last_version_seen', CURRENT_VERSION);
+    setIsOpen(false);
+    setCurrentView('bot_quotes');
   };
 
   if (!isOpen) return null;
@@ -46,14 +54,14 @@ export default function UpdateModal() {
 
         <div className="p-6 md:p-8 overflow-y-auto custom-scrollbar flex-1 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-zinc-900/40 via-zinc-950 to-zinc-950">
           <p className="text-zinc-300 mb-6 text-sm">
-            La versión <strong>2.2.0</strong> incorpora el nuevo <strong>Intermediario de Presupuestos, Lector de PDFs y Auditoría de Precios por Sucursal</strong> en el Centro de Control del Bot Check-Oil:
+            La versión <strong>2.3.0</strong> incorpora acceso directo en el menú lateral a <strong>Presupuestos & PDF (Centro)</strong> y el nuevo <strong>Intermediario de Presupuestos, Lector de PDFs y Auditoría de Precios por Sucursal</strong>:
           </p>
 
           <div className="space-y-4">
             <div className="bg-zinc-900/80 border border-orange-500/40 p-4 rounded-xl flex gap-3">
               <CheckCircle2 className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
               <div>
-                <h4 className="text-white font-bold text-sm mb-1">Intermediario de Presupuestos, SLA Hábil y Precios PDF (Piloto Martes 10/11 • Centro)</h4>
+                <h4 className="text-white font-bold text-sm mb-1">Intermediario de Presupuestos, SLA Hábil y Precios PDF (Piloto Lunes 09/11 • Centro)</h4>
                 <p className="text-zinc-400 text-sm leading-relaxed">
                   El bot solicita presupuestos a la sucursal sin revelar el contacto del cliente hasta que confirme la cotización, traslada repreguntas ida y vuelta, analiza los <strong>PDFs de presupuesto</strong> (aceite, códigos de filtros y descuentos), mide la demora neta en horario comercial (recordatorio automático a los 25 min) y compara diferencias de precios entre sucursales.
                 </p>
@@ -93,7 +101,14 @@ export default function UpdateModal() {
           </div>
         </div>
 
-        <div className="p-5 border-t border-zinc-800 bg-zinc-900/50 shrink-0 flex justify-end">
+        <div className="p-5 border-t border-zinc-800 bg-zinc-900/50 shrink-0 flex flex-wrap justify-between items-center gap-3">
+          <button 
+            onClick={handleOpenQuotes}
+            className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-black text-sm font-black rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-amber-500/20"
+          >
+            <Scale className="w-4 h-4" />
+            Abrir Presupuestos & PDF (Piloto Centro)
+          </button>
           <button 
             onClick={handleClose}
             className="px-6 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-orange-500/20"
