@@ -27,13 +27,20 @@ import {
   BellRing,
   MessageCircleWarning,
   HelpCircle,
-  Filter
+  Filter,
+  Scale
 } from 'lucide-react';
 import { Doughnut, Bar } from 'react-chartjs-2';
 import {
   fetchBotDashboardFromN8n,
   upsertBotDocumentInN8n
 } from '../services/botService';
+import {
+  DEFAULT_BROKER_CONFIG,
+  evaluateBrokerActivationStatus,
+  extractAllQuotesFromSessions
+} from '../services/quoteBrokerEngine';
+import QuoteBrokerAuditPanel from './QuoteBrokerAuditPanel';
 import { useAuthStore } from '../../../store/useAuthStore';
 import HelpTooltip from '../../../components/ui/HelpTooltip';
 
@@ -111,7 +118,14 @@ FLUJO DE CONVERSACIÓN:
 PASO 1: SALUDO Y DESCUBRIMIENTO (según hora local AR).
 PASO 2: EXTRACCIÓN DE DATOS DEL VEHÍCULO (Marca, Modelo, Año y Motor en una sola pregunta; inferir Marca si el modelo es inconfundible).
 PASO 3: OFRECER ZONAS Y SUCURSAL.
-PASO 4: DERIVACIÓN AUTOMÁTICA INMEDIATA (SIN PEDIR TELÉFONO NI NOMBRE) ejecutando Enviar_Derivacion_Sucursal con {{ $json.telefonoCliente }} y link https://wa.me/{{ $json.telefonoCliente }}.`;
+PASO 4A (SUCURSAL EN MODO INTERMEDIARIO DE PRESUPUESTO — Piloto Centro desde 2026-11-10):
+- NO derivar ni mostrar el teléfono del cliente hasta que confirme el presupuesto.
+- Ejecutar Solicitar_Presupuesto_Sucursal (#COT-XXXX sin teléfono del cliente).
+- Si la sucursal repregunta un dato, trasladar la pregunta al cliente y reenviar su respuesta a la sucursal.
+- Cuando la sucursal responde con el PDF o texto del presupuesto, analizar códigos de filtros/aceite y valores, medir demora hábil y reenviar Resumen + PDF adjunto al cliente.
+- Recién cuando el cliente CONFIRMA/ACEPTA el presupuesto o pide turno, ejecutar Enviar_Derivacion_Sucursal liberando teléfono y wa.me.
+PASO 4B (SUCURSAL EN DERIVACIÓN DIRECTA CLÁSICA):
+- Ejecutar Enviar_Derivacion_Sucursal de inmediato con {{ $json.telefonoCliente }} y https://wa.me/{{ $json.telefonoCliente }}.`;
 
 /**
  * Clasifica por qué una sesión NO fue derivada a sucursal
@@ -119,6 +133,37 @@ PASO 4: DERIVACIÓN AUTOMÁTICA INMEDIATA (SIN PEDIR TELÉFONO NI NOMBRE) ejecut
 function classifyNonDerivedSession(session, historial = [], isDerived = false) {
   if (isDerived) {
     return null;
+  }
+
+  if (session.estado_cotizacion === 'esperando_sucursal') {
+    return {
+      id: 'esperando_sucursal',
+      label: 'Esperando presupuesto de Sucursal',
+      shortBadge: `⏳ Cotizando #${session.ticket_id || 'COT'}`,
+      color: 'text-cyan-300 bg-cyan-500/20 border-cyan-500/40',
+      barColor: 'bg-cyan-500',
+      detail: `Pedido #${session.ticket_id || ''} enviado a Suc. ${session.sucursal_cotizacion || session.sucursal_elegida || 'Centro'}. Esperando PDF o valores.`
+    };
+  }
+  if (session.estado_cotizacion === 'esperando_respuesta_cliente') {
+    return {
+      id: 'esperando_respuesta_cliente',
+      label: 'Sucursal consultó dato al cliente',
+      shortBadge: `💬 Repregunta #${session.ticket_id || 'COT'}`,
+      color: 'text-amber-300 bg-amber-500/20 border-amber-500/40',
+      barColor: 'bg-amber-500',
+      detail: `Sucursal consultó: "${session.ultima_pregunta_sucursal || 'dato técnico'}" — esperando respuesta del cliente.`
+    };
+  }
+  if (session.estado_cotizacion === 'presupuesto_enviado') {
+    return {
+      id: 'presupuesto_enviado',
+      label: 'Presupuesto ya enviado (Esperando confirmación)',
+      shortBadge: `📄 Presup. Enviado #${session.ticket_id || 'COT'}`,
+      color: 'text-emerald-300 bg-emerald-500/20 border-emerald-500/40',
+      barColor: 'bg-emerald-500',
+      detail: `Presupuesto #${session.ticket_id || ''} entregado al cliente. Derivará al confirmar.`
+    };
   }
 
   const allText = `${session.incompleta_motivo || ''} ${session.pregunta_detectada || ''} ${session.resumen_charla || ''} ${session.resumen_historico || ''} ${historial.map(m => m.texto || '').join(' ')}`.toLowerCase();
@@ -338,7 +383,8 @@ export default function BotControlCenter() {
     auto_pausa_humana: 'true',
     delay_respuesta_ms: '20000',
     prompt_extra: '',
-    reglas_aprendidas_json: '[]'
+    reglas_aprendidas_json: '[]',
+    ...DEFAULT_BROKER_CONFIG
   });
 
   // Filtros en pestaña Charlas
@@ -450,6 +496,18 @@ export default function BotControlCenter() {
 
   const isGlobalBotActive = botConfig.bot_activo !== 'false' && botConfig.bot_activo !== false;
   const isAutoPauseActive = botConfig.auto_pausa_humana !== 'false' && botConfig.auto_pausa_humana !== false;
+  const brokerActivation = useMemo(() => evaluateBrokerActivationStatus(botConfig), [botConfig]);
+  const brokerQuotesCount = useMemo(() => extractAllQuotesFromSessions(sessions).length, [sessions]);
+
+  const handleUpdateBrokerConfig = async (nextBrokerConfig) => {
+    const merged = {
+      ...botConfig,
+      ...nextBrokerConfig,
+      documentId: 'bot_config_global'
+    };
+    setBotConfig(merged);
+    await upsertBotDocumentInN8n('bot_config_global', merged);
+  };
 
   // ==========================================
   // MÉTRICAS, FECHAS Y DESGLOSE DE NO DERIVADOS
@@ -882,6 +940,21 @@ export default function BotControlCenter() {
 
         <div className="flex flex-wrap items-center gap-3">
           <button
+            onClick={() => setActiveTab('quotes')}
+            className={`px-3.5 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 border transition-all ${
+              brokerActivation.statusTone === 'emerald'
+                ? 'bg-emerald-950/40 text-emerald-300 border-emerald-500/40 hover:bg-emerald-900/50'
+                : brokerActivation.statusTone === 'amber'
+                ? 'bg-amber-950/40 text-amber-300 border-amber-500/40 hover:bg-amber-900/50'
+                : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-white'
+            }`}
+            title={brokerActivation.statusDescription}
+          >
+            <Scale className="w-4 h-4 text-orange-500" />
+            {brokerActivation.statusBadge}
+          </button>
+
+          <button
             onClick={handleToggleGlobalBot}
             className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 border transition-all ${
               isGlobalBotActive
@@ -1004,6 +1077,27 @@ export default function BotControlCenter() {
           </button>
 
           <button
+            onClick={() => setActiveTab('quotes')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all ${
+              activeTab === 'quotes'
+                ? 'bg-orange-500 text-black shadow-[0_0_15px_rgba(249,115,22,0.4)]'
+                : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+            }`}
+          >
+            <Scale className="w-4 h-4" />
+            Presupuestos, SLA & Precios PDF
+            {brokerQuotesCount > 0 ? (
+              <span className="px-2 py-0.5 text-[10px] rounded-full bg-emerald-400 text-black font-black">
+                {brokerQuotesCount}
+              </span>
+            ) : (
+              <span className="px-2 py-0.5 text-[10px] rounded-full bg-amber-400 text-black font-black">
+                Piloto 10/11
+              </span>
+            )}
+          </button>
+
+          <button
             onClick={() => setActiveTab('learning')}
             className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all ${
               activeTab === 'learning'
@@ -1039,6 +1133,23 @@ export default function BotControlCenter() {
           </span>
         )}
       </div>
+
+      {/* =========================================================
+          TAB PRESUPUESTOS INTERMEDIADOS, SLA HÁBIL & AUDITORÍA PRECIOS PDF
+      ========================================================= */}
+      {activeTab === 'quotes' && (
+        <QuoteBrokerAuditPanel
+          sessions={sessions}
+          botConfig={botConfig}
+          onUpdateBrokerConfig={handleUpdateBrokerConfig}
+          onOpenChatSession={(jid) => {
+            setSelectedSessionId(jid);
+            setActiveTab('chats');
+          }}
+          isMirrorSandbox={false}
+          workflowDownloadUrl="./CheckOil_Workflow_Intermediario_v2.2.json"
+        />
+      )}
 
       {/* =========================================================
           TAB 1: ESTADÍSTICAS, SUCURSALES Y RADIOGRAFÍA DE NO DERIVADOS
@@ -1586,6 +1697,7 @@ export default function BotControlCenter() {
                         selectedSession.historial.map((m, idx) => {
                           const isClient = m.rol === 'cliente';
                           const isOperator = m.rol === 'operador';
+                          const isBranch = m.rol === 'sucursal';
                           return (
                             <div
                               key={idx}
@@ -1595,6 +1707,8 @@ export default function BotControlCenter() {
                                 className={`max-w-[85%] rounded-2xl p-3.5 text-xs leading-relaxed ${
                                   isClient
                                     ? 'bg-zinc-800 text-zinc-100 rounded-tl-sm'
+                                    : isBranch
+                                    ? 'bg-cyan-950/60 border border-cyan-500/40 text-cyan-100 rounded-tr-sm'
                                     : isOperator
                                     ? 'bg-orange-600/20 border border-orange-500/40 text-orange-100 rounded-tr-sm'
                                     : 'bg-emerald-950/50 border border-emerald-500/30 text-emerald-100 rounded-tr-sm'
@@ -1604,6 +1718,8 @@ export default function BotControlCenter() {
                                   <span>
                                     {isClient
                                       ? `👤 ${m.nombre || selectedSession.cliente_nombre || 'Cliente'}`
+                                      : isBranch
+                                      ? `🏢 ${m.nombre || 'Sucursal Check-Oil'}`
                                       : isOperator
                                       ? '🧑‍🔧 Operador Humano (WhatsApp / Remex)'
                                       : '🤖 Bot Check-Oil'}

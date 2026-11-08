@@ -1,0 +1,1837 @@
+{
+  "id": "6jQYhVSnvtOuxvst",
+  "name": "Check-Oil Bot v2.2 (Intermediario Presupuestos + PDF + SLA)",
+  "active": true,
+  "isArchived": false,
+  "versionId": "25bf25a6-3112-40db-ae8b-9049265d36e4",
+  "activeVersionId": "25bf25a6-3112-40db-ae8b-9049265d36e4",
+  "triggerCount": 3,
+  "nodeCount": 52,
+  "createdAt": "2026-10-04T14:20:42.545Z",
+  "updatedAt": "2026-11-07T20:48:40.374Z",
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "tags": [],
+  "parentFolderId": null,
+  "scopes": [
+    "execution:delete",
+    "execution:list",
+    "execution:read",
+    "execution:reveal",
+    "workflow:create",
+    "workflow:delete",
+    "workflow:disableRedaction",
+    "workflow:enableRedaction",
+    "workflow:execute",
+    "workflow:execute-chat",
+    "workflow:export",
+    "workflow:import",
+    "workflow:list",
+    "workflow:move",
+    "workflow:publish",
+    "workflow:read",
+    "workflow:share",
+    "workflow:unpublish",
+    "workflow:unshare",
+    "workflow:update"
+  ],
+  "canExecute": true,
+  "connections": {
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many documents in Google Cloud Firestore": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar_Derivacion_Sucursal": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Get a document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a document": {
+      "main": [
+        [
+          {
+            "node": "Get Bot Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Bot Config": {
+      "main": [
+        [
+          {
+            "node": "¿Es Mensaje de Sucursal?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluar Estado y Contexto": {
+      "main": [
+        [
+          {
+            "node": "¿Responder con IA?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Responder con IA?": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "¿Observar en Pausa?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Observar en Pausa?": {
+      "main": [
+        [
+          {
+            "node": "Modo Observador Pausa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Modo Observador Pausa": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Preparar Envio y Analisis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Envio y Analisis": {
+      "main": [
+        [
+          {
+            "node": "¿Enviar WhatsApp?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Enviar WhatsApp?": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Procesar Resumen y Aprendizaje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar Resumen y Aprendizaje": {
+      "main": [
+        [
+          {
+            "node": "Create or update a document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Remex API": {
+      "main": [
+        [
+          {
+            "node": "Router Remex API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Router Remex API": {
+      "main": [
+        [
+          {
+            "node": "¿Es Consulta Dashboard?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Es Consulta Dashboard?": {
+      "main": [
+        [
+          {
+            "node": "Leer Todas las Sesiones",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Guardado Remex",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer Todas las Sesiones": {
+      "main": [
+        [
+          {
+            "node": "Formatear Dashboard Remex",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Guardado Remex": {
+      "main": [
+        [
+          {
+            "node": "Guardar desde Remex OS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar desde Remex OS": {
+      "main": [
+        [
+          {
+            "node": "¿Tiene Mensaje Directo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Tiene Mensaje Directo?": {
+      "main": [
+        [
+          {
+            "node": "Enviar WhatsApp desde Remex",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respuesta Guardado OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar WhatsApp desde Remex": {
+      "main": [
+        [
+          {
+            "node": "Respuesta Guardado OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gestionar_Presupuesto_Sucursal": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Es Mensaje de Sucursal?": {
+      "main": [
+        [
+          {
+            "node": "Buscar Sesiones Activas Sucursal",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Evaluar Estado y Contexto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Sesiones Activas Sucursal": {
+      "main": [
+        [
+          {
+            "node": "Filtrar Pedidos de esta Sucursal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar Pedidos de esta Sucursal": {
+      "main": [
+        [
+          {
+            "node": "¿Hay Pedidos Abiertos en Sucursal?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Hay Pedidos Abiertos en Sucursal?": {
+      "main": [
+        [
+          {
+            "node": "¿Trae PDF o Imagen Adjunta?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "¿Trae PDF o Imagen Adjunta?": {
+      "main": [
+        [
+          {
+            "node": "Descargar Base64 de Evolution API",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Prompt Analizador PDF/Sucursal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Descargar Base64 de Evolution API": {
+      "main": [
+        [
+          {
+            "node": "Preparar Prompt Analizador PDF/Sucursal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Prompt Analizador PDF/Sucursal": {
+      "main": [
+        [
+          {
+            "node": "Analizar Presupuesto PDF/Texto (OpenAI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analizar Presupuesto PDF/Texto (OpenAI)": {
+      "main": [
+        [
+          {
+            "node": "Procesar Respuesta de Sucursal y SLA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar Respuesta de Sucursal y SLA": {
+      "main": [
+        [
+          {
+            "node": "¿Guardar Sesión de Cotización?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Guardar Sesión de Cotización?": {
+      "main": [
+        [
+          {
+            "node": "Guardar Cotización en Firestore",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "¿Pedir Aclaración de Ticket a Sucursal?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar Cotización en Firestore": {
+      "main": [
+        [
+          {
+            "node": "Enviar Texto/Pregunta al Cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Texto/Pregunta al Cliente": {
+      "main": [
+        [
+          {
+            "node": "¿Reenviar PDF Original al Cliente?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Reenviar PDF Original al Cliente?": {
+      "main": [
+        [
+          {
+            "node": "Reenviar PDF Adjunto al Cliente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "¿Pedir Aclaración de Ticket a Sucursal?": {
+      "main": [
+        [
+          {
+            "node": "Pedir Aclaración de Ticket a Sucursal",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Control SLA 25m (Cada 5 min)": {
+      "main": [
+        [
+          {
+            "node": "Leer Sesiones para SLA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer Sesiones para SLA": {
+      "main": [
+        [
+          {
+            "node": "Evaluar Recordatorios SLA 25m",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluar Recordatorios SLA 25m": {
+      "main": [
+        [
+          {
+            "node": "Enviar Recordatorio 25m a Sucursal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Recordatorio 25m a Sucursal": {
+      "main": [
+        [
+          {
+            "node": "Marcar Recordatorio SLA Enviado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.mensajeCliente }}",
+        "options": {
+          "systemMessage": "=Eres el Asistente Virtual de Recepción, Cotización y Derivación de Check-Oil, centro especializado en lubricación y mantenimiento automotriz.\n\nTu tono debe ser amable, servicial y EXTREMADAMENTE DIRECTO. Mantén la interacción lo más corta posible. Agrupa las preguntas necesarias en un solo mensaje.\nREGLA DE ORO DE COMPORTAMIENTO: IGNORA emojis sueltos, stickers o saludos finales de cortesía (\"gracias\", \"muchas gracias\") salvo que el cliente esté confirmando un presupuesto recién enviado. Si solo manda un sticker o agradecimiento final, devuelve únicamente [NO_RESPONDER].\n\nDATOS AUTOMÁTICOS DEL CLIENTE (YA DETECTADOS POR WHATSAPP):\n- Teléfono de WhatsApp del cliente: {{ $json.telefonoCliente }}\n- Nombre de perfil del cliente: {{ $json.pushName }}\n- Ticket de seguimiento actual: #{{ $json.ticketIdSugerido }}\nESTÁ ESTRICTAMENTE PROHIBIDO pedirle al cliente su número de teléfono o su nombre.\n\nCONTEXTO DEL SISTEMA:\nHora local actual: {{ $now.setZone('America/Argentina/Buenos_Aires').toFormat('HH:mm') }}\n\nSUCURSALES DISPONIBLES Y TELÉFONOS INTERNOS (NO LOS PREGUNTES AL CLIENTE):\nCheck Oil Suc. Centro (Bariloche): 5492944579792\nCheck Oil Suc. Estadio (Bariloche): 5492944638500\nCheck Oil Suc. Ñireco (Bariloche): 5492944907667\nCheck Oil Suc. Km13 (Bariloche): 5492944615570\nCheck Oil Suc. Bolsón (El Bolsón): 5492944631155\nCheck Oil Suc. Dominico (Avellaneda): 5491161217529\n\nPOLÍTICA ACTIVA DE PRESUPUESTOS E INTERMEDIACIÓN:\n{{ $json.directivaPresupuestoTexto }}\n\nCONTEXTO HISTÓRICO DEL CLIENTE:\n{{ $json.resumenAnterior || 'Primer contacto. No hay historial previo.' }}\nRegla de Memoria: Si el contexto histórico ya contiene los datos del vehículo (Marca, Modelo, Año, Motor), NO los vuelvas a preguntar.\n\nREGLAS DE NEGOCIO, PRODUCTOS Y SERVICIOS:\nAceites: MOTUL, LIQUI MOLY o GULF (0w16, 0w20, 0w30, 5w30, 5w40, 10w40, 15w40, 20w50, 25w60).\nFiltros: Aire, aceite, combustible y habitáculo marca WEGA.\nFluidos y Transmisión: Control de fluidos y service de cajas automáticas.\nAditivos: LIQUI MOLY, VESLEE, Plus Motori, Aguacar y Motul.\nAccesorios: Líquido de frenos DOT 3/DOT 4, escobillas, lámparas, cadenas de nieve (Patagonia). NO vendemos repuestos de mecánica general (solo Dominico en Avellaneda hace mecánica ligera y lavadero).\n\nFLUJO DE CONVERSACIÓN:\nPASO 1: SALUDO Y DESCUBRIMIENTO según hora local (\"Buenos días\" <13h, \"Buenas tardes\" 13-20h, \"Buenas noches\" >20h).\nPASO 2: EXTRACCIÓN DE DATOS DEL VEHÍCULO (Marca, Modelo, Año y Motor en una sola pregunta; deduce Marca si el modelo es inconfundible como Hilux, Amarok, Cronos, Gol). Si el cliente aún no dijo ciudad/sucursal, pregúntala en ese mismo mensaje.\nPASO 3: ACCIÓN SEGÚN LA SUCURSAL ELEGIDA:\n  A) Si la sucursal elegida ESTÁ en Modo Intermediario activo ({{ JSON.stringify($json.sucursalesActivasIntermediario) }}):\n     - NO derives ni pases el teléfono del cliente todavía (salvo que ya tenga un presupuesto enviado y lo esté confirmando).\n     - Ejecuta la herramienta \"Gestionar_Presupuesto_Sucursal\" enviando a esa sucursal el pedido con el código #{{ $json.ticketIdSugerido }} (SIN teléfono del cliente).\n     - Responde al cliente que ya pediste la cotización a esa sucursal y que en cuanto te la pasen se la envías por este mismo chat.\n  B) Si la sucursal elegida NO está en Modo Intermediario (o si el cliente YA ACEPTÓ/CONFIRMÓ un presupuesto enviado):\n     - Ejecuta \"Enviar_Derivacion_Sucursal\" pasando el resumen completo CON teléfono {{ $json.telefonoCliente }} y link https://wa.me/{{ $json.telefonoCliente }}.\n\nFORMATO PARA \"Gestionar_Presupuesto_Sucursal\" (SIN TELÉFONO DEL CLIENTE):\n🧾 SOLICITUD DE PRESUPUESTO #{{ $json.ticketIdSugerido }}\n📍 Sucursal: [Nombre sucursal]\n🚗 Vehículo: [Marca Modelo Año Motor]\n🔧 Consulta / Trabajo: [Detalle solicitado o respuesta del cliente]\n👉 Respondé citando este mensaje con el PDF del presupuesto (o en texto). Si necesitás preguntarle algo al cliente antes de cotizar, escribilo acá y el Bot se lo consulta.\n\nFORMATO PARA \"Enviar_Derivacion_Sucursal\" (SOLO SUCURSALES CLÁSICAS O PRESUPUESTO YA CONFIRMADO):\n=== NUEVA DERIVACIÓN ===\nSucursal elegida: [Nombre exacto]\nEstado: [Derivación directa | ✅ PRESUPUESTO CONFIRMADO #{{ $json.ticketIdSugerido }}]\nServicio requerido: [Descripción breve]\nVehículo: [Marca Modelo Año Motor]\nTeléfono de contacto: {{ $json.telefonoCliente }} (https://wa.me/{{ $json.telefonoCliente }})\nNombre de contacto: {{ $json.pushName }}\n\nAPRENDIZAJES Y DIRECTIVAS ACTIVAS (REMEX OS):\n{{ $json.reglasAprendidasTexto || 'Sin reglas adicionales activas.' }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -432,
+        16
+      ],
+      "id": "074a6ff5-1a1b-4977-8738-f087399bcdf6",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4.1-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -576,
+        288
+      ],
+      "id": "c51c3659-ebd5-4a94-a5c6-231f869aa71d",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "EgDgjEHYqUTo3IHD",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.remoteJid }}",
+        "contextWindowLength": 6
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        -416,
+        240
+      ],
+      "id": "0afac85d-9fac-43e0-b64d-b5f6167292ba",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "OBLIGATORIO: Usa siempre esta herramienta para buscar repuestos. No inventes respuestas. Ejecútala sin pasar parámetros para obtener el catálogo completo de Check-Oil, busca el vehículo solicitado y devuelve los filtros encontrados.",
+        "authentication": "serviceAccount",
+        "operation": "getAll",
+        "projectId": "check-oil-bot",
+        "collection": "catalogo_servicios",
+        "limit": 500
+      },
+      "type": "n8n-nodes-base.googleFirebaseCloudFirestoreTool",
+      "typeVersion": 1.1,
+      "position": [
+        -288,
+        256
+      ],
+      "id": "8c5cd20a-f87a-44ed-88fd-93843f9fcef7",
+      "name": "Get many documents in Google Cloud Firestore",
+      "notesInFlow": false,
+      "credentials": {
+        "googleApi": {
+          "id": "UvOJ0zRsS6fvNfft",
+          "name": "Google Service Account account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Herramienta para enviar el ticket a la sucursal. Requiere el parámetro 'telefono_sucursal' (ES TU RESPONSABILIDAD BUSCAR ESTE NÚMERO EN TUS INSTRUCCIONES, ESTÁ ESTRICTAMENTE PROHIBIDO PEDÍRSELO AL CLIENTE) y el parámetro 'resumen'.",
+        "method": "POST",
+        "url": "http://evolution-api:8080/message/sendText/checkoil",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "CheckOilBotSecreto123"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  (() => {\n    const telSuc = String($fromAI('telefono_sucursal') || '').replace(/\\D/g, '');\n    const rawRes = String($fromAI('resumen') || '');\n    const ctx = $('Evaluar Estado y Contexto').first().json || {};\n    const phonesMap = {\n      Centro: '5492944579792',\n      Estadio: '5492944638500',\n      'Ñireco': '5492944907667',\n      Km13: '5492944615570',\n      'Bolsón': '5492944631155',\n      Dominico: '5491161217529'\n    };\n    const activePhones = (ctx.sucursalesActivasIntermediario || []).map(k => phonesMap[k]).filter(Boolean);\n    const bloqueadaPorIntermediario =\n      ctx.intermediarioActivoHoy &&\n      activePhones.includes(telSuc) &&\n      ctx.estadoCotizacionAnterior !== 'presupuesto_enviado';\n\n    if (bloqueadaPorIntermediario) {\n      const sinTelefono = rawRes\n        .replace(/Tel[eé]fono[^\\n]*/gi, 'Cliente en línea: Esperando presupuesto a través del Bot')\n        .replace(/https?:\\/\\/wa\\.me\\/[0-9]+/gi, '')\n        .replace(/=== NUEVA DERIVACI[OÓ]N ===/gi, '🧾 SOLICITUD DE PRESUPUESTO #' + (ctx.ticketIdSugerido || 'COT'));\n      return {\n        number: telSuc,\n        text: sinTelefono + '\\n\\n👉 Respondé citando este mensaje con el PDF del presupuesto (o pregunta para el cliente).'\n      };\n    }\n    return {\n      number: telSuc,\n      text: rawRes\n    };\n  })()\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.5,
+      "position": [
+        -112,
+        224
+      ],
+      "id": "750b1172-bf80-484b-8e87-6e372381dfd4",
+      "name": "Enviar_Derivacion_Sucursal"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chat-remex",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -976,
+        48
+      ],
+      "id": "11ae30e4-b83d-417c-aefe-93c2405ae4af",
+      "name": "Webhook",
+      "webhookId": "a4a5469f-5f30-4479-b2f8-2b0f598cc484"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://evolution-api:8080/message/sendText/checkoil",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "CheckOilBotSecreto123"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  {\n    \"number\": $json.remoteJid,\n    \"options\": {\n      \"delay\": $json.delayMs || 20000,\n      \"presence\": \"composing\"\n    },\n    \"text\": $json.output\n  }\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        112,
+        96
+      ],
+      "id": "06564d3c-63f3-4d07-82f8-e259207b0182",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const body = $input.item.json.body || {};\nconst data = body.data || {};\nconst key = data.key || {};\nconst msg = data.message || {};\n\nconst remoteJid = key.remoteJid || '';\nconst fromMe = Boolean(key.fromMe);\nconst messageId = key.id || '';\nconst pushName = data.pushName || 'Cliente';\nconst source = data.source || '';\nconst telefonoCliente = remoteJid.replace('@s.whatsapp.net', '').replace(/\\D/g, '');\n\nconst SUCURSALES_MAP = {\n  '5492944579792@s.whatsapp.net': { key: 'Centro', name: 'Check Oil Suc. Centro', phone: '5492944579792' },\n  '5492944638500@s.whatsapp.net': { key: 'Estadio', name: 'Check Oil Suc. Estadio', phone: '5492944638500' },\n  '5492944907667@s.whatsapp.net': { key: 'Ñireco', name: 'Check Oil Suc. Ñireco', phone: '5492944907667' },\n  '5492944615570@s.whatsapp.net': { key: 'Km13', name: 'Check Oil Suc. Km13', phone: '5492944615570' },\n  '5492944631155@s.whatsapp.net': { key: 'Bolsón', name: 'Check Oil Suc. Bolsón', phone: '5492944631155' },\n  '5491161217529@s.whatsapp.net': { key: 'Dominico', name: 'Check Oil Suc. Dominico', phone: '5491161217529' }\n};\n\nconst sucursalInfo = SUCURSALES_MAP[remoteJid] || null;\nconst esMensajeDeSucursal = Boolean(sucursalInfo && !fromMe);\n\n// Desempaquetar posibles contenedores de documentos con caption en Baileys / Evolution API\nconst docMsg =\n  msg.documentMessage ||\n  (msg.documentWithCaptionMessage && msg.documentWithCaptionMessage.message && msg.documentWithCaptionMessage.message.documentMessage) ||\n  null;\nconst imgMsg = msg.imageMessage || null;\n\n// Extraer contextInfo (cuando la sucursal o el cliente responde citando un mensaje específico)\nconst ctxInfo =\n  data.contextInfo ||\n  (msg.extendedTextMessage && msg.extendedTextMessage.contextInfo) ||\n  (docMsg && docMsg.contextInfo) ||\n  (imgMsg && imgMsg.contextInfo) ||\n  {};\n\nlet quotedText = '';\nif (ctxInfo && ctxInfo.quotedMessage) {\n  const qm = ctxInfo.quotedMessage;\n  quotedText =\n    qm.conversation ||\n    (qm.extendedTextMessage && qm.extendedTextMessage.text) ||\n    (qm.documentMessage && (qm.documentMessage.caption || qm.documentMessage.fileName)) ||\n    (qm.imageMessage && qm.imageMessage.caption) ||\n    '';\n}\nconst quotedStanzaId = (ctxInfo && ctxInfo.stanzaId) || '';\n\nlet texto = '';\nlet tipoMensaje = 'texto';\nlet esStickerOReaccion = false;\nlet mediaFileName = '';\nlet mediaMimeType = '';\nlet inlineBase64 = data.base64 || msg.base64 || '';\n\nif (typeof msg.conversation === 'string' && msg.conversation.trim()) {\n  texto = msg.conversation.trim();\n} else if (msg.extendedTextMessage && msg.extendedTextMessage.text) {\n  texto = String(msg.extendedTextMessage.text).trim();\n} else if (docMsg) {\n  tipoMensaje = 'documento';\n  mediaFileName = docMsg.fileName || docMsg.title || 'Presupuesto_CheckOil.pdf';\n  mediaMimeType = docMsg.mimetype || 'application/pdf';\n  const cap = docMsg.caption ? String(docMsg.caption).trim() : '';\n  texto = cap\n    ? `[DOCUMENTO ADJUNTO: ${mediaFileName}] ${cap}`\n    : (fromMe ? `[DOCUMENTO ENVIADO POR OPERADOR: ${mediaFileName}]` : `[DOCUMENTO ADJUNTO: ${mediaFileName}]`);\n} else if (imgMsg) {\n  tipoMensaje = 'imagen';\n  mediaFileName = 'cotizacion_imagen.jpg';\n  mediaMimeType = imgMsg.mimetype || 'image/jpeg';\n  const cap = imgMsg.caption ? ` (${imgMsg.caption})` : '';\n  texto = fromMe ? `[IMAGEN ENVIADA POR OPERADOR]${cap}` : `[IMAGEN ADJUNTA]${cap}`;\n} else if (msg.audioMessage) {\n  tipoMensaje = 'audio';\n  texto = fromMe ? '[AUDIO ENVIADO POR OPERADOR]' : '[AUDIO ENVIADO POR EL CLIENTE]';\n} else if (msg.stickerMessage || msg.reactionMessage) {\n  esStickerOReaccion = true;\n  tipoMensaje = 'sticker_reaccion';\n}\n\nconst esGrupoOBroadcast =\n  !remoteJid ||\n  remoteJid.endsWith('@g.us') ||\n  remoteJid === 'status@broadcast';\n\nconst esSucursalOGrupo = esGrupoOBroadcast || Boolean(sucursalInfo);\n\nconst limpio = texto.toLowerCase().replace(/[\\!\\?\\.\\,\\s]+/g, ' ').trim();\nconst CORTESIAS = [\n  'ok', 'okay', 'dale', 'gracias', 'muchas gracias', 'mil gracias',\n  'buenisimo gracias', 'buenísimo gracias', 'listo gracias', 'genial gracias',\n  'perfecto gracias', 'ok gracias', 'dale gracias', '👍', '🙏', '👌', '🙌'\n];\nconst esCortesia = !fromMe && !esMensajeDeSucursal && CORTESIAS.includes(limpio);\n\n$input.item.json.remoteJid = remoteJid;\n$input.item.json.telefonoCliente = telefonoCliente;\n$input.item.json.mensajeCliente = texto;\n$input.item.json.fromMe = fromMe;\n$input.item.json.messageId = messageId;\n$input.item.json.pushName = pushName;\n$input.item.json.source = source;\n$input.item.json.tipoMensaje = tipoMensaje;\n$input.item.json.esStickerOReaccion = esStickerOReaccion;\n$input.item.json.esGrupoOBroadcast = esGrupoOBroadcast;\n$input.item.json.esSucursalOGrupo = esSucursalOGrupo;\n$input.item.json.esMensajeDeSucursal = esMensajeDeSucursal;\n$input.item.json.sucursalOrigenKey = sucursalInfo ? sucursalInfo.key : '';\n$input.item.json.sucursalOrigenNombre = sucursalInfo ? sucursalInfo.name : '';\n$input.item.json.sucursalOrigenPhone = sucursalInfo ? sucursalInfo.phone : '';\n$input.item.json.quotedText = String(quotedText || '').trim();\n$input.item.json.quotedStanzaId = quotedStanzaId;\n$input.item.json.mediaFileName = mediaFileName;\n$input.item.json.mediaMimeType = mediaMimeType;\n$input.item.json.inlineBase64 = inlineBase64;\n$input.item.json.rawEvolutionKey = key;\n$input.item.json.rawEvolutionMessage = msg;\n$input.item.json.esCortesia = esCortesia;\n\nreturn $input.item;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -704,
+        -144
+      ],
+      "id": "31fb989f-6927-4609-b0be-7f3dfdc1141b",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "get",
+        "projectId": "check-oil-bot",
+        "collection": "sesiones_clientes",
+        "documentId": "={{ $json.remoteJid }}"
+      },
+      "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
+      "typeVersion": 1.1,
+      "position": [
+        -608,
+        64
+      ],
+      "id": "169e58e8-c5d7-49f9-8ff7-90c8c3987aa8",
+      "name": "Get a document",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "googleApi": {
+          "id": "UvOJ0zRsS6fvNfft",
+          "name": "Google Service Account account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=Actúas como un analista de calidad y compresor de memoria de Check-Oil.\nAnaliza la última interacción de WhatsApp y devuelve ÚNICAMENTE un objeto JSON válido (sin bloques markdown ```json) con esta estructura exacta:\n{\n  \"resumen_historico\": \"Máximo 3 líneas en viñetas con datos duros: Marca, Modelo, Año, Motor, Sucursal preferida, Nombre, Teléfono y último interés\",\n  \"resumen_charla\": \"Resumen ejecutivo de 1 a 2 oraciones sobre qué buscaba el cliente y en qué estado quedó la conversación\",\n  \"estado_charla\": \"derivada | esperando_cotizacion | presupuesto_enviado | en_curso | incompleta | fuera_de_contexto | atendida_humano\",\n  \"vehiculo\": \"Marca Modelo Año Motor (o No especificado)\",\n  \"sucursal_elegida\": \"Centro | Estadio | Ñireco | Km13 | Bolsón | Dominico | Sin definir\",\n  \"cliente_nombre\": \"Nombre del cliente o Sin definir\",\n  \"cliente_telefono\": \"Teléfono indicado o Sin definir\",\n  \"fuera_de_contexto\": \"si | no\",\n  \"incompleta_motivo\": \"Si quedó incompleta o fuera de contexto, explica brevemente qué faltó o qué preguntó que no tenía relación. Si no, deja vacío\",\n  \"pregunta_detectada\": \"Si el cliente hizo una pregunta fuera de lo habitual, repuesto no trabajado o duda que requirió operador humano, escríbela aquí. Si no, deja vacío\",\n  \"aprendizaje_sugerido\": \"Si hubo una pregunta fuera de contexto, charla incompleta o respuesta de un operador humano de la que el bot pueda aprender una regla para el futuro, redacta la regla sugerida aquí. Si no, deja vacío\"\n}\n\nDATOS DE LA INTERACCIÓN:\n- Resumen anterior: {{ $json.resumenAnterior || 'Ninguno' }}\n- Quién escribió ahora: {{ $json.esIntervencionHumana ? 'OPERADOR HUMANO DE CHECK-OIL' : ('CLIENTE (' + ($json.pushName || $json.remoteJid) + ')') }}\n- Mensaje recibido: {{ $json.mensajeCliente }}\n- Respuesta del Bot / Estado: {{ $json.output }}\n- Modo actual: {{ $json.modoInteraccion }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        32,
+        -192
+      ],
+      "id": "fe175033-44b6-4085-bad4-efcf76fe4772",
+      "name": "Message a model",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "openAiApi": {
+          "id": "EgDgjEHYqUTo3IHD",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "upsert",
+        "projectId": "check-oil-bot",
+        "collection": "sesiones_clientes",
+        "updateKey": "documentId",
+        "columns": "resumen_historico, resumen_charla, estado_charla, bot_pausado, motivo_pausa, pausado_en, vehiculo, sucursal_elegida, cliente_nombre, cliente_telefono, fuera_de_contexto, incompleta_motivo, pregunta_detectada, aprendizaje_sugerido, estado_aprendizaje, historial_json, total_mensajes, ultima_interaccion, ultimo_msg_bot, ticket_id, estado_cotizacion, sucursal_cotizacion, fecha_pedido_cotizacion, ultimo_pedido_sucursal_en, fecha_respuesta_cotizacion, fecha_confirmacion, demora_total_min, demora_habil_min, demora_neta_sucursal_min, segundos_acumulados_sucursal, recordatorio_enviado, ultima_pregunta_sucursal, cotizacion_actual_json, cotizaciones_historial_json"
+      },
+      "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
+      "typeVersion": 1.1,
+      "position": [
+        528,
+        0
+      ],
+      "id": "50d6b19c-151f-4b61-a1f0-d7227ec49014",
+      "name": "Create or update a document",
+      "credentials": {
+        "googleApi": {
+          "id": "UvOJ0zRsS6fvNfft",
+          "name": "Google Service Account account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "http://evolution-api:8080/instance/connect/checkoil",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "CheckOilBotSecreto123"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        368,
+        224
+      ],
+      "id": "5582d0fd-c54d-457c-947a-ba47d318fe49",
+      "name": "HTTP Request1"
+    },
+    {
+      "id": "e061c460-bf7e-40e0-908c-b69d0b603639",
+      "name": "Get Bot Config",
+      "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
+      "typeVersion": 1.1,
+      "position": [
+        -560,
+        -64
+      ],
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "get",
+        "projectId": "check-oil-bot",
+        "collection": "sesiones_clientes",
+        "documentId": "bot_config_global"
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleApi": {
+          "id": "UvOJ0zRsS6fvNfft",
+          "name": "Google Service Account account"
+        }
+      }
+    },
+    {
+      "id": "2764aebf-635c-4f4a-899e-1a1ff03b81c6",
+      "name": "Evaluar Estado y Contexto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        -144
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const wh = $('Code in JavaScript').first().json;\nconst sesion = $('Get a document').first().json || {};\nconst config = $('Get Bot Config').first().json || {};\n\nconst botActivoGlobal = config.bot_activo !== false && config.bot_activo !== 'false';\nconst autoPausaHumana = config.auto_pausa_humana !== false && config.auto_pausa_humana !== 'false';\nconst delayMs = Number(config.delay_respuesta_ms || 20000);\n\n// Evaluar si el Modo Intermediario de Presupuestos está activo hoy (ej. programado desde 2026-11-10 para Centro)\nconst modoConfig = String(config.modo_presupuesto_intermediario || 'programado').toLowerCase();\nconst fechaInicio = String(config.fecha_inicio_intermediario || '2026-11-10').trim();\nconst hoyArgentina = new Intl.DateTimeFormat('en-CA', {\n  timeZone: 'America/Argentina/Buenos_Aires',\n  year: 'numeric',\n  month: '2-digit',\n  day: '2-digit'\n}).format(new Date()); // formato YYYY-MM-DD\n\nlet intermediarioActivoHoy = false;\nif (modoConfig === 'true' || modoConfig === 'activo') {\n  intermediarioActivoHoy = true;\n} else if (modoConfig === 'programado') {\n  intermediarioActivoHoy = Boolean(fechaInicio && hoyArgentina >= fechaInicio);\n}\n\nlet sucursalesIntermediario = ['Centro'];\ntry {\n  if (config.sucursales_intermediario_json) {\n    const parsedSuc = typeof config.sucursales_intermediario_json === 'string'\n      ? JSON.parse(config.sucursales_intermediario_json)\n      : config.sucursales_intermediario_json;\n    if (Array.isArray(parsedSuc)) sucursalesIntermediario = parsedSuc;\n  }\n} catch (e) {}\n\nconst sucursalesActivasIntermediario = intermediarioActivoHoy ? sucursalesIntermediario : [];\n\nlet historialPrev = [];\ntry {\n  historialPrev = JSON.parse(sesion.historial_json || '[]');\n  if (!Array.isArray(historialPrev)) historialPrev = [];\n} catch (e) {\n  historialPrev = [];\n}\n\nconst ultimoBotEnHist = [...historialPrev].reverse().find(m => m && m.rol === 'bot');\nconst tieneMensajesCliente = historialPrev.some(m => m && m.rol === 'cliente') || Boolean(sesion.resumen_historico && sesion.resumen_historico !== 'Primer contacto. No hay historial previo.');\n\nconst esIdDeApi = (wh.messageId || '').startsWith('3EB0') || (wh.messageId || '').startsWith('BAE5');\nconst msgTrim = (wh.mensajeCliente || '').trim();\nconst esMismoTextoBot =\n  (sesion.ultimo_msg_bot && msgTrim && sesion.ultimo_msg_bot.trim() === msgTrim) ||\n  (ultimoBotEnHist && ultimoBotEnHist.texto && msgTrim && ultimoBotEnHist.texto.trim() === msgTrim);\n\nconst esEcoPdfPresupuesto =\n  wh.fromMe &&\n  (\n    msgTrim.includes('Presupuesto adjunto — Check-Oil') ||\n    (sesion.fecha_respuesta_cotizacion && Math.abs(Date.now() - new Date(sesion.fecha_respuesta_cotizacion).getTime()) < 90000)\n  );\n\nconst esEcoBot = wh.fromMe && (esIdDeApi || esMismoTextoBot || esEcoPdfPresupuesto);\nconst esIntervencionHumana = wh.fromMe && !esEcoBot;\n\nlet botPausado = sesion.bot_pausado === true || sesion.bot_pausado === 'true';\nlet motivoPausa = sesion.motivo_pausa || '';\nlet pausadoEn = sesion.pausado_en || '';\n\nif (botPausado && !wh.fromMe && pausadoEn) {\n  const horasPausa = (Date.now() - new Date(pausadoEn).getTime()) / (1000 * 60 * 60);\n  if (horasPausa > 6) {\n    botPausado = false;\n    motivoPausa = '';\n    pausadoEn = '';\n  }\n}\n\nif (esIntervencionHumana && autoPausaHumana && tieneMensajesCliente) {\n  botPausado = true;\n  motivoPausa = 'Operador humano intervino desde WhatsApp';\n  pausadoEn = new Date().toISOString();\n}\n\nlet reglasLista = [];\ntry {\n  if (config.reglas_aprendidas_json) {\n    const parsed = JSON.parse(config.reglas_aprendidas_json);\n    if (Array.isArray(parsed)) {\n      reglasLista = parsed\n        .filter(r => r && r.activa !== false)\n        .map(r => `- Cuando consulten sobre \"${r.pregunta || r.tema}\": ${r.respuesta}`);\n    }\n  }\n} catch (e) {}\n\nif (config.prompt_extra && String(config.prompt_extra).trim()) {\n  reglasLista.unshift(`- DIRECTIVA GENERAL: ${String(config.prompt_extra).trim()}`);\n}\n\nconst estadoCotizacionActual = sesion.estado_cotizacion || '';\nconst ticketIdActual = sesion.ticket_id || '';\nconst sucursalCotizacionActual = sesion.sucursal_cotizacion || sesion.sucursal_elegida || '';\nconst ultimaPreguntaSucursal = sesion.ultima_pregunta_sucursal || '';\n\nlet cotizacionActualObj = null;\ntry {\n  if (sesion.cotizacion_actual_json) {\n    cotizacionActualObj = typeof sesion.cotizacion_actual_json === 'string'\n      ? JSON.parse(sesion.cotizacion_actual_json)\n      : sesion.cotizacion_actual_json;\n  }\n} catch (e) {}\n\n// Construir contexto dinámico de intermediación de presupuestos para el Agente IA\nlet directivaPresupuestoTexto = '';\nif (sucursalesActivasIntermediario.length > 0) {\n  const listaSucStr = sucursalesActivasIntermediario.join(', ');\n  directivaPresupuestoTexto =\n    `MODO INTERMEDIARIO DE PRESUPUESTOS ACTIVO PARA SUCURSALES: [${listaSucStr}].\\n` +\n    `- Para cualquier sucursal dentro de [${listaSucStr}], PROHIBIDO derivar o pasar el teléfono del cliente antes de que el presupuesto sea confirmado.\\n` +\n    `- Cuando el cliente pida precio/presupuesto/service en [${listaSucStr}] y ya tengas Marca, Modelo, Año y Motor, usa la herramienta \"Gestionar_Presupuesto_Sucursal\" con tipo_accion=\"solicitar_presupuesto\" (NUNCA uses Enviar_Derivacion_Sucursal todavía). Avísale al cliente que ya estás consultando el presupuesto con la sucursal y que le responderás por este mismo chat en unos minutos.\\n`;\n\n  if (estadoCotizacionActual === 'esperando_respuesta_cliente') {\n    directivaPresupuestoTexto +=\n      `\\nATENCIÓN PRIORITARIA — TICKET ABIERTO #${ticketIdActual} (${sucursalCotizacionActual}):\\n` +\n      `La sucursal acaba de preguntar: \"${ultimaPreguntaSucursal}\". El cliente está respondiendo a esa consulta. Usa INMEDIATAMENTE la herramienta \"Gestionar_Presupuesto_Sucursal\" con tipo_accion=\"reenviar_respuesta_cliente\" pasando la respuesta del cliente a la sucursal, y dile al cliente: \"¡Gracias! Ya le pasé el dato a la sucursal para completar tu presupuesto.\"\\n`;\n  } else if (estadoCotizacionActual === 'presupuesto_enviado') {\n    const resumenCot = cotizacionActualObj\n      ? `Total cotizado: $${cotizacionActualObj.total_cotizado || '-'} (${cotizacionActualObj.resumen_items || ''})`\n      : 'Presupuesto ya entregado al cliente';\n    directivaPresupuestoTexto +=\n      `\\nATENCIÓN PRIORITARIA — PRESUPUESTO YA ENVIADO AL CLIENTE (#${ticketIdActual} • ${resumenCot}):\\n` +\n      `- Si el cliente ACEPTA, CONFIRMA el trabajo o pide TURNO/RESERVA (\"dale\", \"lo hago\", \"quiero turno\", \"confirmo\", \"¿puedo ir hoy?\"): AHORA SÍ ejecuta \"Enviar_Derivacion_Sucursal\" pasando el teléfono del cliente (${wh.telefonoCliente}) y link https://wa.me/${wh.telefonoCliente} indicando \"✅ PRESUPUESTO CONFIRMADO #${ticketIdActual}\", y despídete confirmando que la sucursal se comunica para coordinar el turno.\\n` +\n      `- Si el cliente hace una OTRA CONSULTA o pide recotizar con otra marca/aceite/filtro: usa \"Gestionar_Presupuesto_Sucursal\" con tipo_accion=\"repregunta_cliente\" para trasladar esa consulta a la sucursal.\\n`;\n  } else if (estadoCotizacionActual === 'esperando_sucursal') {\n    directivaPresupuestoTexto +=\n      `\\nNOTA: El cliente ya tiene el pedido #${ticketIdActual} esperando respuesta de ${sucursalCotizacionActual}. Si pregunta si hay novedades, infórmale amablemente que la sucursal está armando su cotización y apenas respondan se la envías por acá (si agrega algún dato extra del auto, pásalo con Gestionar_Presupuesto_Sucursal tipo_accion=\"reenviar_respuesta_cliente\").\\n`;\n  }\n} else {\n  directivaPresupuestoTexto = 'Modo Intermediario inactivo hoy: todas las sucursales operan con derivación directa habitual usando Enviar_Derivacion_Sucursal.';\n}\n\nconst reglasAprendidasTexto = reglasLista.length > 0\n  ? reglasLista.join('\\n')\n  : 'Sin directivas adicionales.';\n\n// Si el cliente había dicho \"ok/gracias\" pero tenía un presupuesto enviado, \"dale\" es confirmación, no cortesía vacía\nconst esConfirmacionCorta =\n  estadoCotizacionActual === 'presupuesto_enviado' &&\n  ['dale', 'ok', 'okay', 'listo', 'si', 'sí', 'confirmo', 'de una'].includes(\n    (wh.mensajeCliente || '').toLowerCase().replace(/[\\!\\?\\.\\,\\s]+/g, ' ').trim()\n  );\n\nconst tieneTexto = Boolean(wh.mensajeCliente && wh.mensajeCliente.trim().length > 0);\n\nconst debeResponderBot =\n  !wh.esSucursalOGrupo &&\n  !wh.esStickerOReaccion &&\n  (!wh.esCortesia || esConfirmacionCorta) &&\n  !wh.fromMe &&\n  botActivoGlobal &&\n  !botPausado &&\n  tieneTexto;\n\nconst debeObservar =\n  !wh.esSucursalOGrupo &&\n  !wh.esStickerOReaccion &&\n  !esEcoBot &&\n  tieneTexto &&\n  (!wh.fromMe || tieneMensajesCliente);\n\n// Generar nuevo ticket_id sugerido si aún no tiene uno activo\nconst ticketIdSugerido = ticketIdActual && estadoCotizacionActual && estadoCotizacionActual !== 'confirmado'\n  ? ticketIdActual\n  : `COT-${String(Date.now()).slice(-4)}`;\n\nreturn {\n  json: {\n    remoteJid: wh.remoteJid,\n    telefonoCliente: wh.telefonoCliente,\n    mensajeCliente: wh.mensajeCliente,\n    fromMe: wh.fromMe,\n    pushName: wh.pushName,\n    tipoMensaje: wh.tipoMensaje,\n    esIntervencionHumana,\n    botPausado,\n    motivoPausa,\n    pausadoEn,\n    delayMs,\n    intermediarioActivoHoy,\n    sucursalesActivasIntermediario,\n    directivaPresupuestoTexto,\n    ticketIdSugerido,\n    estadoCotizacionAnterior: estadoCotizacionActual,\n    sucursalCotizacionAnterior: sucursalCotizacionActual,\n    ultimaPreguntaSucursal,\n    reglasAprendidasTexto,\n    debeResponderBot,\n    debeObservar,\n    resumenAnterior: sesion.resumen_historico || '',\n    historialJsonAnterior: sesion.historial_json || '[]',\n    totalMensajesAnterior: Number(sesion.total_mensajes || 0)\n  },\n  pairedItem: { item: 0 }\n};"
+      }
+    },
+    {
+      "id": "f92a395f-b9ec-4af3-8bdd-367a2842bafd",
+      "name": "¿Responder con IA?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -240,
+        -144
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-responder-ia",
+              "leftValue": "={{ $json.debeResponderBot }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "9f381b98-4522-4f2f-9e6b-1ae62e85d6cb",
+      "name": "¿Observar en Pausa?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -120,
+        -320
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-observar-pausa",
+              "leftValue": "={{ $json.debeObservar }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "6c278337-61e6-4fc8-894a-9435ee6eceda",
+      "name": "Modo Observador Pausa",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        64,
+        -336
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const ctx = $('Evaluar Estado y Contexto').first().json;\n\nreturn {\n  json: {\n    ...ctx,\n    output: ctx.esIntervencionHumana\n      ? `[OPERADOR HUMANO RESPONDIÓ]: ${ctx.mensajeCliente}`\n      : '[BOT EN PAUSA - MODO OBSERVACIÓN]',\n    enviarWhatsApp: false,\n    modoInteraccion: ctx.esIntervencionHumana ? 'intervencion_humana' : 'bot_pausado_observando'\n  },\n  pairedItem: { item: 0 }\n};"
+      }
+    },
+    {
+      "id": "576e3f79-1b8e-4cd0-977f-2d0bebdcda86",
+      "name": "Preparar Envio y Analisis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        16
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const ctx = $('Evaluar Estado y Contexto').first().json;\nconst rawOutput = ($input.item.json.output || '').trim();\n\nconst noResponder =\n  !rawOutput ||\n  rawOutput.includes('[NO_RESPONDER]') ||\n  rawOutput === 'NO_RESPONDER';\n\nconst textoLimpio = noResponder ? '' : rawOutput.replace('[NO_RESPONDER]', '').trim();\n\nreturn {\n  json: {\n    ...ctx,\n    output: textoLimpio,\n    enviarWhatsApp: Boolean(textoLimpio.length > 0),\n    modoInteraccion: 'bot_activo'\n  },\n  pairedItem: { item: 0 }\n};"
+      }
+    },
+    {
+      "id": "0259818b-82ae-4d01-9b9c-7dc5350aac55",
+      "name": "¿Enviar WhatsApp?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        64,
+        96
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-enviar-wa",
+              "leftValue": "={{ $json.enviarWhatsApp }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "cb865360-55fb-4c86-87e2-4c43d6531ec7",
+      "name": "Procesar Resumen y Aprendizaje",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        336,
+        -160
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const rawModel = $input.item.json;\nlet ctx = {};\ntry {\n  ctx = $('Preparar Envio y Analisis').first().json;\n} catch (e) {\n  try {\n    ctx = $('Modo Observador Pausa').first().json;\n  } catch (e2) {\n    ctx = $('Evaluar Estado y Contexto').first().json;\n  }\n}\n\nconst sesionPrev = $('Get a document').first().json || {};\n\nlet textoIA = '';\nif (rawModel.output && Array.isArray(rawModel.output) && rawModel.output[0]?.content?.[0]?.text) {\n  textoIA = rawModel.output[0].content[0].text;\n} else if (rawModel.message && rawModel.message.content) {\n  textoIA = rawModel.message.content;\n} else if (typeof rawModel.text === 'string') {\n  textoIA = rawModel.text;\n}\n\nlet parsed = {};\ntry {\n  const clean = textoIA.replace(/```json/gi, '').replace(/```/g, '').trim();\n  parsed = JSON.parse(clean);\n} catch (e) {\n  parsed = {\n    resumen_historico: textoIA || ctx.resumenAnterior || 'Sin resumen',\n    resumen_charla: textoIA || 'Interacción registrada',\n    estado_charla: ctx.botPausado ? 'atendida_humano' : 'en_curso'\n  };\n}\n\nlet historial = [];\ntry {\n  historial = JSON.parse(ctx.historialJsonAnterior || '[]');\n  if (!Array.isArray(historial)) historial = [];\n} catch (e) {\n  historial = [];\n}\n\nconst ahora = new Date().toISOString();\nif (ctx.esIntervencionHumana) {\n  historial.push({\n    rol: 'operador',\n    texto: ctx.mensajeCliente,\n    fecha: ahora\n  });\n} else {\n  historial.push({\n    rol: 'cliente',\n    nombre: ctx.pushName || 'Cliente',\n    texto: ctx.mensajeCliente,\n    fecha: ahora\n  });\n  if (ctx.enviarWhatsApp && ctx.output) {\n    historial.push({\n      rol: 'bot',\n      texto: ctx.output,\n      fecha: ahora\n    });\n  }\n}\nif (historial.length > 45) {\n  historial = historial.slice(historial.length - 45);\n}\n\nconst sucursalElegida = parsed.sucursal_elegida && parsed.sucursal_elegida !== 'Sin definir'\n  ? parsed.sucursal_elegida\n  : (sesionPrev.sucursal_elegida || 'Sin definir');\n\nconst outLower = (ctx.output || '').toLowerCase();\nconst esSucursalIntermediaria = Array.isArray(ctx.sucursalesActivasIntermediario) &&\n  ctx.sucursalesActivasIntermediario.some(s => sucursalElegida.toLowerCase().includes(String(s).toLowerCase()));\n\n// Detectar transición de cotización en modo intermediario\nconst pidioPresupuestoASucursal =\n  esSucursalIntermediaria &&\n  (\n    parsed.estado_charla === 'esperando_cotizacion' ||\n    outLower.includes('pedí la cotización') ||\n    outLower.includes('pedi la cotizacion') ||\n    outLower.includes('consultando el presupuesto') ||\n    outLower.includes('consultando tu presupuesto') ||\n    outLower.includes('pasé el dato a') ||\n    outLower.includes('pase el dato a') ||\n    outLower.includes('ya le consulté a') ||\n    outLower.includes('apenas me respondan') ||\n    outLower.includes('en cuanto me pasen')\n  );\n\nconst confirmoPresupuesto =\n  sesionPrev.estado_cotizacion === 'presupuesto_enviado' &&\n  (\n    parsed.estado_charla === 'derivada' ||\n    outLower.includes('confirmé tu presupuesto') ||\n    outLower.includes('confirme tu presupuesto') ||\n    outLower.includes('pasé tu contacto') ||\n    outLower.includes('coordinar el turno') ||\n    outLower.includes('se comunicarán') ||\n    outLower.includes('se comunican con vos')\n  );\n\nconst fueDerivadaClasica =\n  !esSucursalIntermediaria &&\n  (parsed.estado_charla === 'derivada' || outLower.includes('te deriv') || outLower.includes('derivé tu solicitud') || outLower.includes('nueva derivación'));\n\nconst fueDerivada = confirmoPresupuesto || fueDerivadaClasica;\n\nlet ticketId = sesionPrev.ticket_id || '';\nlet estadoCotizacion = sesionPrev.estado_cotizacion || '';\nlet sucursalCotizacion = sesionPrev.sucursal_cotizacion || '';\nlet fechaPedidoCotizacion = sesionPrev.fecha_pedido_cotizacion || '';\nlet ultimoPedidoSucursalEn = sesionPrev.ultimo_pedido_sucursal_en || '';\nlet fechaConfirmacion = sesionPrev.fecha_confirmacion || '';\nlet recordatorioEnviado = sesionPrev.recordatorio_enviado || 'false';\nlet cotizacionActualJson = sesionPrev.cotizacion_actual_json || '';\nlet cotizacionesHistorialJson = sesionPrev.cotizaciones_historial_json || '[]';\n\nif (confirmoPresupuesto) {\n  estadoCotizacion = 'confirmado';\n  fechaConfirmacion = ahora;\n  try {\n    const cotObj = cotizacionActualJson ? JSON.parse(cotizacionActualJson) : null;\n    if (cotObj) {\n      cotObj.estado = 'confirmado';\n      cotObj.fecha_confirmacion = ahora;\n      cotizacionActualJson = JSON.stringify(cotObj);\n    }\n    const histCot = JSON.parse(cotizacionesHistorialJson || '[]');\n    if (Array.isArray(histCot) && histCot.length > 0) {\n      const idx = histCot.findIndex(c => c && c.ticket_id === ticketId);\n      if (idx >= 0) histCot[idx] = { ...histCot[idx], estado: 'confirmado', fecha_confirmacion: ahora };\n      cotizacionesHistorialJson = JSON.stringify(histCot);\n    }\n  } catch (e) {}\n} else if (pidioPresupuestoASucursal) {\n  ticketId = ticketId && estadoCotizacion !== 'confirmado' ? ticketId : (ctx.ticketIdSugerido || `COT-${String(Date.now()).slice(-4)}`);\n  const eraNuevo = !fechaPedidoCotizacion || estadoCotizacion === 'confirmado' || !estadoCotizacion;\n  estadoCotizacion = 'esperando_sucursal';\n  sucursalCotizacion = sucursalElegida;\n  if (eraNuevo) {\n    fechaPedidoCotizacion = ahora;\n  }\n  ultimoPedidoSucursalEn = ahora;\n  recordatorioEnviado = 'false';\n}\n\nconst estadoCharla = fueDerivada\n  ? 'derivada'\n  : (estadoCotizacion === 'esperando_sucursal' || estadoCotizacion === 'presupuesto_enviado' || estadoCotizacion === 'esperando_respuesta_cliente')\n    ? estadoCotizacion\n    : (ctx.botPausado ? 'atendida_humano' : (parsed.estado_charla || 'en_curso'));\n\nreturn {\n  json: {\n    documentId: ctx.remoteJid,\n    resumen_historico: parsed.resumen_historico || ctx.resumenAnterior || 'Sin datos aún',\n    resumen_charla: parsed.resumen_charla || '',\n    estado_charla: estadoCharla,\n    bot_pausado: ctx.botPausado ? 'true' : 'false',\n    motivo_pausa: ctx.motivoPausa || '',\n    pausado_en: ctx.pausadoEn || '',\n    vehiculo: (parsed.vehiculo && parsed.vehiculo !== 'No especificado') ? parsed.vehiculo : (sesionPrev.vehiculo || 'No especificado'),\n    sucursal_elegida: sucursalElegida,\n    cliente_nombre: (parsed.cliente_nombre && parsed.cliente_nombre !== 'Sin definir') ? parsed.cliente_nombre : (sesionPrev.cliente_nombre || ctx.pushName || 'Cliente'),\n    cliente_telefono: ctx.telefonoCliente || sesionPrev.cliente_telefono || ctx.remoteJid.replace('@s.whatsapp.net', ''),\n    fuera_de_contexto: parsed.fuera_de_contexto || 'no',\n    incompleta_motivo: parsed.incompleta_motivo || sesionPrev.incompleta_motivo || '',\n    pregunta_detectada: parsed.pregunta_detectada || sesionPrev.pregunta_detectada || '',\n    aprendizaje_sugerido: parsed.aprendizaje_sugerido || sesionPrev.aprendizaje_sugerido || '',\n    estado_aprendizaje: parsed.aprendizaje_sugerido ? (sesionPrev.estado_aprendizaje || 'pendiente') : (sesionPrev.estado_aprendizaje || ''),\n    historial_json: JSON.stringify(historial),\n    total_mensajes: String(historial.length),\n    ultima_interaccion: ahora,\n    ultimo_msg_bot: ctx.enviarWhatsApp ? ctx.output : (sesionPrev.ultimo_msg_bot || ''),\n    ticket_id: ticketId,\n    estado_cotizacion: estadoCotizacion,\n    sucursal_cotizacion: sucursalCotizacion,\n    fecha_pedido_cotizacion: fechaPedidoCotizacion,\n    ultimo_pedido_sucursal_en: ultimoPedidoSucursalEn,\n    fecha_respuesta_cotizacion: sesionPrev.fecha_respuesta_cotizacion || '',\n    fecha_confirmacion: fechaConfirmacion,\n    demora_total_min: String(sesionPrev.demora_total_min || ''),\n    demora_habil_min: String(sesionPrev.demora_habil_min || ''),\n    demora_neta_sucursal_min: String(sesionPrev.demora_neta_sucursal_min || ''),\n    segundos_acumulados_sucursal: String(sesionPrev.segundos_acumulados_sucursal || '0'),\n    recordatorio_enviado: recordatorioEnviado,\n    ultima_pregunta_sucursal: sesionPrev.ultima_pregunta_sucursal || '',\n    cotizacion_actual_json: cotizacionActualJson,\n    cotizaciones_historial_json: cotizacionesHistorialJson\n  },\n  pairedItem: { item: 0 }\n};"
+      }
+    },
+    {
+      "id": "82aaf1cd-d0ed-40cb-9638-a977846e3dde",
+      "name": "Webhook Remex API",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -976,
+        560
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "remex-bot-api",
+        "responseMode": "lastNode",
+        "responseData": "firstEntryJson",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "webhookId": "e8c59781-2d42-4dff-b919-14bdeaca82a0"
+    },
+    {
+      "id": "b9e23b64-7221-4092-bcea-c173b7b2570c",
+      "name": "Router Remex API",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -768,
+        560
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const body = $input.item.json.body || {};\nconst action = body.action || 'get_all';\n\nreturn {\n  json: {\n    action,\n    payload: body\n  }\n};"
+      }
+    },
+    {
+      "id": "68f90b35-c03a-45cb-8cfb-a5e2ae6476d4",
+      "name": "¿Es Consulta Dashboard?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -560,
+        560
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-api-get",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "get_all",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "9b009874-f761-4a52-b082-e62899d365c6",
+      "name": "Leer Todas las Sesiones",
+      "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
+      "typeVersion": 1.1,
+      "position": [
+        -320,
+        480
+      ],
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "getAll",
+        "projectId": "check-oil-bot",
+        "collection": "sesiones_clientes",
+        "returnAll": true
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleApi": {
+          "id": "UvOJ0zRsS6fvNfft",
+          "name": "Google Service Account account"
+        }
+      }
+    },
+    {
+      "id": "f7562796-099a-427e-bcfa-55499609ed7e",
+      "name": "Formatear Dashboard Remex",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        480
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const items = $input.all().map(i => i.json);\nlet config = {\n  documentId: \"bot_config_global\",\n  bot_activo: \"true\",\n  auto_pausa_humana: \"true\",\n  delay_respuesta_ms: \"20000\",\n  prompt_extra: \"\",\n  reglas_aprendidas_json: \"[]\",\n  modo_presupuesto_intermediario: \"programado\",\n  fecha_inicio_intermediario: \"2026-11-10\",\n  sucursales_intermediario_json: \"[\\\"Centro\\\"]\",\n  sla_recordatorio_minutos: \"25\",\n  horario_comercial_json: \"{\\\"lun_vie_apertura\\\":\\\"08:30\\\",\\\"lun_vie_cierre\\\":\\\"20:00\\\",\\\"sab_apertura\\\":\\\"09:00\\\",\\\"sab_cierre\\\":\\\"13:30\\\",\\\"dom_abierto\\\":false}\"\n};\nconst sessions = [];\nconst quotes = [];\n\nfor (const item of items) {\n  const docId = item.documentId || item._id || item.id || (item._name ? item._name.split(\"/\").pop() : \"\");\n  if (!docId) continue;\n  if (docId === \"bot_config_global\" || docId === \"__bot_config__\") {\n    config = { ...config, ...item, documentId: \"bot_config_global\" };\n  } else {\n    sessions.push({ ...item, documentId: docId });\n    if (item.cotizaciones_historial_json) {\n      try {\n        const list = JSON.parse(item.cotizaciones_historial_json);\n        if (Array.isArray(list)) {\n          for (const q of list) {\n            if (q && q.ticket_id) quotes.push(q);\n          }\n        }\n      } catch (e) {}\n    } else if (item.cotizacion_actual_json) {\n      try {\n        const q = JSON.parse(item.cotizacion_actual_json);\n        if (q && q.ticket_id) quotes.push(q);\n      } catch (e) {}\n    }\n  }\n}\n\nreturn [\n  {\n    json: {\n      ok: true,\n      timestamp: new Date().toISOString(),\n      config,\n      sessions,\n      quotes\n    }\n  }\n];"
+      }
+    },
+    {
+      "id": "3fe1378c-1400-4fc9-933a-03054357b507",
+      "name": "Preparar Guardado Remex",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        672
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const body = $node[\"Router Remex API\"].json.payload || {};\nconst data = body.data || {};\nlet docId = body.documentId || data.documentId || \"bot_config_global\";\nif (docId === \"__bot_config__\") docId = \"bot_config_global\";\n\nreturn {\n  json: {\n    documentId: docId,\n    sendWhatsappText: body.sendWhatsappText || \"\",\n    resumen_historico: data.resumen_historico ?? \"\",\n    resumen_charla: data.resumen_charla ?? \"\",\n    estado_charla: data.estado_charla ?? \"\",\n    bot_pausado: String(data.bot_pausado ?? \"false\"),\n    motivo_pausa: data.motivo_pausa ?? \"\",\n    pausado_en: data.pausado_en ?? \"\",\n    vehiculo: data.vehiculo ?? \"\",\n    sucursal_elegida: data.sucursal_elegida ?? \"\",\n    cliente_nombre: data.cliente_nombre ?? \"\",\n    cliente_telefono: data.cliente_telefono ?? \"\",\n    fuera_de_contexto: data.fuera_de_contexto ?? \"no\",\n    incompleta_motivo: data.incompleta_motivo ?? \"\",\n    pregunta_detectada: data.pregunta_detectada ?? \"\",\n    aprendizaje_sugerido: data.aprendizaje_sugerido ?? \"\",\n    estado_aprendizaje: data.estado_aprendizaje ?? \"\",\n    historial_json: typeof data.historial_json === \"string\" ? data.historial_json : JSON.stringify(data.historial_json || []),\n    total_mensajes: String(data.total_mensajes ?? \"0\"),\n    ultima_interaccion: data.ultima_interaccion || new Date().toISOString(),\n    ultimo_msg_bot: data.ultimo_msg_bot ?? \"\",\n    bot_activo: String(data.bot_activo ?? \"true\"),\n    delay_respuesta_ms: String(data.delay_respuesta_ms ?? \"20000\"),\n    auto_pausa_humana: String(data.auto_pausa_humana ?? \"true\"),\n    prompt_extra: data.prompt_extra ?? \"\",\n    reglas_aprendidas_json: typeof data.reglas_aprendidas_json === \"string\"\n      ? data.reglas_aprendidas_json\n      : JSON.stringify(data.reglas_aprendidas_json || []),\n    modo_presupuesto_intermediario: String(data.modo_presupuesto_intermediario ?? \"programado\"),\n    fecha_inicio_intermediario: String(data.fecha_inicio_intermediario ?? \"2026-11-10\"),\n    sucursales_intermediario_json: typeof data.sucursales_intermediario_json === \"string\"\n      ? data.sucursales_intermediario_json\n      : JSON.stringify(data.sucursales_intermediario_json || [\"Centro\"]),\n    sla_recordatorio_minutos: String(data.sla_recordatorio_minutos ?? \"25\"),\n    horario_comercial_json: typeof data.horario_comercial_json === \"string\"\n      ? data.horario_comercial_json\n      : JSON.stringify(data.horario_comercial_json || {\n          lun_vie_apertura: \"08:30\",\n          lun_vie_cierre: \"20:00\",\n          sab_apertura: \"09:00\",\n          sab_cierre: \"13:30\",\n          dom_abierto: false\n        }),\n    ticket_id: data.ticket_id ?? \"\",\n    estado_cotizacion: data.estado_cotizacion ?? \"\",\n    sucursal_cotizacion: data.sucursal_cotizacion ?? \"\",\n    fecha_pedido_cotizacion: data.fecha_pedido_cotizacion ?? \"\",\n    ultimo_pedido_sucursal_en: data.ultimo_pedido_sucursal_en ?? \"\",\n    fecha_respuesta_cotizacion: data.fecha_respuesta_cotizacion ?? \"\",\n    fecha_confirmacion: data.fecha_confirmacion ?? \"\",\n    demora_total_min: String(data.demora_total_min ?? \"\"),\n    demora_habil_min: String(data.demora_habil_min ?? \"\"),\n    demora_neta_sucursal_min: String(data.demora_neta_sucursal_min ?? \"\"),\n    segundos_acumulados_sucursal: String(data.segundos_acumulados_sucursal ?? \"0\"),\n    recordatorio_enviado: String(data.recordatorio_enviado ?? \"false\"),\n    ultima_pregunta_sucursal: data.ultima_pregunta_sucursal ?? \"\",\n    cotizacion_actual_json: typeof data.cotizacion_actual_json === \"string\"\n      ? data.cotizacion_actual_json\n      : (data.cotizacion_actual_json ? JSON.stringify(data.cotizacion_actual_json) : \"\"),\n    cotizaciones_historial_json: typeof data.cotizaciones_historial_json === \"string\"\n      ? data.cotizaciones_historial_json\n      : JSON.stringify(data.cotizaciones_historial_json || [])\n  }\n};"
+      }
+    },
+    {
+      "id": "ad88a4a2-fbdf-49f2-92c9-fbe81bc6ea4b",
+      "name": "Guardar desde Remex OS",
+      "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
+      "typeVersion": 1.1,
+      "position": [
+        -80,
+        672
+      ],
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "upsert",
+        "projectId": "check-oil-bot",
+        "collection": "sesiones_clientes",
+        "updateKey": "documentId",
+        "columns": "resumen_historico, resumen_charla, estado_charla, bot_pausado, motivo_pausa, pausado_en, vehiculo, sucursal_elegida, cliente_nombre, cliente_telefono, fuera_de_contexto, incompleta_motivo, pregunta_detectada, aprendizaje_sugerido, estado_aprendizaje, historial_json, total_mensajes, ultima_interaccion, ultimo_msg_bot, ticket_id, estado_cotizacion, sucursal_cotizacion, fecha_pedido_cotizacion, ultimo_pedido_sucursal_en, fecha_respuesta_cotizacion, fecha_confirmacion, demora_total_min, demora_habil_min, demora_neta_sucursal_min, segundos_acumulados_sucursal, recordatorio_enviado, ultima_pregunta_sucursal, cotizacion_actual_json, cotizaciones_historial_json, bot_activo, delay_respuesta_ms, auto_pausa_humana, prompt_extra, reglas_aprendidas_json, modo_presupuesto_intermediario, fecha_inicio_intermediario, sucursales_intermediario_json, sla_recordatorio_minutos, horario_comercial_json"
+      },
+      "credentials": {
+        "googleApi": {
+          "id": "UvOJ0zRsS6fvNfft",
+          "name": "Google Service Account account"
+        }
+      }
+    },
+    {
+      "id": "a8aa0022-a12c-4b9e-bfe2-b0dffe4838bb",
+      "name": "¿Tiene Mensaje Directo?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        144,
+        672
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-direct-wa",
+              "leftValue": "={{ Boolean($node[\"Preparar Guardado Remex\"].json.sendWhatsappText) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "798c6bf0-b048-43f6-a13f-39975f99cf54",
+      "name": "Enviar WhatsApp desde Remex",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        368,
+        656
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://evolution-api:8080/message/sendText/checkoil",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "CheckOilBotSecreto123"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  {\n    \"number\": $node[\"Preparar Guardado Remex\"].json.documentId,\n    \"text\": $node[\"Preparar Guardado Remex\"].json.sendWhatsappText\n  }\n}}",
+        "options": {}
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "id": "f0ccc59a-b518-4c99-b600-625cfbb4ccb6",
+      "name": "Respuesta Guardado OK",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        688
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return [{ json: { ok: true, updatedAt: new Date().toISOString() } }];"
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Herramienta para SOLICITAR PRESUPUESTO o ENVIAR RESPUESTA DEL CLIENTE a una sucursal en Modo Intermediario (ej. Sucursal Centro desde el 10/11), SIN derivar ni entregar el teléfono del cliente todavía. Parámetros requeridos: 'telefono_sucursal' (número interno de la sucursal), 'tipo_accion' ('solicitar_presupuesto' | 'reenviar_respuesta_cliente' | 'repregunta_cliente') y 'mensaje_para_sucursal' (con el código #COT-XXXX, vehículo y consulta, SIN teléfono del cliente).",
+        "method": "POST",
+        "url": "http://evolution-api:8080/message/sendText/checkoil",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "CheckOilBotSecreto123"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  {\n    \"number\": $fromAI('telefono_sucursal'),\n    \"text\": $fromAI('mensaje_para_sucursal')\n  }\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.5,
+      "position": [
+        -24,
+        288
+      ],
+      "id": "b11e4090-33aa-4bc1-9901-f9a100000001",
+      "name": "Gestionar_Presupuesto_Sucursal"
+    },
+    {
+      "id": "b11e4090-33aa-4bc1-9901-f9a100000002",
+      "name": "¿Es Mensaje de Sucursal?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -480,
+        -320
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-es-msg-sucursal",
+              "leftValue": "={{ $('Code in JavaScript').first().json.esMensajeDeSucursal }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b11e4090-33aa-4bc1-9901-f9a100000003",
+      "name": "Buscar Sesiones Activas Sucursal",
+      "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
+      "typeVersion": 1.1,
+      "position": [
+        -288,
+        -560
+      ],
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "getAll",
+        "projectId": "check-oil-bot",
+        "collection": "sesiones_clientes",
+        "returnAll": true
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleApi": {
+          "id": "UvOJ0zRsS6fvNfft",
+          "name": "Google Service Account account"
+        }
+      }
+    },
+    {
+      "id": "b11e4090-33aa-4bc1-9901-f9a100000004",
+      "name": "Filtrar Pedidos de esta Sucursal",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        -560
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const wh = $('Code in JavaScript').first().json;\nconst config = $('Get Bot Config').first().json || {};\nconst allDocs = $input.all().map(i => i.json).filter(Boolean);\n\nconst sucursalKey = (wh.sucursalOrigenKey || '').toLowerCase();\n\n// Buscar sesiones con cotización activa para esta sucursal (últimas 72 hs)\nconst ahoraMs = Date.now();\nconst candidatos = allDocs.filter(doc => {\n  const docId = doc.documentId || doc._id || doc.id || (doc._name ? doc._name.split('/').pop() : '');\n  if (!docId || docId === 'bot_config_global' || docId === '__bot_config__' || docId.endsWith('@g.us')) return false;\n  const sucDoc = String(doc.sucursal_cotizacion || doc.sucursal_elegida || '').toLowerCase();\n  if (!sucDoc.includes(sucursalKey)) return false;\n\n  const est = String(doc.estado_cotizacion || '');\n  const activos = ['esperando_sucursal', 'esperando_respuesta_cliente', 'presupuesto_enviado'];\n  if (!activos.includes(est)) return false;\n\n  const refTime = new Date(doc.ultimo_pedido_sucursal_en || doc.fecha_pedido_cotizacion || doc.ultima_interaccion || 0).getTime();\n  const horas = refTime > 0 ? (ahoraMs - refTime) / (1000 * 60 * 60) : 999;\n  return horas <= 96;\n}).map(doc => {\n  const docId = doc.documentId || doc._id || doc.id || (doc._name ? doc._name.split('/').pop() : '');\n  return { ...doc, documentId: docId };\n});\n\n// Priorizar los que están exactamente esperando respuesta de la sucursal\nconst enEsperaDirecta = candidatos.filter(c => c.estado_cotizacion === 'esperando_sucursal');\nconst listaTickets = (enEsperaDirecta.length > 0 ? enEsperaDirecta : candidatos).sort(\n  (a, b) => new Date(b.ultimo_pedido_sucursal_en || b.ultima_interaccion || 0).getTime() - new Date(a.ultimo_pedido_sucursal_en || a.ultima_interaccion || 0).getTime()\n);\n\n// Verificar si el texto o el mensaje citado ya menciona un #COT-XXXX explícito\nconst textoBusqueda = `${wh.quotedText || ''} ${wh.mensajeCliente || ''} ${wh.mediaFileName || ''}`;\nconst matchCot = textoBusqueda.match(/COT-\\d{3,6}/i);\nconst explicitTicketId = matchCot ? matchCot[0].toUpperCase() : '';\n\nconst necesitaDescargarMedia =\n  listaTickets.length > 0 &&\n  (wh.tipoMensaje === 'documento' || wh.tipoMensaje === 'imagen') &&\n  !wh.inlineBase64;\n\nreturn [\n  {\n    json: {\n      hayPedidosAbiertos: listaTickets.length > 0,\n      cantidadPedidosAbiertos: listaTickets.length,\n      explicitTicketId,\n      necesitaDescargarMedia,\n      ticketsAbiertos: listaTickets,\n      wh,\n      config\n    }\n  }\n];"
+      }
+    },
+    {
+      "id": "b11e4090-33aa-4bc1-9901-f9a100000005",
+      "name": "¿Hay Pedidos Abiertos en Sucursal?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        128,
+        -560
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-hay-pedidos",
+              "leftValue": "={{ $json.hayPedidosAbiertos }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b11e4090-33aa-4bc1-9901-f9a100000006",
+      "name": "¿Trae PDF o Imagen Adjunta?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        336,
+        -560
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-media-adjunta",
+              "leftValue": "={{ $json.necesitaDescargarMedia }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b11e4090-33aa-4bc1-9901-f9a100000007",
+      "name": "Descargar Base64 de Evolution API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        544,
+        -656
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://evolution-api:8080/chat/getBase64FromMediaMessage/checkoil",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "CheckOilBotSecreto123"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  {\n    \"message\": {\n      \"key\": $json.wh.rawEvolutionKey,\n      \"message\": $json.wh.rawEvolutionMessage\n    },\n    \"convertToMp4\": false\n  }\n}}",
+        "options": {}
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "id": "b11e4090-33aa-4bc1-9901-f9a100000008",
+      "name": "Preparar Prompt Analizador PDF/Sucursal",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        768,
+        -560
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const base = $('Filtrar Pedidos de esta Sucursal').first().json;\nconst wh = base.wh;\nconst tickets = base.ticketsAbiertos || [];\n\nlet mediaBase64 = wh.inlineBase64 || '';\nlet mediaMime = wh.mediaMimeType || 'application/pdf';\nlet mediaName = wh.mediaFileName || 'Presupuesto_CheckOil.pdf';\n\nif (!mediaBase64 && (wh.tipoMensaje === 'documento' || wh.tipoMensaje === 'imagen')) {\n  try {\n    const mediaResp = $input.first().json || {};\n    if (mediaResp.base64) {\n      mediaBase64 = String(mediaResp.base64).replace(/^data:[^;]+;base64,/, '');\n    }\n    if (mediaResp.mimetype) mediaMime = mediaResp.mimetype;\n    if (mediaResp.fileName) mediaName = mediaResp.fileName;\n  } catch (e) {}\n}\n\nconst resumenTicketsPrompt = tickets.map((t, idx) => (\n  `${idx + 1}. Ticket #${t.ticket_id || 'SIN-ID'} | ClienteJID: ${t.documentId} | Vehículo: ${t.vehiculo || 'No especificado'} | Resumen: ${(t.resumen_charla || t.resumen_historico || '').slice(0, 180)}`\n)).join('\\n');\n\nconst instruccionAnalizador = `Eres el Auditor Técnico y Comercial de Presupuestos de Check-Oil Lubricentros.\nLa sucursal \"${wh.sucursalOrigenNombre}\" (${wh.sucursalOrigenKey}) acaba de enviar una respuesta al Bot por WhatsApp.\n\nPEDIDOS ABIERTOS EN ESTA SUCURSAL:\n${resumenTicketsPrompt}\n\nMENSAJE / CITA DE LA SUCURSAL:\n- Mensaje citado (Reply): \"${wh.quotedText || 'Ninguno'}\"\n- Ticket explícito detectado: \"${base.explicitTicketId || 'No citado explícitamente'}\"\n- Texto / Caption de la sucursal: \"${wh.mensajeCliente || ''}\"\n- Archivo adjunto: \"${mediaName}\" (${wh.tipoMensaje})\n\nREGLAS DE VINCULACIÓN DE TICKET:\n1. Si hay un Ticket explícito citado o si solo hay 1 pedido abierto en la lista, vincúlalo a ese pedido (\"matched_client_jid\" y \"matched_ticket_id\").\n2. Si hay 2 o más pedidos abiertos, identifica a cuál corresponde leyendo el modelo/marca/motor/patente mencionado en el PDF, imagen o texto de la sucursal.\n3. Solo devuelve \"tipo_respuesta_sucursal\": \"ambiguo\" si hay 2+ pedidos abiertos y es imposible saber para qué vehículo es la pregunta o presupuesto.\n\nREGLAS DE CLASIFICACIÓN Y EXTRACCIÓN:\n- Si la sucursal NO envió precios aún y está haciendo una PREGUNTA para poder cotizar (ej. \"¿Es nafta o diesel?\", \"¿Qué motor lleva?\", \"¿Quiere aceite sintético o semi?\", \"Pasame patente o chasis\"):\n  Devuelve \"tipo_respuesta_sucursal\": \"pregunta_al_cliente\" y redacta en \"pregunta_para_cliente\" un mensaje breve, cordial y directo de parte del Bot hacia el cliente haciéndole esa misma pregunta.\n- Si la sucursal envió un PRESUPUESTO / COTIZACIÓN (en PDF, imagen o texto):\n  Devuelve \"tipo_respuesta_sucursal\": \"presupuesto\".\n  Extrae TODOS los códigos de filtros (ej. WO-130, FAP-4033, JFO-0211, FCI-1630, AKX-35323, MANN, FRAM, etc.), marca/viscosidad/litros de aceite (MOTUL, GULF, LIQUI MOLY), precios unitarios, descuentos y total.\n  IMPORTANTE EN \"resumen_para_cliente\": Redacta un mensaje de WhatsApp muy prolijo, claro y amable para el cliente con el detalle de los ítems cotizados y el valor total (NUNCA incluyas teléfonos directos de la sucursal), indicando que también le adjuntamos el detalle en PDF si vino archivo, y cerrando con: \"¿Querés que confirmemos este presupuesto para coordinar tu turno?\"\n\nDevuelve ÚNICAMENTE un JSON válido con esta estructura exacta:\n{\n  \"matched_ticket_id\": \"COT-XXXX\",\n  \"matched_client_jid\": \"549...@s.whatsapp.net\",\n  \"tipo_respuesta_sucursal\": \"presupuesto | pregunta_al_cliente | ambiguo | comentario_interno\",\n  \"pregunta_para_cliente\": \"\",\n  \"resumen_para_cliente\": \"\",\n  \"mensaje_aclaracion_sucursal\": \"Solo si es ambiguo, ej: Tengo 2 pedidos abiertos (#COT-101 Hilux y #COT-102 Gol), ¿a cuál corresponde?\",\n  \"analisis_auditoria\": {\n    \"vehiculo_detectado_en_pdf\": \"\",\n    \"moneda\": \"ARS\",\n    \"total_cotizado\": 0,\n    \"total_con_descuento\": 0,\n    \"descuento_porcentaje\": 0,\n    \"aceite\": {\n      \"marca\": \"\",\n      \"linea\": \"\",\n      \"viscosidad\": \"\",\n      \"litros\": 0,\n      \"precio_por_litro\": 0,\n      \"subtotal\": 0\n    },\n    \"filtros\": [\n      {\n        \"tipo\": \"aceite | aire | combustible | habitaculo | otro\",\n        \"marca\": \"WEGA\",\n        \"codigo\": \"\",\n        \"descripcion\": \"\",\n        \"cantidad\": 1,\n        \"precio_unitario\": 0,\n        \"subtotal\": 0\n      }\n    ],\n    \"otros_items\": [\n      { \"descripcion\": \"\", \"subtotal\": 0 }\n    ],\n    \"resumen_items_corto\": \"Ej: Motul 8100 5W40 (4L) + 4 Filtros WEGA (WO-130, FAP-4033...)\",\n    \"observaciones_calidad\": \"\"\n  }\n}`;\n\nconst userContent = [];\nif (mediaBase64 && wh.tipoMensaje === 'documento') {\n  userContent.push({\n    type: 'file',\n    file: {\n      filename: mediaName.endsWith('.pdf') ? mediaName : `${mediaName}.pdf`,\n      file_data: `data:application/pdf;base64,${mediaBase64}`\n    }\n  });\n} else if (mediaBase64 && wh.tipoMensaje === 'imagen') {\n  userContent.push({\n    type: 'image_url',\n    image_url: {\n      url: `data:${mediaMime};base64,${mediaBase64}`\n    }\n  });\n}\nuserContent.push({\n  type: 'text',\n  text: instruccionAnalizador\n});\n\nconst openAiBody = {\n  model: 'gpt-4.1-mini',\n  temperature: 0.1,\n  response_format: { type: 'json_object' },\n  messages: [\n    {\n      role: 'user',\n      content: userContent\n    }\n  ]\n};\n\nreturn [\n  {\n    json: {\n      ...base,\n      mediaBase64,\n      mediaMime,\n      mediaName,\n      openAiBody\n    }\n  }\n];"
+      }
+    },
+    {
+      "id": "b11e4090-33aa-4bc1-9901-f9a100000009",
+      "name": "Analizar Presupuesto PDF/Texto (OpenAI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        992,
+        -560
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.openAiBody }}",
+        "options": {}
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "EgDgjEHYqUTo3IHD",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "id": "b11e4090-33aa-4bc1-9901-f9a100000010",
+      "name": "Procesar Respuesta de Sucursal y SLA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1216,
+        -560
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const prep = $('Preparar Prompt Analizador PDF/Sucursal').first().json;\nconst rawAi = $input.first().json || {};\nconst wh = prep.wh;\nconst config = prep.config || {};\nconst tickets = prep.ticketsAbiertos || [];\n\n// Helper: calcula minutos hábiles dentro del horario comercial en Argentina\nfunction calcularMinutosHabiles(startIso, endIso, horarioJsonStr) {\n  const start = new Date(startIso);\n  const end = new Date(endIso);\n  if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) return 0;\n\n  let schedule = {\n    lun_vie_apertura: '08:30',\n    lun_vie_cierre: '20:00',\n    sab_apertura: '09:00',\n    sab_cierre: '13:30',\n    dom_abierto: false\n  };\n  try {\n    if (horarioJsonStr) {\n      const p = typeof horarioJsonStr === 'string' ? JSON.parse(horarioJsonStr) : horarioJsonStr;\n      schedule = { ...schedule, ...p };\n    }\n  } catch (e) {}\n\n  const toMin = (hhmm) => {\n    const [h, m] = String(hhmm || '08:30').split(':').map(Number);\n    return (h || 0) * 60 + (m || 0);\n  };\n  const lvOpen = toMin(schedule.lun_vie_apertura);\n  const lvClose = toMin(schedule.lun_vie_cierre);\n  const sabOpen = toMin(schedule.sab_apertura);\n  const sabClose = toMin(schedule.sab_cierre);\n\n  const fmt = new Intl.DateTimeFormat('en-US', {\n    timeZone: 'America/Argentina/Buenos_Aires',\n    weekday: 'short',\n    hour: '2-digit',\n    minute: '2-digit',\n    hour12: false\n  });\n\n  let count = 0;\n  let cursor = Math.floor(start.getTime() / 60000) * 60000;\n  const endMs = Math.floor(end.getTime() / 60000) * 60000;\n  // Tope de seguridad 10080 iteraciones (7 días)\n  const maxStepEnd = Math.min(endMs, cursor + 10080 * 60000);\n\n  while (cursor < maxStepEnd) {\n    const parts = fmt.formatToParts(new Date(cursor));\n    const wk = (parts.find(p => p.type === 'weekday') || {}).value || '';\n    const hh = Number((parts.find(p => p.type === 'hour') || {}).value || 0) % 24;\n    const mm = Number((parts.find(p => p.type === 'minute') || {}).value || 0);\n    const curMin = hh * 60 + mm;\n\n    if (wk === 'Sun') {\n      if (schedule.dom_abierto && curMin >= sabOpen && curMin < sabClose) count++;\n    } else if (wk === 'Sat') {\n      if (curMin >= sabOpen && curMin < sabClose) count++;\n    } else {\n      if (curMin >= lvOpen && curMin < lvClose) count++;\n    }\n    cursor += 60000;\n  }\n  return count;\n}\n\nlet aiText = '';\nif (rawAi.choices && rawAi.choices[0] && rawAi.choices[0].message) {\n  aiText = rawAi.choices[0].message.content || '';\n}\n\nlet parsed = {};\ntry {\n  parsed = JSON.parse(String(aiText).replace(/```json/gi, '').replace(/```/g, '').trim());\n} catch (e) {\n  parsed = { tipo_respuesta_sucursal: 'comentario_interno' };\n}\n\n// Encontrar sesión del cliente correspondiente\nlet targetSession = null;\nif (prep.explicitTicketId) {\n  targetSession = tickets.find(t => String(t.ticket_id || '').toUpperCase() === prep.explicitTicketId);\n}\nif (!targetSession && parsed.matched_client_jid) {\n  targetSession = tickets.find(t => t.documentId === parsed.matched_client_jid);\n}\nif (!targetSession && parsed.matched_ticket_id) {\n  targetSession = tickets.find(t => String(t.ticket_id || '').toUpperCase() === String(parsed.matched_ticket_id).toUpperCase());\n}\nif (!targetSession && tickets.length === 1) {\n  targetSession = tickets[0];\n}\n\nconst ahora = new Date().toISOString();\n\n// Si es ambiguo entre 2+ tickets abiertos, repreguntar a la sucursal sin tocar al cliente equivocado\nif (!targetSession || parsed.tipo_respuesta_sucursal === 'ambiguo') {\n  const listaCorta = tickets.map(t => `#${t.ticket_id || 'S/N'} (${t.vehiculo || t.cliente_nombre})`).join(' o ');\n  const msgAclaracion = parsed.mensaje_aclaracion_sucursal ||\n    `⚠️ Tengo más de un pedido abierto en ${wh.sucursalOrigenNombre}: ${listaCorta}. Por favor respondé citando el mensaje del pedido correspondiente para enviárselo al cliente correcto.`;\n  return [\n    {\n      json: {\n        guardarSesion: false,\n        enviarPdfAlCliente: false,\n        enviarTextoAlCliente: false,\n        enviarAclaracionASucursal: tickets.length > 1,\n        sucursalJid: wh.remoteJid,\n        textoAclaracionSucursal: msgAclaracion\n      }\n    }\n  ];\n}\n\nif (parsed.tipo_respuesta_sucursal === 'comentario_interno') {\n  return [\n    {\n      json: {\n        guardarSesion: false,\n        enviarPdfAlCliente: false,\n        enviarTextoAlCliente: false,\n        enviarAclaracionASucursal: false\n      }\n    }\n  ];\n}\n\nlet historial = [];\ntry {\n  historial = JSON.parse(targetSession.historial_json || '[]');\n  if (!Array.isArray(historial)) historial = [];\n} catch (e) {\n  historial = [];\n}\n\nconst inicioTotalIso = targetSession.fecha_pedido_cotizacion || targetSession.ultima_interaccion || ahora;\nconst ultimoTramoSucursalIso = targetSession.ultimo_pedido_sucursal_en || inicioTotalIso;\nconst segAcumPrev = Number(targetSession.segundos_acumulados_sucursal || 0);\nconst minTramoActualHabil = calcularMinutosHabiles(ultimoTramoSucursalIso, ahora, config.horario_comercial_json);\nconst segAcumTotal = segAcumPrev + (minTramoActualHabil * 60);\nconst demoraNetaSucursalMin = Math.max(1, Math.round(segAcumTotal / 60));\nconst demoraHabilTotalMin = Math.max(1, calcularMinutosHabiles(inicioTotalIso, ahora, config.horario_comercial_json));\nconst demoraCorridaMin = Math.max(1, Math.round((new Date(ahora).getTime() - new Date(inicioTotalIso).getTime()) / 60000));\n\nlet estadoCotizacionNuevo = targetSession.estado_cotizacion || 'esperando_sucursal';\nlet estadoCharlaNuevo = targetSession.estado_charla || 'en_curso';\nlet textoParaCliente = '';\nlet enviarPdfAlCliente = false;\nlet cotizacionActualJson = targetSession.cotizacion_actual_json || '';\nlet cotizacionesHistorialJson = targetSession.cotizaciones_historial_json || '[]';\nlet ultimaPreguntaSucursal = targetSession.ultima_pregunta_sucursal || '';\nlet fechaRespuestaCotizacion = targetSession.fecha_respuesta_cotizacion || '';\n\nif (parsed.tipo_respuesta_sucursal === 'pregunta_al_cliente') {\n  estadoCotizacionNuevo = 'esperando_respuesta_cliente';\n  estadoCharlaNuevo = 'esperando_respuesta_cliente';\n  ultimaPreguntaSucursal = wh.mensajeCliente || parsed.pregunta_para_cliente || '';\n  textoParaCliente = parsed.pregunta_para_cliente ||\n    `Te hago una consulta rápida que me piden desde ${wh.sucursalOrigenNombre} para cotizar exacto tu vehículo: ${wh.mensajeCliente}`;\n\n  historial.push({\n    rol: 'sucursal',\n    nombre: wh.sucursalOrigenNombre,\n    texto: `[CONSULTA DE SUCURSAL #${targetSession.ticket_id}]: ${wh.mensajeCliente}`,\n    fecha: ahora\n  });\n  historial.push({\n    rol: 'bot',\n    texto: textoParaCliente,\n    fecha: ahora\n  });\n} else if (parsed.tipo_respuesta_sucursal === 'presupuesto') {\n  estadoCotizacionNuevo = 'presupuesto_enviado';\n  estadoCharlaNuevo = 'presupuesto_enviado';\n  fechaRespuestaCotizacion = ahora;\n\n  const aud = parsed.analisis_auditoria || {};\n  const formatoOrigen = wh.tipoMensaje === 'documento' ? 'pdf' : (wh.tipoMensaje === 'imagen' ? 'imagen' : 'texto');\n\n  const registroCotizacion = {\n    ticket_id: targetSession.ticket_id || `COT-${String(Date.now()).slice(-4)}`,\n    cliente_jid: targetSession.documentId,\n    cliente_nombre: targetSession.cliente_nombre || 'Cliente',\n    cliente_telefono: targetSession.cliente_telefono || targetSession.documentId.replace('@s.whatsapp.net', ''),\n    sucursal: wh.sucursalOrigenKey,\n    sucursal_nombre: wh.sucursalOrigenNombre,\n    vehiculo: targetSession.vehiculo || aud.vehiculo_detectado_en_pdf || 'No especificado',\n    fecha_pedido: inicioTotalIso,\n    fecha_respuesta: ahora,\n    demora_total_min: demoraCorridaMin,\n    demora_habil_min: demoraHabilTotalMin,\n    demora_neta_sucursal_min: demoraNetaSucursalMin,\n    formato_origen: formatoOrigen,\n    archivo_nombre: prep.mediaName || '',\n    moneda: aud.moneda || 'ARS',\n    total_cotizado: Number(aud.total_cotizado || 0),\n    total_con_descuento: Number(aud.total_con_descuento || 0),\n    descuento_porcentaje: Number(aud.descuento_porcentaje || 0),\n    aceite: aud.aceite || null,\n    filtros: Array.isArray(aud.filtros) ? aud.filtros : [],\n    otros_items: Array.isArray(aud.otros_items) ? aud.otros_items : [],\n    resumen_items: aud.resumen_items_corto || '',\n    observaciones_calidad: aud.observaciones_calidad || '',\n    texto_original_sucursal: wh.mensajeCliente || '',\n    estado: 'presupuesto_enviado'\n  };\n\n  cotizacionActualJson = JSON.stringify(registroCotizacion);\n  try {\n    const prevList = JSON.parse(cotizacionesHistorialJson || '[]');\n    const arr = Array.isArray(prevList) ? prevList : [];\n    const existingIdx = arr.findIndex(item => item && item.ticket_id === registroCotizacion.ticket_id);\n    if (existingIdx >= 0) arr[existingIdx] = registroCotizacion;\n    else arr.unshift(registroCotizacion);\n    cotizacionesHistorialJson = JSON.stringify(arr.slice(0, 20));\n  } catch (e) {\n    cotizacionesHistorialJson = JSON.stringify([registroCotizacion]);\n  }\n\n  textoParaCliente = parsed.resumen_para_cliente ||\n    `¡Ya tenemos el presupuesto de ${wh.sucursalOrigenNombre} para tu ${registroCotizacion.vehiculo}!\\n\\n` +\n    (registroCotizacion.resumen_items ? `• Detalle: ${registroCotizacion.resumen_items}\\n` : '') +\n    (registroCotizacion.total_cotizado ? `• Total: $${registroCotizacion.total_cotizado.toLocaleString('es-AR')}\\n\\n` : '\\n') +\n    `¿Querés que confirmemos este presupuesto para coordinar tu turno?`;\n\n  enviarPdfAlCliente = Boolean(prep.mediaBase64 && (wh.tipoMensaje === 'documento' || wh.tipoMensaje === 'imagen'));\n\n  historial.push({\n    rol: 'sucursal',\n    nombre: wh.sucursalOrigenNombre,\n    texto: `[PRESUPUESTO RECIBIDO #${registroCotizacion.ticket_id} • Demora hábil: ${demoraNetaSucursalMin} min • Formato: ${formatoOrigen.toUpperCase()}] ${registroCotizacion.resumen_items || wh.mensajeCliente} ${registroCotizacion.total_cotizado ? '($' + registroCotizacion.total_cotizado.toLocaleString('es-AR') + ')' : ''}`,\n    fecha: ahora\n  });\n  historial.push({\n    rol: 'bot',\n    texto: textoParaCliente + (enviarPdfAlCliente ? `\\n📎 [Archivo reenviado: ${prep.mediaName}]` : ''),\n    fecha: ahora\n  });\n}\n\nif (historial.length > 45) {\n  historial = historial.slice(historial.length - 45);\n}\n\nreturn [\n  {\n    json: {\n      guardarSesion: true,\n      enviarPdfAlCliente,\n      enviarTextoAlCliente: Boolean(textoParaCliente),\n      enviarAclaracionASucursal: false,\n      clienteJid: targetSession.documentId,\n      textoParaCliente,\n      mediaBase64: prep.mediaBase64 || '',\n      mediaMime: prep.mediaMime || 'application/pdf',\n      mediaTypeEvolution: wh.tipoMensaje === 'imagen' ? 'image' : 'document',\n      mediaName: prep.mediaName || 'Presupuesto_CheckOil.pdf',\n      // Campos de Firestore sesiones_clientes\n      documentId: targetSession.documentId,\n      resumen_historico: targetSession.resumen_historico || '',\n      resumen_charla: parsed.tipo_respuesta_sucursal === 'presupuesto'\n        ? `Presupuesto #${targetSession.ticket_id} enviado al cliente (${demoraNetaSucursalMin} min hábiles). Esperando confirmación.`\n        : `Sucursal consultó al cliente (#${targetSession.ticket_id}): ${ultimaPreguntaSucursal}`,\n      estado_charla: estadoCharlaNuevo,\n      bot_pausado: String(targetSession.bot_pausado || 'false'),\n      motivo_pausa: targetSession.motivo_pausa || '',\n      pausado_en: targetSession.pausado_en || '',\n      vehiculo: targetSession.vehiculo || 'No especificado',\n      sucursal_elegida: targetSession.sucursal_elegida || wh.sucursalOrigenKey,\n      cliente_nombre: targetSession.cliente_nombre || 'Cliente',\n      cliente_telefono: targetSession.cliente_telefono || targetSession.documentId.replace('@s.whatsapp.net', ''),\n      fuera_de_contexto: targetSession.fuera_de_contexto || 'no',\n      incompleta_motivo: targetSession.incompleta_motivo || '',\n      pregunta_detectada: targetSession.pregunta_detectada || '',\n      aprendizaje_sugerido: targetSession.aprendizaje_sugerido || '',\n      estado_aprendizaje: targetSession.estado_aprendizaje || '',\n      historial_json: JSON.stringify(historial),\n      total_mensajes: String(historial.length),\n      ultima_interaccion: ahora,\n      ultimo_msg_bot: textoParaCliente,\n      ticket_id: targetSession.ticket_id || '',\n      estado_cotizacion: estadoCotizacionNuevo,\n      sucursal_cotizacion: wh.sucursalOrigenKey,\n      fecha_pedido_cotizacion: inicioTotalIso,\n      ultimo_pedido_sucursal_en: targetSession.ultimo_pedido_sucursal_en || inicioTotalIso,\n      fecha_respuesta_cotizacion: fechaRespuestaCotizacion,\n      fecha_confirmacion: targetSession.fecha_confirmacion || '',\n      demora_total_min: String(demoraCorridaMin),\n      demora_habil_min: String(demoraHabilTotalMin),\n      demora_neta_sucursal_min: String(demoraNetaSucursalMin),\n      segundos_acumulados_sucursal: String(segAcumTotal),\n      recordatorio_enviado: String(targetSession.recordatorio_enviado || 'false'),\n      ultima_pregunta_sucursal: ultimaPreguntaSucursal,\n      cotizacion_actual_json: cotizacionActualJson,\n      cotizaciones_historial_json: cotizacionesHistorialJson\n    }\n  }\n];"
+      }
+    },
+    {
+      "id": "b11e4090-33aa-4bc1-9901-f9a100000011",
+      "name": "¿Guardar Sesión de Cotización?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1440,
+        -560
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-guardar-cot",
+              "leftValue": "={{ $json.guardarSesion }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b11e4090-33aa-4bc1-9901-f9a100000012",
+      "name": "Guardar Cotización en Firestore",
+      "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
+      "typeVersion": 1.1,
+      "position": [
+        1664,
+        -640
+      ],
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "upsert",
+        "projectId": "check-oil-bot",
+        "collection": "sesiones_clientes",
+        "updateKey": "documentId",
+        "columns": "resumen_historico, resumen_charla, estado_charla, bot_pausado, motivo_pausa, pausado_en, vehiculo, sucursal_elegida, cliente_nombre, cliente_telefono, fuera_de_contexto, incompleta_motivo, pregunta_detectada, aprendizaje_sugerido, estado_aprendizaje, historial_json, total_mensajes, ultima_interaccion, ultimo_msg_bot, ticket_id, estado_cotizacion, sucursal_cotizacion, fecha_pedido_cotizacion, ultimo_pedido_sucursal_en, fecha_respuesta_cotizacion, fecha_confirmacion, demora_total_min, demora_habil_min, demora_neta_sucursal_min, segundos_acumulados_sucursal, recordatorio_enviado, ultima_pregunta_sucursal, cotizacion_actual_json, cotizaciones_historial_json"
+      },
+      "credentials": {
+        "googleApi": {
+          "id": "UvOJ0zRsS6fvNfft",
+          "name": "Google Service Account account"
+        }
+      }
+    },
+    {
+      "id": "b11e4090-33aa-4bc1-9901-f9a100000013",
+      "name": "Enviar Texto/Pregunta al Cliente",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1888,
+        -640
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://evolution-api:8080/message/sendText/checkoil",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "CheckOilBotSecreto123"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  {\n    \"number\": $('Procesar Respuesta de Sucursal y SLA').first().json.clienteJid,\n    \"options\": { \"delay\": 3500, \"presence\": \"composing\" },\n    \"text\": $('Procesar Respuesta de Sucursal y SLA').first().json.textoParaCliente\n  }\n}}",
+        "options": {}
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "id": "b11e4090-33aa-4bc1-9901-f9a100000014",
+      "name": "¿Reenviar PDF Original al Cliente?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2112,
+        -640
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-reenviar-pdf",
+              "leftValue": "={{ $('Procesar Respuesta de Sucursal y SLA').first().json.enviarPdfAlCliente }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b11e4090-33aa-4bc1-9901-f9a100000015",
+      "name": "Reenviar PDF Adjunto al Cliente",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        2336,
+        -640
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://evolution-api:8080/message/sendMedia/checkoil",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "CheckOilBotSecreto123"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  {\n    \"number\": $('Procesar Respuesta de Sucursal y SLA').first().json.clienteJid,\n    \"mediatype\": $('Procesar Respuesta de Sucursal y SLA').first().json.mediaTypeEvolution,\n    \"mimetype\": $('Procesar Respuesta de Sucursal y SLA').first().json.mediaMime,\n    \"caption\": \"📄 Presupuesto adjunto — Check-Oil Lubricentros\",\n    \"media\": $('Procesar Respuesta de Sucursal y SLA').first().json.mediaBase64,\n    \"fileName\": $('Procesar Respuesta de Sucursal y SLA').first().json.mediaName\n  }\n}}",
+        "options": {}
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "id": "b11e4090-33aa-4bc1-9901-f9a100000016",
+      "name": "¿Pedir Aclaración de Ticket a Sucursal?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1664,
+        -448
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-aclarar-suc",
+              "leftValue": "={{ $json.enviarAclaracionASucursal }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b11e4090-33aa-4bc1-9901-f9a100000017",
+      "name": "Pedir Aclaración de Ticket a Sucursal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1888,
+        -448
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://evolution-api:8080/message/sendText/checkoil",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "CheckOilBotSecreto123"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  {\n    \"number\": $json.sucursalJid,\n    \"text\": $json.textoAclaracionSucursal\n  }\n}}",
+        "options": {}
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "id": "b11e4090-33aa-4bc1-9901-f9a100000018",
+      "name": "Control SLA 25m (Cada 5 min)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -976,
+        880
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "b11e4090-33aa-4bc1-9901-f9a100000019",
+      "name": "Leer Sesiones para SLA",
+      "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
+      "typeVersion": 1.1,
+      "position": [
+        -752,
+        880
+      ],
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "getAll",
+        "projectId": "check-oil-bot",
+        "collection": "sesiones_clientes",
+        "returnAll": true
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleApi": {
+          "id": "UvOJ0zRsS6fvNfft",
+          "name": "Google Service Account account"
+        }
+      }
+    },
+    {
+      "id": "b11e4090-33aa-4bc1-9901-f9a100000020",
+      "name": "Evaluar Recordatorios SLA 25m",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -528,
+        880
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const allDocs = $input.all().map(i => i.json).filter(Boolean);\nconst config = allDocs.find(d => {\n  const id = d.documentId || d._id || d.id || (d._name ? d._name.split('/').pop() : '');\n  return id === 'bot_config_global' || id === '__bot_config__';\n}) || {};\n\nconst botActivo = config.bot_activo !== false && config.bot_activo !== 'false';\nconst modoConfig = String(config.modo_presupuesto_intermediario || 'programado').toLowerCase();\nconst fechaInicio = String(config.fecha_inicio_intermediario || '2026-11-10').trim();\nconst hoyArgentina = new Intl.DateTimeFormat('en-CA', {\n  timeZone: 'America/Argentina/Buenos_Aires',\n  year: 'numeric',\n  month: '2-digit',\n  day: '2-digit'\n}).format(new Date());\n\nconst intermediarioActivo =\n  modoConfig === 'true' ||\n  modoConfig === 'activo' ||\n  (modoConfig === 'programado' && Boolean(fechaInicio && hoyArgentina >= fechaInicio));\n\nif (!botActivo || !intermediarioActivo) {\n  return [];\n}\n\nlet schedule = {\n  lun_vie_apertura: '08:30',\n  lun_vie_cierre: '20:00',\n  sab_apertura: '09:00',\n  sab_cierre: '13:30',\n  dom_abierto: false\n};\ntry {\n  if (config.horario_comercial_json) {\n    const p = typeof config.horario_comercial_json === 'string'\n      ? JSON.parse(config.horario_comercial_json)\n      : config.horario_comercial_json;\n    schedule = { ...schedule, ...p };\n  }\n} catch (e) {}\n\nconst toMin = (hhmm) => {\n  const [h, m] = String(hhmm || '08:30').split(':').map(Number);\n  return (h || 0) * 60 + (m || 0);\n};\nconst lvOpen = toMin(schedule.lun_vie_apertura);\nconst lvClose = toMin(schedule.lun_vie_cierre);\nconst sabOpen = toMin(schedule.sab_apertura);\nconst sabClose = toMin(schedule.sab_cierre);\n\nconst fmt = new Intl.DateTimeFormat('en-US', {\n  timeZone: 'America/Argentina/Buenos_Aires',\n  weekday: 'short',\n  hour: '2-digit',\n  minute: '2-digit',\n  hour12: false\n});\n\nfunction estaEnHorarioComercial(dateObj) {\n  const parts = fmt.formatToParts(dateObj);\n  const wk = (parts.find(p => p.type === 'weekday') || {}).value || '';\n  const hh = Number((parts.find(p => p.type === 'hour') || {}).value || 0) % 24;\n  const mm = Number((parts.find(p => p.type === 'minute') || {}).value || 0);\n  const curMin = hh * 60 + mm;\n  if (wk === 'Sun') return Boolean(schedule.dom_abierto && curMin >= sabOpen && curMin < sabClose);\n  if (wk === 'Sat') return curMin >= sabOpen && curMin < sabClose;\n  return curMin >= lvOpen && curMin < lvClose;\n}\n\nfunction calcularMinutosHabiles(startIso, endDate) {\n  const start = new Date(startIso);\n  if (isNaN(start.getTime()) || endDate <= start) return 0;\n  let count = 0;\n  let cursor = Math.floor(start.getTime() / 60000) * 60000;\n  const endMs = Math.floor(endDate.getTime() / 60000) * 60000;\n  const maxStepEnd = Math.min(endMs, cursor + 4320 * 60000);\n  while (cursor < maxStepEnd) {\n    if (estaEnHorarioComercial(new Date(cursor))) count++;\n    cursor += 60000;\n  }\n  return count;\n}\n\nconst ahora = new Date();\nif (!estaEnHorarioComercial(ahora)) {\n  return [];\n}\n\nconst umbralMin = Number(config.sla_recordatorio_minutos || 25);\nconst SUCURSAL_PHONES = {\n  centro: '5492944579792',\n  estadio: '5492944638500',\n  'ñireco': '5492944907667',\n  nireco: '5492944907667',\n  km13: '5492944615570',\n  'bolsón': '5492944631155',\n  bolson: '5492944631155',\n  dominico: '5491161217529'\n};\n\nconst vencidos = [];\nfor (const doc of allDocs) {\n  const docId = doc.documentId || doc._id || doc.id || (doc._name ? doc._name.split('/').pop() : '');\n  if (!docId || docId === 'bot_config_global') continue;\n  if (doc.estado_cotizacion !== 'esperando_sucursal') continue;\n  if (doc.recordatorio_enviado === 'true' || doc.recordatorio_enviado === true) continue;\n\n  const desdeIso = doc.ultimo_pedido_sucursal_en || doc.fecha_pedido_cotizacion;\n  if (!desdeIso) continue;\n\n  const minHabiles = calcularMinutosHabiles(desdeIso, ahora);\n  if (minHabiles >= umbralMin) {\n    const sucKey = String(doc.sucursal_cotizacion || doc.sucursal_elegida || 'Centro').toLowerCase();\n    let phone = '5492944579792';\n    for (const [k, p] of Object.entries(SUCURSAL_PHONES)) {\n      if (sucKey.includes(k)) {\n        phone = p;\n        break;\n      }\n    }\n    vencidos.push({\n      json: {\n        ...doc,\n        documentId: docId,\n        recordatorio_enviado: 'true',\n        sucursalReminderPhone: phone,\n        minutosHabilesEspera: minHabiles,\n        textoRecordatorio:\n          `⏰ RECORDATORIO DE PRESUPUESTO #${doc.ticket_id || 'PENDIENTE'}\\n` +\n          `Hace ${minHabiles} min hábiles un cliente espera cotización de ${doc.sucursal_elegida || 'Sucursal'}:\\n` +\n          `🚗 Vehículo: ${doc.vehiculo || 'Ver mensaje anterior'}\\n` +\n          `👉 Por favor respondé con el PDF o texto del presupuesto para que el Bot se lo entregue.`\n      }\n    });\n  }\n}\n\nreturn vencidos;"
+      }
+    },
+    {
+      "id": "b11e4090-33aa-4bc1-9901-f9a100000021",
+      "name": "Enviar Recordatorio 25m a Sucursal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -304,
+        880
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://evolution-api:8080/message/sendText/checkoil",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "CheckOilBotSecreto123"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  {\n    \"number\": $json.sucursalReminderPhone,\n    \"text\": $json.textoRecordatorio\n  }\n}}",
+        "options": {}
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "id": "b11e4090-33aa-4bc1-9901-f9a100000022",
+      "name": "Marcar Recordatorio SLA Enviado",
+      "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
+      "typeVersion": 1.1,
+      "position": [
+        -80,
+        880
+      ],
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "upsert",
+        "projectId": "check-oil-bot",
+        "collection": "sesiones_clientes",
+        "updateKey": "documentId",
+        "columns": "recordatorio_enviado"
+      },
+      "credentials": {
+        "googleApi": {
+          "id": "UvOJ0zRsS6fvNfft",
+          "name": "Google Service Account account"
+        }
+      }
+    }
+  ],
+  "nodeGroups": [],
+  "activeVersion": {
+    "sameAsDraft": true
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp"
+  }
+}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Sparkles, CheckCircle2 } from 'lucide-react';
 
-const CURRENT_VERSION = '2.1.0';
+const CURRENT_VERSION = '2.2.0';
 
 export default function UpdateModal() {
   const [isOpen, setIsOpen] = useState(false);
@@ -46,10 +46,19 @@ export default function UpdateModal() {
 
         <div className="p-6 md:p-8 overflow-y-auto custom-scrollbar flex-1 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-zinc-900/40 via-zinc-950 to-zinc-950">
           <p className="text-zinc-300 mb-6 text-sm">
-            La versión <strong>2.1.0</strong> incorpora mejoras clave en el <strong>Centro de Control del Bot Check-Oil</strong> y el nuevo circuito completo de <strong>Viajes de Reparto, Rendición y Flota</strong>:
+            La versión <strong>2.2.0</strong> incorpora el nuevo <strong>Intermediario de Presupuestos, Lector de PDFs y Auditoría de Precios por Sucursal</strong> en el Centro de Control del Bot Check-Oil:
           </p>
 
           <div className="space-y-4">
+            <div className="bg-zinc-900/80 border border-orange-500/40 p-4 rounded-xl flex gap-3">
+              <CheckCircle2 className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-white font-bold text-sm mb-1">Intermediario de Presupuestos, SLA Hábil y Precios PDF (Piloto Martes 10/11 • Centro)</h4>
+                <p className="text-zinc-400 text-sm leading-relaxed">
+                  El bot solicita presupuestos a la sucursal sin revelar el contacto del cliente hasta que confirme la cotización, traslada repreguntas ida y vuelta, analiza los <strong>PDFs de presupuesto</strong> (aceite, códigos de filtros y descuentos), mide la demora neta en horario comercial (recordatorio automático a los 25 min) y compara diferencias de precios entre sucursales.
+                </p>
+              </div>
+            </div>
             
             <div className="bg-zinc-900/80 border border-zinc-800/80 p-4 rounded-xl flex gap-3">
               <CheckCircle2 className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />

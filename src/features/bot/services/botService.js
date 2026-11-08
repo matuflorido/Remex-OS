@@ -1,5 +1,6 @@
-import { doc, setDoc, onSnapshot, collection } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot, collection } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
+import { DEFAULT_BROKER_CONFIG } from './quoteBrokerEngine';
 
 const N8N_BOT_API_URL = 'https://n8n.check-oil.tech/webhook/remex-bot-api';
 
@@ -24,11 +25,50 @@ export const fetchBotDashboardFromN8n = async () => {
     }
 
     const data = await response.json();
-    if (Array.isArray(data?.sessions) && data.sessions.length > 0) {
+    let localSyncCfg = {};
+    try {
+      const snap = await getDoc(doc(db, 'bot_sync_cache', 'bot_config_global'));
+      if (snap.exists()) {
+        localSyncCfg = snap.data() || {};
+      }
+    } catch (e) {}
+
+    const enrichedConfig = {
+      ...DEFAULT_BROKER_CONFIG,
+      ...localSyncCfg,
+      ...(data?.config || {}),
+      modo_presupuesto_intermediario:
+        data?.config?.modo_presupuesto_intermediario ??
+        localSyncCfg?.modo_presupuesto_intermediario ??
+        DEFAULT_BROKER_CONFIG.modo_presupuesto_intermediario,
+      fecha_inicio_intermediario:
+        data?.config?.fecha_inicio_intermediario ??
+        localSyncCfg?.fecha_inicio_intermediario ??
+        DEFAULT_BROKER_CONFIG.fecha_inicio_intermediario,
+      sucursales_intermediario_json:
+        data?.config?.sucursales_intermediario_json ??
+        localSyncCfg?.sucursales_intermediario_json ??
+        DEFAULT_BROKER_CONFIG.sucursales_intermediario_json,
+      sla_recordatorio_minutos:
+        data?.config?.sla_recordatorio_minutos ??
+        localSyncCfg?.sla_recordatorio_minutos ??
+        DEFAULT_BROKER_CONFIG.sla_recordatorio_minutos,
+      horario_comercial_json:
+        data?.config?.horario_comercial_json ??
+        localSyncCfg?.horario_comercial_json ??
+        DEFAULT_BROKER_CONFIG.horario_comercial_json
+    };
+
+    const finalPayload = {
+      ...data,
+      config: enrichedConfig
+    };
+
+    if (Array.isArray(finalPayload?.sessions) && finalPayload.sessions.length > 0) {
       try {
-        localStorage.setItem(LOCAL_BOT_CACHE_KEY, JSON.stringify(data));
+        localStorage.setItem(LOCAL_BOT_CACHE_KEY, JSON.stringify(finalPayload));
       } catch (e) {}
-      return data;
+      return finalPayload;
     }
 
     // Si por algún motivo remoto vino vacío pero tenemos caché local previa, conservar caché
@@ -38,12 +78,12 @@ export const fetchBotDashboardFromN8n = async () => {
       if (Array.isArray(cached?.sessions) && cached.sessions.length > 0) {
         return {
           ...cached,
-          config: data?.config || cached.config,
+          config: enrichedConfig,
           timestamp: data?.timestamp || cached.timestamp,
         };
       }
     }
-    return data;
+    return finalPayload;
   } catch (err) {
     const cachedRaw = localStorage.getItem(LOCAL_BOT_CACHE_KEY);
     if (cachedRaw) {
