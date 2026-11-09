@@ -142,6 +142,7 @@ export default function CreateUserModal({ onClose, userToEdit = null }) {
                     <select value={tempArea} onChange={(e) => { setTempArea(e.target.value); setTempSubArea(''); }} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white outline-none">
                       <option value="">Seleccionar área...</option>
                       <option value="Super_Usuario" className="text-orange-500 font-bold">Super Administrador (Todo el sistema)</option>
+                      <option value="Socios" className="text-amber-400 font-bold">🏛️ Socios Directores (Martín, Alejandro, Juan Pablo)</option>
                       {dbAreas.map(a => <option key={a.id} value={a.name}>{a.name}</option>)}
                     </select>
                   </div>

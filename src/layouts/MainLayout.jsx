@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Activity, UserCircle, Wrench, Search, Bell, LogOut, Menu, X, CheckCircle2, BarChart3, CalendarDays, Settings, BookOpen, MessageSquare, Inbox, DollarSign, Bot, Scale } from 'lucide-react';
+import { Activity, UserCircle, Wrench, Search, Bell, LogOut, Menu, X, CheckCircle2, BarChart3, CalendarDays, Settings, BookOpen, MessageSquare, Inbox, DollarSign, Bot, Scale, Award } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import useUIStore from '../store/useUIStore';
 import useSettingsStore from '../store/useSettingsStore';
 import { subscribeToNotifications, markNotificationAsRead } from '../features/notifications/services/notificationService';
+import { canAccessPartnersSection } from '../features/partners/services/partnerGovernanceService';
 import SettingsModal from '../features/settings/components/SettingsModal';
 import UpdateModal from '../Components/UpdateModal';
 import packageJson from '../../package.json';
@@ -161,6 +162,28 @@ export default function MainLayout({ children }) {
           
           <div className="text-[10px] font-black text-zinc-600 uppercase mb-4 mt-6 tracking-widest px-2">Gestión</div>
 
+          {/* SECCIÓN EXCLUSIVA SOCIOS: MARTÍN, ALEJANDRO Y JUAN PABLO */}
+          {canAccessPartnersSection(user) && (
+            <button
+              onClick={() => setCurrentView('partners')}
+              className={`w-full flex items-center px-4 py-3 rounded-xl text-sm border transition-colors relative ${
+                currentView === 'partners'
+                  ? 'bg-amber-900/35 text-amber-300 border-amber-400/70 shadow-[0_0_15px_rgba(245,158,11,0.25)]'
+                  : 'bg-amber-950/20 border-amber-500/35 text-amber-300 hover:bg-amber-900/30'
+              }`}
+            >
+              <Award className="w-5 h-5 shrink-0 text-amber-400" />
+              {isSidebarOpen && (
+                <>
+                  <span className="ml-3 font-black truncate text-xs">Directorio de Socios</span>
+                  <span className="ml-auto px-1.5 py-0.5 text-[9px] font-black rounded bg-amber-400 text-black uppercase tracking-tight">
+                    3/3
+                  </span>
+                </>
+              )}
+            </button>
+          )}
+
           {/* NUEVO BOTÓN: Finanzas y Riesgo */}
           <button onClick={() => setCurrentView('finances')} className={`w-full flex items-center px-4 py-3 rounded-xl text-sm border transition-colors ${currentView === 'finances' ? 'bg-emerald-900/20 text-emerald-400 border-emerald-500/50' : 'border-transparent text-zinc-400 hover:bg-zinc-800'}`}>
             <DollarSign className="w-5 h-5 shrink-0"/> {isSidebarOpen && <span className="ml-3 font-bold truncate">Finanzas y Riesgo</span>}
@@ -224,6 +247,21 @@ export default function MainLayout({ children }) {
               <Scale className="w-4 h-4 text-orange-400" />
               <span>🧾 Presupuestos & PDF (Piloto Centro • Lunes 09/11)</span>
             </button>
+
+            {canAccessPartnersSection(user) && (
+              <button
+                onClick={() => setCurrentView('partners')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-2 border transition-all shrink-0 ${
+                  currentView === 'partners'
+                    ? 'bg-emerald-500 text-black border-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.4)]'
+                    : 'bg-emerald-950/40 text-emerald-300 border-emerald-500/40 hover:bg-emerald-900/50'
+                }`}
+                title="Sala Exclusiva de Socios (Martín, Alejandro y Juan Pablo) — Normas y Reglas Firmes por Unanimidad 3/3"
+              >
+                <Award className="w-4 h-4 text-emerald-400" />
+                <span>🏛️ Socios (Normas 3/3)</span>
+              </button>
+            )}
           </div>
           
           <div className="flex items-center gap-4 sm:gap-6">

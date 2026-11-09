@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { X, Sparkles, CheckCircle2, Scale } from 'lucide-react';
+import { X, Sparkles, CheckCircle2, Scale, Award } from 'lucide-react';
 import useUIStore from '../store/useUIStore';
+import { useAuthStore } from '../store/useAuthStore';
+import { canAccessPartnersSection } from '../features/partners/services/partnerGovernanceService';
 
-const CURRENT_VERSION = '2.3.0';
+const CURRENT_VERSION = '2.4.0';
 
 export default function UpdateModal() {
   const [isOpen, setIsOpen] = useState(false);
   const { setCurrentView } = useUIStore();
+  const { user } = useAuthStore();
+  const isPartnerUser = canAccessPartnersSection(user);
 
   useEffect(() => {
     const lastSeenVersion = localStorage.getItem('remex_last_version_seen');
@@ -24,6 +28,12 @@ export default function UpdateModal() {
     localStorage.setItem('remex_last_version_seen', CURRENT_VERSION);
     setIsOpen(false);
     setCurrentView('bot_quotes');
+  };
+
+  const handleOpenPartners = () => {
+    localStorage.setItem('remex_last_version_seen', CURRENT_VERSION);
+    setIsOpen(false);
+    setCurrentView('partners');
   };
 
   if (!isOpen) return null;
@@ -54,10 +64,22 @@ export default function UpdateModal() {
 
         <div className="p-6 md:p-8 overflow-y-auto custom-scrollbar flex-1 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-zinc-900/40 via-zinc-950 to-zinc-950">
           <p className="text-zinc-300 mb-6 text-sm">
-            La versión <strong>2.3.0</strong> incorpora acceso directo en el menú lateral a <strong>Presupuestos & PDF (Centro)</strong> y el nuevo <strong>Intermediario de Presupuestos, Lector de PDFs y Auditoría de Precios por Sucursal</strong>:
+            La versión <strong>2.4.0</strong> incorpora el nuevo <strong>Directorio Exclusivo de Socios (Unanimidad 3/3)</strong> y acceso directo a <strong>Presupuestos & PDF (Centro)</strong>:
           </p>
 
           <div className="space-y-4">
+            {isPartnerUser && (
+              <div className="bg-zinc-900/80 border border-amber-500/50 p-4 rounded-xl flex gap-3">
+                <Award className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-white font-bold text-sm mb-1">🏛️ Nuevo: Directorio Exclusivo de Socios (Martín, Alejandro y Juan Pablo — 3/3)</h4>
+                  <p className="text-zinc-400 text-sm leading-relaxed">
+                    Espacio confidencial exclusivo para los 3 socios donde cada uno puede exponer ideas o nuevas normas operativas, acordar, rechazar con observaciones y dejar comentarios. Al alcanzar los <strong>3 votos a favor (3/3)</strong>, la propuesta queda automáticamente <strong>Firme como Regla Vigente</strong>.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="bg-zinc-900/80 border border-orange-500/40 p-4 rounded-xl flex gap-3">
               <CheckCircle2 className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
               <div>
@@ -102,13 +124,24 @@ export default function UpdateModal() {
         </div>
 
         <div className="p-5 border-t border-zinc-800 bg-zinc-900/50 shrink-0 flex flex-wrap justify-between items-center gap-3">
-          <button 
-            onClick={handleOpenQuotes}
-            className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-black text-sm font-black rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-amber-500/20"
-          >
-            <Scale className="w-4 h-4" />
-            Abrir Presupuestos & PDF (Piloto Centro)
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {isPartnerUser && (
+              <button 
+                onClick={handleOpenPartners}
+                className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-emerald-500/20"
+              >
+                <Award className="w-4 h-4" />
+                🏛️ Abrir Directorio de Socios (3/3)
+              </button>
+            )}
+            <button 
+              onClick={handleOpenQuotes}
+              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-black text-xs font-black rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-amber-500/20"
+            >
+              <Scale className="w-4 h-4" />
+              🧾 Presupuestos & PDF (Centro)
+            </button>
+          </div>
           <button 
             onClick={handleClose}
             className="px-6 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-orange-500/20"

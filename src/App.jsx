@@ -13,6 +13,7 @@ import SystemManual from './features/manual/components/SystemManual';
 import FinanceDashboard from './features/finances/components/FinanceDashboard';
 import InboxBoard from './features/inbox/components/InboxBoard';
 import BotControlCenter from './features/bot/components/BotControlCenter';
+import PartnersGovernanceBoard from './features/partners/components/PartnersGovernanceBoard';
 
 export default function App() {
   const { user, loading, init } = useAuthStore();
@@ -45,6 +46,8 @@ export default function App() {
         return <BotControlCenter key="bot_main" initialTab="stats" />;
       case 'bot_quotes':
         return <BotControlCenter key="bot_quotes" initialTab="quotes" />;
+      case 'partners':
+        return <PartnersGovernanceBoard />;
       case 'crm': 
         return <CRMBoard />;
       case 'calendar': 
