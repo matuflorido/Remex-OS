@@ -43,9 +43,9 @@ export default function App() {
       case 'inbox':
         return <InboxBoard />;
       case 'bot':
-        return <BotControlCenter key="bot_main" initialTab="stats" />;
+        return <BotControlCenter key="bot_main" initialTab="stats" dedicatedQuotesOnly={false} />;
       case 'bot_quotes':
-        return <BotControlCenter key="bot_quotes" initialTab="quotes" />;
+        return <BotControlCenter key="bot_quotes" initialTab="quotes" dedicatedQuotesOnly={true} />;
       case 'partners':
         return <PartnersGovernanceBoard />;
       case 'crm': 

@@ -4,7 +4,7 @@ import useUIStore from '../store/useUIStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { canAccessPartnersSection } from '../features/partners/services/partnerGovernanceService';
 
-const CURRENT_VERSION = '2.4.0';
+const CURRENT_VERSION = '2.5.0';
 
 export default function UpdateModal() {
   const [isOpen, setIsOpen] = useState(false);
@@ -64,10 +64,29 @@ export default function UpdateModal() {
 
         <div className="p-6 md:p-8 overflow-y-auto custom-scrollbar flex-1 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-zinc-900/40 via-zinc-950 to-zinc-950">
           <p className="text-zinc-300 mb-6 text-sm">
-            La versión <strong>2.4.0</strong> incorpora el nuevo <strong>Directorio Exclusivo de Socios (Unanimidad 3/3)</strong> y acceso directo a <strong>Presupuestos & PDF (Centro)</strong>:
+            La versión <strong>2.5.0</strong> incorpora la <strong>Barra Lateral Extendible/Cerrable con Explicación Flotante</strong> y el <strong>Módulo de Presupuestos 100% Independiente</strong> con estadística profunda de filtros, aceite y demoras por horario:
           </p>
 
           <div className="space-y-4">
+            <div className="bg-zinc-900/80 border border-orange-500/50 p-4 rounded-xl flex gap-3">
+              <Scale className="w-5 h-5 text-orange-400 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-white font-bold text-sm mb-1">🧾 Módulo Presupuestos 100% Separado + Estadísticas por Modelo, Filtros, Aceite y Horarios</h4>
+                <p className="text-zinc-400 text-sm leading-relaxed">
+                  La sección <strong>Presupuestos</strong> ahora muestra exclusivamente los pedidos de cotización y el análisis de PDFs y charlas: <strong>qué filtros y aceite cotiza cada sucursal para cada modelo de vehículo</strong>, diferencias de precios en filtros y aceite por litro entre sucursales, y en qué <strong>franjas horarias</strong> hay más o menos demoras.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-zinc-900/80 border border-emerald-500/40 p-4 rounded-xl flex gap-3">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-white font-bold text-sm mb-1">📐 Barra Lateral Extendible y Cerrable con Explicación al Pasar el Mouse</h4>
+                <p className="text-zinc-400 text-sm leading-relaxed">
+                  Los botones de la barra izquierda ahora tienen textos cortos sin recortes, puedes <strong>contraer o expandir el menú</strong> en cualquier momento, y al pasar el mouse sobre cualquier botón aparece una tarjeta flotante explicando qué hace cada sección.
+                </p>
+              </div>
+            </div>
             {isPartnerUser && (
               <div className="bg-zinc-900/80 border border-amber-500/50 p-4 rounded-xl flex gap-3">
                 <Award className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
