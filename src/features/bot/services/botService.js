@@ -53,6 +53,10 @@ export const fetchBotDashboardFromN8n = async () => {
         data?.config?.sla_recordatorio_minutos ??
         localSyncCfg?.sla_recordatorio_minutos ??
         DEFAULT_BROKER_CONFIG.sla_recordatorio_minutos,
+      max_recordatorios_sla:
+        data?.config?.max_recordatorios_sla ??
+        localSyncCfg?.max_recordatorios_sla ??
+        DEFAULT_BROKER_CONFIG.max_recordatorios_sla,
       horario_comercial_json:
         data?.config?.horario_comercial_json ??
         localSyncCfg?.horario_comercial_json ??

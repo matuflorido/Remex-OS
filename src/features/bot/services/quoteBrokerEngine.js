@@ -25,7 +25,8 @@ export const DEFAULT_BROKER_CONFIG = {
   modo_presupuesto_intermediario: 'activo', // 'programado' | 'activo' | 'true' | 'false'
   fecha_inicio_intermediario: '2026-11-09',
   sucursales_intermediario_json: '["Centro"]',
-  sla_recordatorio_minutos: '25',
+  sla_recordatorio_minutos: '15',
+  max_recordatorios_sla: '3',
   horario_comercial_json: JSON.stringify(DEFAULT_BUSINESS_HOURS)
 };
 
@@ -226,7 +227,8 @@ export function evaluateBrokerActivationStatus(botConfig = {}, nowDate = new Dat
   const targetDate = String(botConfig?.fecha_inicio_intermediario || '2026-11-09').trim();
   const branches = getParsedActiveBrokerBranches(botConfig);
   const schedule = getParsedBusinessHours(botConfig);
-  const slaMinutes = Number(botConfig?.sla_recordatorio_minutos || 25);
+  const slaMinutes = Number(botConfig?.sla_recordatorio_minutos || 15);
+  const maxReminders = Number(botConfig?.max_recordatorios_sla || 3);
 
   const todayAr = AR_DATE_FMT.format(nowDate);
   const withinScheduleDate = Boolean(targetDate && todayAr >= targetDate);
@@ -819,7 +821,7 @@ export function extractAllQuotesFromSessions(sessions = [], extraQuotes = []) {
 // ============================================================================
 export function buildBranchQuotesAuditReport(quotes = [], botConfig = {}) {
   const schedule = getParsedBusinessHours(botConfig);
-  const slaLimit = Number(botConfig?.sla_recordatorio_minutos || 25);
+  const slaLimit = Number(botConfig?.sla_recordatorio_minutos || 15);
   const nowIso = new Date().toISOString();
 
   const enrichedQuotes = quotes.map((q) => {

@@ -4,7 +4,7 @@ import useUIStore from '../store/useUIStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { canAccessPartnersSection } from '../features/partners/services/partnerGovernanceService';
 
-const CURRENT_VERSION = '2.5.0';
+const CURRENT_VERSION = '2.5.1';
 
 export default function UpdateModal() {
   const [isOpen, setIsOpen] = useState(false);
@@ -64,7 +64,7 @@ export default function UpdateModal() {
 
         <div className="p-6 md:p-8 overflow-y-auto custom-scrollbar flex-1 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-zinc-900/40 via-zinc-950 to-zinc-950">
           <p className="text-zinc-300 mb-6 text-sm">
-            La versión <strong>2.5.0</strong> incorpora la <strong>Barra Lateral Extendible/Cerrable con Explicación Flotante</strong> y el <strong>Módulo de Presupuestos 100% Independiente</strong> con estadística profunda de filtros, aceite y demoras por horario:
+            La versión <strong>2.5.1</strong> incorpora el <strong>Recordatorio Configurable en Minutos (por defecto cada 15 min)</strong> desde el Bot y desde Presupuestos, la <strong>Barra Lateral Extendible/Cerrable</strong> y el <strong>Módulo de Presupuestos 100% Independiente</strong>:
           </p>
 
           <div className="space-y-4">

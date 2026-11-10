@@ -1027,6 +1027,30 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
             Auto-Pausa al Escribir: {isAutoPauseActive ? 'ON' : 'OFF'}
           </button>
 
+          <div
+            className="bg-zinc-900 border border-orange-500/40 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2"
+            title="Configurar cada cuántos minutos el Bot le envía recordatorio por WhatsApp a la sucursal cuando hay un presupuesto pendiente"
+          >
+            <Clock className="w-4 h-4 text-orange-500 shrink-0" />
+            <span className="text-zinc-300">Recordatorio:</span>
+            <select
+              value={String(botConfig.sla_recordatorio_minutos || '15')}
+              onChange={(e) => handleUpdateBrokerConfig({ sla_recordatorio_minutos: String(e.target.value) })}
+              className="bg-orange-500/20 text-orange-300 font-black px-2 py-0.5 rounded-lg border border-orange-500/40 outline-none cursor-pointer"
+            >
+              {['10', '15', '20', '25', '30', '45', '60'].map((m) => (
+                <option key={m} value={m} className="bg-zinc-900 text-white">
+                  Cada {m} min
+                </option>
+              ))}
+              {!['10', '15', '20', '25', '30', '45', '60'].includes(String(botConfig.sla_recordatorio_minutos || '15')) && (
+                <option value={String(botConfig.sla_recordatorio_minutos)} className="bg-zinc-900 text-white">
+                  Cada {botConfig.sla_recordatorio_minutos} min
+                </option>
+              )}
+            </select>
+          </div>
+
           <button
             onClick={handleExportCSV}
             className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-colors"
@@ -2070,6 +2094,61 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
               <p className="text-[11px] text-zinc-500 mt-1">
                 Actualmente: {(Number(botConfig.delay_respuesta_ms || 20000) / 1000).toFixed(0)} segundos de presencia "composing" antes de enviar.
               </p>
+            </div>
+
+            <div className="pt-3 border-t border-zinc-800 space-y-3">
+              <label className="block text-xs font-black text-orange-400 uppercase">
+                ⏰ Recordatorio a Sucursal por Presupuesto Pendiente (Minutos)
+              </label>
+              <p className="text-[11px] text-zinc-400">
+                Cada cuántos minutos hábiles el Bot vuelve a avisarle por WhatsApp a la sucursal si todavía no respondió una cotización (por defecto <b>15 minutos</b>).
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {[10, 15, 20, 25, 30, 45, 60].map((m) => {
+                  const active = Number(botConfig.sla_recordatorio_minutos || 15) === m;
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => handleUpdateBrokerConfig({ sla_recordatorio_minutos: String(m) })}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black border transition-all ${
+                        active
+                          ? 'bg-orange-500 text-black border-orange-400'
+                          : 'bg-black text-zinc-300 border-zinc-800 hover:border-zinc-600'
+                      }`}
+                    >
+                      {m} min {m === 15 ? '★' : ''}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div>
+                  <span className="block text-[11px] font-bold text-zinc-400 mb-1">Minutos personalizados:</span>
+                  <input
+                    type="number"
+                    min={5}
+                    max={180}
+                    step={1}
+                    value={botConfig.sla_recordatorio_minutos || 15}
+                    onChange={(e) => setBotConfig({ ...botConfig, sla_recordatorio_minutos: String(e.target.value) })}
+                    className="w-full bg-black border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-orange-400 font-mono font-black focus:border-orange-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <span className="block text-[11px] font-bold text-zinc-400 mb-1">Máx. recordatorios por pedido:</span>
+                  <select
+                    value={String(botConfig.max_recordatorios_sla || '3')}
+                    onChange={(e) => setBotConfig({ ...botConfig, max_recordatorios_sla: String(e.target.value) })}
+                    className="w-full bg-black border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-white font-black focus:border-orange-500 outline-none"
+                  >
+                    <option value="1">1 recordatorio</option>
+                    <option value="2">2 recordatorios</option>
+                    <option value="3">3 recordatorios (Recomendado)</option>
+                    <option value="5">5 recordatorios</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
             <button

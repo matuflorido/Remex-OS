@@ -657,6 +657,37 @@ export default function QuoteBrokerAuditPanel({
               <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-orange-500/15 text-orange-300 border border-orange-500/30">
                 Pedidos Reales: {realAndSandboxQuotes.length} {showDemoPreview ? `(+${DEMO_PREVIEW_QUOTES.length} comparativos de muestra)` : ''}
               </span>
+
+              <div
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-950 border border-orange-500/40 text-[11px]"
+                title="Cambiar cada cuántos minutos hábiles el Bot le envía recordatorio por WhatsApp a la sucursal si no contestó el presupuesto"
+              >
+                <span className="font-black text-orange-400">⏰ Recordatorio: cada</span>
+                <select
+                  value={String(mergedCfg.sla_recordatorio_minutos || '15')}
+                  disabled={savingCfg}
+                  onChange={(e) => handleSaveConfigPatch({ sla_recordatorio_minutos: String(e.target.value) })}
+                  className="bg-orange-500/20 text-orange-300 font-black px-1.5 py-0.5 rounded-md border border-orange-500/40 outline-none cursor-pointer"
+                >
+                  {['10', '15', '20', '25', '30', '45', '60'].map((m) => (
+                    <option key={m} value={m} className="bg-zinc-900 text-white">
+                      {m} min
+                    </option>
+                  ))}
+                  {!['10', '15', '20', '25', '30', '45', '60'].includes(String(mergedCfg.sla_recordatorio_minutos || '15')) && (
+                    <option value={String(mergedCfg.sla_recordatorio_minutos)} className="bg-zinc-900 text-white">
+                      {mergedCfg.sla_recordatorio_minutos} min
+                    </option>
+                  )}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setSubView('config')}
+                  className="text-[10px] text-zinc-400 hover:text-white underline ml-0.5"
+                >
+                  Personalizar
+                </button>
+              </div>
             </div>
 
             <p className="text-xs text-zinc-400 leading-relaxed max-w-4xl pt-1">
@@ -2013,23 +2044,62 @@ export default function QuoteBrokerAuditPanel({
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-black uppercase text-zinc-400 mb-1.5">
-                Minutos hábiles para enviar recordatorio automático a la sucursal
+            <div className="pt-2 border-t border-zinc-800 space-y-3">
+              <label className="block text-xs font-black uppercase text-orange-400">
+                ⏰ Cada cuántos minutos hábiles enviar recordatorio a la sucursal
               </label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="number"
-                  min={5}
-                  max={180}
-                  step={5}
-                  value={mergedCfg.sla_recordatorio_minutos || 25}
-                  onChange={(e) => handleSaveConfigPatch({ sla_recordatorio_minutos: String(e.target.value) })}
-                  className="w-28 bg-black border border-zinc-800 rounded-xl px-3.5 py-2 text-sm font-mono font-black text-orange-400"
-                />
-                <span className="text-xs text-zinc-400">
-                  minutos hábiles sin respuesta → envía aviso <code className="text-orange-300">⏰ RECORDATORIO</code> a la sucursal.
-                </span>
+              <p className="text-[11px] text-zinc-400">
+                Si la sucursal no responde el presupuesto, el Bot le envía un recordatorio por WhatsApp cada la cantidad de minutos que elijas acá (por defecto <b>15 minutos</b>).
+              </p>
+
+              <div className="flex flex-wrap items-center gap-1.5">
+                {[10, 15, 20, 25, 30, 45, 60].map((minVal) => {
+                  const isCurrent = Number(mergedCfg.sla_recordatorio_minutos || 15) === minVal;
+                  return (
+                    <button
+                      key={minVal}
+                      type="button"
+                      disabled={savingCfg}
+                      onClick={() => handleSaveConfigPatch({ sla_recordatorio_minutos: String(minVal) })}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black border transition-all ${
+                        isCurrent
+                          ? 'bg-orange-500 text-black border-orange-400 shadow-sm'
+                          : 'bg-black/60 text-zinc-300 border-zinc-800 hover:border-zinc-600'
+                      }`}
+                    >
+                      Cada {minVal} min {minVal === 15 ? '★' : ''}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 pt-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-zinc-400">Valor libre (min):</span>
+                  <input
+                    type="number"
+                    min={5}
+                    max={180}
+                    step={1}
+                    value={mergedCfg.sla_recordatorio_minutos || 15}
+                    onChange={(e) => handleSaveConfigPatch({ sla_recordatorio_minutos: String(Math.max(5, Number(e.target.value || 15))) })}
+                    className="w-24 bg-black border border-zinc-700 rounded-xl px-3 py-1.5 text-sm font-mono font-black text-orange-400"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-zinc-400">Máx. recordatorios por pedido:</span>
+                  <select
+                    value={String(mergedCfg.max_recordatorios_sla || '3')}
+                    onChange={(e) => handleSaveConfigPatch({ max_recordatorios_sla: String(e.target.value) })}
+                    className="bg-black border border-zinc-700 rounded-xl px-3 py-1.5 text-xs font-black text-white"
+                  >
+                    <option value="1">1 aviso</option>
+                    <option value="2">2 avisos</option>
+                    <option value="3">3 avisos (Recomendado)</option>
+                    <option value="5">5 avisos</option>
+                  </select>
+                </div>
               </div>
             </div>
           </div>
