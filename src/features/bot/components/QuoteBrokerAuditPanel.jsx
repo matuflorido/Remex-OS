@@ -61,10 +61,10 @@ export default function QuoteBrokerAuditPanel({
   isMirrorSandbox = false,
   workflowDownloadUrl = './CheckOil_Workflow_Intermediario_v2.2.json'
 }) {
-  // 5 vistas exclusivas de presupuestos y auditoría
+  // 6 vistas exclusivas de presupuestos y auditoría (Piloto Sucursal Centro)
   // 'overview' | 'models_matrix' | 'dispersion' | 'delays_schedule' | 'simulator' | 'config'
   const [subView, setSubView] = useState('overview');
-  const [showDemoPreview, setShowDemoPreview] = useState(true);
+  const [showDemoPreview, setShowDemoPreview] = useState(false);
   const [expandedTicketId, setExpandedTicketId] = useState(null);
   const [savingCfg, setSavingCfg] = useState(false);
   const [bannerMsg, setBannerMsg] = useState('');
@@ -117,8 +117,8 @@ export default function QuoteBrokerAuditPanel({
   const bizHours = useMemo(() => getParsedBusinessHours(mergedCfg), [mergedCfg]);
 
   const realAndSandboxQuotes = useMemo(
-    () => extractAllQuotesFromSessions(sessions, sandboxSavedQuotes),
-    [sessions, sandboxSavedQuotes]
+    () => extractAllQuotesFromSessions(sessions, sandboxSavedQuotes, activeBranches),
+    [sessions, sandboxSavedQuotes, activeBranches]
   );
 
   const effectiveQuotesForAudit = useMemo(() => {
@@ -655,12 +655,12 @@ export default function QuoteBrokerAuditPanel({
               </span>
 
               <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-orange-500/15 text-orange-300 border border-orange-500/30">
-                Pedidos Reales: {realAndSandboxQuotes.length} {showDemoPreview ? `(+${DEMO_PREVIEW_QUOTES.length} comparativos de muestra)` : ''}
+                Pedidos Reales ({activeBranches.join(', ')}): {realAndSandboxQuotes.length} {showDemoPreview ? `(+${DEMO_PREVIEW_QUOTES.length} ejemplos Centro)` : ''}
               </span>
 
               <div
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-950 border border-orange-500/40 text-[11px]"
-                title="Cambiar cada cuántos minutos hábiles el Bot le envía recordatorio por WhatsApp a la sucursal si no contestó el presupuesto"
+                title="Cambiar cada cuántos minutos hábiles el Bot le envía recordatorio por WhatsApp a Sucursal Centro si no contestó el presupuesto"
               >
                 <span className="font-black text-orange-400">⏰ Recordatorio: cada</span>
                 <select
@@ -691,7 +691,7 @@ export default function QuoteBrokerAuditPanel({
             </div>
 
             <p className="text-xs text-zinc-400 leading-relaxed max-w-4xl pt-1">
-              Módulo exclusivo de cotizaciones: analiza cada charla y PDF enviado por las sucursales para comparar <b>qué filtros y aceites cotizan según el modelo de vehículo</b>, <b>diferencias de precios entre sucursales</b> y <b>demoras según la franja horaria del día</b>.
+              Observación exclusiva de <b>Sucursal {activeBranches.join(', ')}</b> (las demás sucursales continúan derivando directo por ahora): analiza cada charla y PDF enviado por <b>{activeBranches.join(', ')}</b> y <b>compara entre sus pedidos</b> qué filtros y aceite cotiza para cada modelo, si hay diferencias de precios entre pedidos y qué demoras tiene según el horario del día.
             </p>
           </div>
 
@@ -701,20 +701,20 @@ export default function QuoteBrokerAuditPanel({
               onClick={handleDeepScanConversations}
               disabled={isScanningChats}
               className="px-3.5 py-2 rounded-xl text-xs font-black bg-emerald-500 hover:bg-emerald-400 text-black flex items-center gap-1.5 transition-all shadow-sm"
-              title="Escanea todas las conversaciones y presupuestos recibidos para extraer códigos de filtros, aceites, precios y tiempos de respuesta"
+              title="Escanea las conversaciones y presupuestos de Sucursal Centro para extraer códigos de filtros, aceites, precios y tiempos de respuesta"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isScanningChats ? 'animate-spin' : ''}`} />
-              {isScanningChats ? 'Analizando charlas...' : '🔍 Analizar Charlas y Cotizaciones'}
+              {isScanningChats ? 'Analizando charlas...' : '🔍 Analizar Pedidos de Centro'}
             </button>
 
             <button
               type="button"
               onClick={() => setShowQuickLoader((v) => !v)}
               className="px-3.5 py-2 rounded-xl text-xs font-black bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-500/40 flex items-center gap-1.5 transition-all"
-              title="Subir un PDF o pegar un presupuesto de cualquier sucursal para incorporarlo a la estadística comparativa"
+              title="Subir un PDF o pegar un presupuesto de Sucursal Centro para incorporarlo a la comparativa entre pedidos"
             >
               <Upload className="w-3.5 h-3.5" />
-              ➕ Cargar PDF / Cotización
+              ➕ Cargar PDF / Pedido Centro
             </button>
 
             <button
@@ -725,10 +725,10 @@ export default function QuoteBrokerAuditPanel({
                   ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
                   : 'bg-black/60 text-zinc-400 border-zinc-800 hover:text-white'
               }`}
-              title="Muestra u oculta las 6 cotizaciones comparativas de referencia (Centro, Ñireco, Km13, Estadio) para visualizar todas las tablas y gráficos"
+              title="Muestra u oculta 2 pedidos de ejemplo adicionales de Sucursal Centro para ensayar la comparación entre pedidos"
             >
               <Eye className="w-3.5 h-3.5" />
-              {showDemoPreview ? 'Ocultar Muestra Comparativa' : 'Ver Muestra Multi-Sucursal'}
+              {showDemoPreview ? 'Ocultar Ejemplos (Ver Solo Reales)' : 'Ver +2 Pedidos Ejemplo (Centro)'}
             </button>
           </div>
         </div>
@@ -760,13 +760,13 @@ export default function QuoteBrokerAuditPanel({
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
-                <label className="block text-[11px] font-bold text-zinc-400 mb-1">Sucursal que cotizó</label>
+                <label className="block text-[11px] font-bold text-zinc-400 mb-1">Sucursal en piloto</label>
                 <select
                   value={quickBranch}
                   onChange={(e) => setQuickBranch(e.target.value)}
                   className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs font-black text-white"
                 >
-                  {BROKER_BRANCHES.map((b) => (
+                  {BROKER_BRANCHES.filter((b) => activeBranches.includes(b.key)).map((b) => (
                     <option key={b.key} value={b.key}>{b.name}</option>
                   ))}
                 </select>
@@ -813,31 +813,31 @@ export default function QuoteBrokerAuditPanel({
           </div>
         )}
 
-        {/* PESTAÑAS INTERNAS DEL MÓDULO DE PRESUPUESTOS */}
+        {/* PESTAÑAS INTERNAS DEL MÓDULO DE PRESUPUESTOS (SUCURSAL CENTRO) */}
         <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-zinc-800">
           {[
             {
               id: 'overview',
-              label: `📋 1. Pedidos y Charlas (${auditReport.totalQuotes})`,
-              tooltip: 'Listado de todos los pedidos de presupuesto, estado en vivo, valores enviados y desglose de PDF/charla',
+              label: `📋 1. Pedidos y Charlas Centro (${auditReport.totalQuotes})`,
+              tooltip: 'Listado de todos los pedidos de presupuesto en Sucursal Centro, valores enviados y desglose de PDF/charla',
               icon: FileText
             },
             {
               id: 'models_matrix',
               label: `🚗 2. Filtros y Aceite por Modelo (${auditReport.vehicleModelsComparison.length})`,
-              tooltip: 'Qué códigos de filtros (aceite, aire, combustible, habitáculo) y qué aceite cotiza cada sucursal para cada modelo de auto',
+              tooltip: 'Qué códigos de filtros (aceite, aire, combustible, habitáculo) y qué aceite cotiza Sucursal Centro en cada pedido según el modelo de auto',
               icon: Car
             },
             {
               id: 'dispersion',
-              label: `💲 3. Diferencias de Precios (${auditReport.discrepanciesCount} dif.)`,
-              tooltip: 'Comparativa de precios unitarios del mismo filtro o litro de aceite entre sucursales (mínimo, máximo y % de dispersión)',
+              label: `💲 3. Precios entre Pedidos (${auditReport.priceDispersionRows.length} ítems)`,
+              tooltip: 'Comparativa de precios unitarios de cada filtro y aceite entre los distintos pedidos cotizados por Sucursal Centro',
               icon: Scale
             },
             {
               id: 'delays_schedule',
-              label: '⏱️ 4. Demoras y Franjas Horarias',
-              tooltip: 'Estadística de tiempo de respuesta por sucursal y análisis de en qué horarios del día hay mayor o menor demora',
+              label: '⏱️ 4. Demoras y Horarios (Centro)',
+              tooltip: 'Estadística de tiempo de respuesta de Sucursal Centro y en qué horarios del día tiene mayor o menor demora',
               icon: Clock
             },
             {
@@ -848,8 +848,8 @@ export default function QuoteBrokerAuditPanel({
             },
             {
               id: 'config',
-              label: '⚙️ 6. Sucursales y SLA',
-              tooltip: 'Configurar qué sucursales operan con el Bot Intermediario, horarios hábiles y alerta de 25 min',
+              label: '⚙️ 6. Configuración Piloto Centro y SLA',
+              tooltip: 'Configurar el recordatorio en minutos (15 min por defecto), horarios hábiles y estado del piloto en Sucursal Centro',
               icon: Building2
             }
           ].map((tab) => {
@@ -882,9 +882,9 @@ export default function QuoteBrokerAuditPanel({
         <div
           onClick={() => setSubView('overview')}
           className="bg-zinc-900 border border-zinc-800 hover:border-zinc-700 p-4 rounded-2xl cursor-pointer transition-all"
-          title="Total de pedidos de cotización registrados y cuántos están esperando respuesta de sucursal"
+          title="Total de pedidos de cotización registrados en Sucursal Centro y cuántos están esperando respuesta"
         >
-          <p className="text-[10px] font-black uppercase text-zinc-500">Pedidos de Cotización</p>
+          <p className="text-[10px] font-black uppercase text-zinc-500">Pedidos Suc. Centro</p>
           <p className="text-2xl font-black text-white mt-1">{auditReport.totalQuotes}</p>
           <p className="text-[11px] text-zinc-400 mt-1">
             Cotizados: <b className="text-emerald-400">{auditReport.respondedCount}</b> • Espera: <b className="text-amber-400">{auditReport.waitingCount}</b>
@@ -894,55 +894,55 @@ export default function QuoteBrokerAuditPanel({
         <div
           onClick={() => setSubView('models_matrix')}
           className="bg-zinc-900 border border-zinc-800 hover:border-orange-500/40 p-4 rounded-2xl cursor-pointer transition-all"
-          title="Haz clic para ver qué filtros y aceites cotiza cada sucursal según el modelo de vehículo"
+          title="Haz clic para ver qué filtros y aceites cotizó Sucursal Centro en cada pedido según el modelo de vehículo"
         >
-          <p className="text-[10px] font-black uppercase text-zinc-500">Modelos Comparados</p>
+          <p className="text-[10px] font-black uppercase text-zinc-500">Modelos Cotizados (Centro)</p>
           <p className="text-2xl font-black text-cyan-400 mt-1">{auditReport.vehicleModelsComparison.length}</p>
           <p className="text-[11px] text-orange-400 font-bold mt-1 flex items-center gap-1">
-            {auditReport.modelsWithDifferenceCount} con dif. entre sucursales <ArrowRight className="w-3 h-3" />
+            {auditReport.modelsWithDifferenceCount > 0 ? `${auditReport.modelsWithDifferenceCount} con variación entre pedidos` : 'Ver filtros por modelo'} <ArrowRight className="w-3 h-3" />
           </p>
         </div>
 
         <div
           onClick={() => setSubView('dispersion')}
           className="bg-zinc-900 border border-zinc-800 hover:border-orange-500/40 p-4 rounded-2xl cursor-pointer transition-all"
-          title="Haz clic para comparar diferencias de precios en códigos de filtros y litros de aceite entre sucursales"
+          title="Haz clic para comparar los valores de filtros y aceite por litro entre los pedidos cotizados por Sucursal Centro"
         >
-          <p className="text-[10px] font-black uppercase text-zinc-500">Dispersión Filtros / Aceite</p>
-          <p className={`text-2xl font-black mt-1 ${auditReport.discrepanciesCount > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-            {auditReport.discrepanciesCount} ítems
+          <p className="text-[10px] font-black uppercase text-zinc-500">Filtros y Aceite Auditados</p>
+          <p className="text-2xl font-black mt-1 text-emerald-400">
+            {auditReport.priceDispersionRows.length} ítems
           </p>
           <p className="text-[11px] text-zinc-400 mt-1">
-            De {auditReport.priceDispersionRows.length} productos auditados
+            {auditReport.discrepanciesCount > 0 ? `${auditReport.discrepanciesCount} con dif. entre pedidos` : 'Comparativa entre pedidos de Centro'}
           </p>
         </div>
 
         <div
           onClick={() => setSubView('delays_schedule')}
           className="bg-zinc-900 border border-zinc-800 hover:border-orange-500/40 p-4 rounded-2xl cursor-pointer transition-all"
-          title="Haz clic para ver las demoras promedio por sucursal y en qué horario del día tardan más o menos"
+          title="Haz clic para ver las demoras de Sucursal Centro en cada pedido y en qué horario del día tarda más o menos"
         >
-          <p className="text-[10px] font-black uppercase text-zinc-500">Demora Hábil Promedio</p>
+          <p className="text-[10px] font-black uppercase text-zinc-500">Demora Hábil Centro</p>
           <p className="text-2xl font-black text-orange-400 mt-1">
             {auditReport.globalAvgDelayMin != null ? `${auditReport.globalAvgDelayMin} min` : '—'}
           </p>
           <p className="text-[11px] text-zinc-400 mt-1 truncate">
-            {auditReport.slowestSlot ? `Pico demora: ${auditReport.slowestSlot.shortLabel}` : `Meta SLA ≤ ${activation.slaMinutes} min`}
+            {auditReport.slowestSlot ? `Franja mayor demora: ${auditReport.slowestSlot.shortLabel}` : `Recordatorio cada ${activation.slaMinutes} min`}
           </p>
         </div>
 
         <div
           onClick={() => setSubView('overview')}
           className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl"
-          title="Porcentaje de presupuestos enviados que fueron aceptados/confirmados por el cliente"
+          title="Porcentaje de presupuestos enviados por Sucursal Centro que fueron aceptados/confirmados por el cliente"
         >
-          <p className="text-[10px] font-black uppercase text-zinc-500">Aceptación / Confirmados</p>
+          <p className="text-[10px] font-black uppercase text-zinc-500">Confirmados en Centro</p>
           <p className="text-2xl font-black text-emerald-400 mt-1">
             {auditReport.confirmedCount}{' '}
             <span className="text-sm text-zinc-500">({auditReport.globalAcceptancePct}%)</span>
           </p>
           <p className="text-[11px] text-zinc-400 mt-1">
-            Derivados tras aceptar valor
+            Derivados tras aceptar presupuesto
           </p>
         </div>
       </div>
@@ -1176,7 +1176,7 @@ export default function QuoteBrokerAuditPanel({
       )}
 
       {/* =======================================================================
-          VISTA 2: QUÉ FILTROS Y ACEITE COTIZAN PARA CADA MODELO ENTRE SUCURSALES
+          VISTA 2: QUÉ FILTROS Y ACEITE COTIZA SUCURSAL CENTRO POR MODELO (ENTRE PEDIDOS)
       ======================================================================= */}
       {subView === 'models_matrix' && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 space-y-4">
@@ -1184,10 +1184,10 @@ export default function QuoteBrokerAuditPanel({
             <div>
               <h4 className="text-base font-black text-white flex items-center gap-2">
                 <Car className="w-5 h-5 text-orange-500" />
-                Matriz por Modelo: ¿Qué Filtros y Qué Aceite Cotiza Cada Sucursal?
+                Matriz por Modelo en Sucursal Centro: ¿Qué Filtros y Qué Aceite Cotiza en Cada Pedido?
               </h4>
               <p className="text-xs text-zinc-400 mt-0.5">
-                Compara para un mismo vehículo qué códigos de filtro (Aceite, Aire, Combustible, Habitáculo), qué lubricante y qué valor total pasó cada sucursal. Detecta si una sucursal cotiza un código distinto para el mismo auto.
+                Observa exclusivamente los pedidos de <b>Sucursal Centro</b> y compara entre pedidos de un mismo modelo qué códigos de filtro (Aceite, Aire, Combustible, Habitáculo), qué lubricante y qué valor total se presupuestó.
               </p>
             </div>
 
@@ -1197,7 +1197,7 @@ export default function QuoteBrokerAuditPanel({
                 type="text"
                 value={modelSearch}
                 onChange={(e) => setModelSearch(e.target.value)}
-                placeholder="Buscar modelo, filtro (WO-120) o sucursal..."
+                placeholder="Buscar modelo, filtro (WO-121) o pedido..."
                 className="w-full bg-black border border-zinc-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white outline-none focus:border-orange-500"
               />
             </div>
@@ -1205,7 +1205,7 @@ export default function QuoteBrokerAuditPanel({
 
           {filteredVehicleModels.length === 0 ? (
             <div className="p-8 text-center border border-dashed border-zinc-800 rounded-2xl text-xs text-zinc-400">
-              No se encontraron modelos con ese filtro. Activa <b>“Ver Muestra Multi-Sucursal”</b> arriba o carga un PDF para comparar.
+              No se encontraron modelos con ese filtro en Sucursal Centro.
             </div>
           ) : (
             <div className="space-y-5">
@@ -1220,26 +1220,26 @@ export default function QuoteBrokerAuditPanel({
                         🚗 {modelGroup.modelo}
                       </span>
                       <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-zinc-800 text-zinc-300">
-                        {modelGroup.quotesCount} {modelGroup.quotesCount === 1 ? 'cotización' : 'cotizaciones'} ({modelGroup.branchesList.join(', ')})
+                        {modelGroup.quotesCount} {modelGroup.quotesCount === 1 ? 'pedido en Suc. Centro' : 'pedidos en Suc. Centro'}
                       </span>
 
                       {modelGroup.hasCodeMismatch && (
                         <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1">
                           <AlertTriangle className="w-3.5 h-3.5" />
-                          Distinto código de filtro entre sucursales ({modelGroup.filterCodeMismatch.join(' • ')})
+                          Distinto código de filtro entre pedidos ({modelGroup.filterCodeMismatch.join(' • ')})
                         </span>
                       )}
 
                       {modelGroup.hasPriceSpread && (
                         <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-rose-500/20 text-rose-300 border border-rose-500/40">
-                          ⚠️ Diferencia de Total: +${modelGroup.diffTotalAbs.toLocaleString('es-AR')} (+{modelGroup.diffTotalPct}%)
+                          ⚠️ Diferencia entre pedidos: +${modelGroup.diffTotalAbs.toLocaleString('es-AR')} (+{modelGroup.diffTotalPct}%)
                         </span>
                       )}
                     </div>
 
                     {modelGroup.minTotal > 0 && (
                       <div className="text-xs font-mono text-zinc-300">
-                        Rango Service Completo:{' '}
+                        Total Cotizado:{' '}
                         <b className="text-emerald-400">${modelGroup.minTotal.toLocaleString('es-AR')}</b>
                         {modelGroup.maxTotal > modelGroup.minTotal && (
                           <>
@@ -1254,7 +1254,7 @@ export default function QuoteBrokerAuditPanel({
                     <table className="w-full text-left border-collapse text-xs">
                       <thead>
                         <tr className="bg-black/50 border-b border-zinc-800 text-[10px] font-black uppercase text-zinc-400">
-                          <th className="p-3">Sucursal</th>
+                          <th className="p-3">Pedido (Suc. Centro)</th>
                           <th className="p-3">Aceite Cotizado ($/L y Total)</th>
                           <th className="p-3">Filtro Aceite</th>
                           <th className="p-3">Filtro Aire</th>
@@ -1268,10 +1268,15 @@ export default function QuoteBrokerAuditPanel({
                         {modelGroup.cotizaciones.map((c) => (
                           <tr key={c.ticket_id} className="hover:bg-zinc-900/50">
                             <td className="p-3 font-black text-white whitespace-nowrap">
-                              <span className="px-2 py-0.5 rounded bg-orange-500/15 text-orange-300 border border-orange-500/30 mr-1.5">
-                                {c.sucursal}
+                              <span className="px-2 py-0.5 rounded bg-orange-500/15 text-orange-300 border border-orange-500/30 mr-1.5 font-mono">
+                                #{c.ticket_id}
                               </span>
-                              <span className="text-[10px] font-mono text-zinc-500">#{c.ticket_id}</span>
+                              <span className="text-[11px] text-zinc-300">{c.cliente_nombre || 'Cliente'}</span>
+                              {c.hourFormatted && (
+                                <span className="block text-[10px] font-mono text-zinc-500 mt-0.5">
+                                  Hora pedido: {c.hourFormatted}
+                                </span>
+                              )}
                             </td>
                             <td className="p-3">
                               {c.aceite && c.aceite.marca ? (
@@ -1306,6 +1311,11 @@ export default function QuoteBrokerAuditPanel({
                             })}
                             <td className="p-3 text-right font-mono font-black text-sm text-white">
                               ${c.total_cotizado.toLocaleString('es-AR')}
+                              {c.total_con_descuento > 0 && (
+                                <span className="block text-[10px] text-emerald-400 font-bold">
+                                  Efvo/Transf: ${c.total_con_descuento.toLocaleString('es-AR')}
+                                </span>
+                              )}
                             </td>
                             <td className="p-3 text-center">
                               {c.demora_min != null ? (
@@ -1335,7 +1345,7 @@ export default function QuoteBrokerAuditPanel({
       )}
 
       {/* =======================================================================
-          VISTA 3: DIFERENCIAS DE PRECIOS ENTRE FILTROS Y ENTRE ACEITES POR SUCURSAL
+          VISTA 3: COMPARATIVA DE PRECIOS DE FILTROS Y ACEITES ENTRE PEDIDOS DE CENTRO
       ======================================================================= */}
       {subView === 'dispersion' && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 space-y-4">
@@ -1343,10 +1353,10 @@ export default function QuoteBrokerAuditPanel({
             <div>
               <h4 className="text-base font-black text-white flex items-center gap-2">
                 <Scale className="w-5 h-5 text-orange-500" />
-                Comparativa de Precios por Filtro y por Litro de Aceite entre Sucursales
+                Valores de Filtros y Aceite por Litro Cotizados en Sucursal Centro (Comparativa entre Pedidos)
               </h4>
               <p className="text-xs text-zinc-400 mt-0.5">
-                Compara el valor exacto de cada código de filtro (ej. <code className="text-amber-300">WO-120</code>, <code className="text-amber-300">FAP-3285</code>, <code className="text-amber-300">WO-130</code>) y de cada aceite normalizado por litro entre todas las sucursales.
+                Registra cada código de filtro (ej. <code className="text-amber-300">WO-121</code>, <code className="text-amber-300">FAP-2835</code>, <code className="text-amber-300">FCI-1660</code>, <code className="text-amber-300">AKX-35323</code>) y cada aceite por litro cotizado por <b>Sucursal Centro</b>, comparando su valor entre los distintos pedidos.
               </p>
             </div>
 
@@ -1374,7 +1384,7 @@ export default function QuoteBrokerAuditPanel({
 
           {filteredDispersionRows.length === 0 ? (
             <div className="p-8 text-center border border-dashed border-zinc-800 rounded-2xl text-xs text-zinc-400">
-              Aún no hay productos en este filtro. Activa <b>“Ver Muestra Multi-Sucursal”</b> o sube un PDF para comparar valores.
+              Aún no hay productos registrados en este filtro para Sucursal Centro.
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -1382,10 +1392,10 @@ export default function QuoteBrokerAuditPanel({
                 <thead>
                   <tr className="bg-black/40 border-b border-zinc-800 text-[11px] font-black uppercase text-zinc-400">
                     <th className="p-3.5">Código / Producto</th>
-                    <th className="p-3.5">Tipo y Vehículos</th>
-                    <th className="p-3.5">Precio Cotizado en Cada Sucursal</th>
+                    <th className="p-3.5">Modelo donde se cotizó</th>
+                    <th className="p-3.5">Valor Cotizado en Cada Pedido (Suc. Centro)</th>
                     <th className="p-3.5 text-right">Mínimo vs Máximo</th>
-                    <th className="p-3.5 text-center">Diferencia entre Sucursales</th>
+                    <th className="p-3.5 text-center">Comparación entre Pedidos</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-800/60">
@@ -1406,12 +1416,12 @@ export default function QuoteBrokerAuditPanel({
                       </td>
                       <td className="p-3.5">
                         <div className="flex flex-wrap gap-1.5">
-                          {row.entries.map((e) => {
-                            const isMax = row.branchesCount > 1 && e.lastPrice === row.maxPrice && row.hasDiscrepancy;
-                            const isMin = row.branchesCount > 1 && e.lastPrice === row.minPrice && row.hasDiscrepancy;
+                          {row.entries.map((e, idx) => {
+                            const isMax = row.ordersCount > 1 && e.lastPrice === row.maxPrice && row.hasDiscrepancy;
+                            const isMin = row.ordersCount > 1 && e.lastPrice === row.minPrice && row.hasDiscrepancy;
                             return (
                               <span
-                                key={e.sucursal}
+                                key={`${e.ticket}-${idx}`}
                                 className={`px-2.5 py-1 rounded-lg border font-bold ${
                                   isMax
                                     ? 'bg-rose-950/40 border-rose-500/40 text-rose-200'
@@ -1420,7 +1430,7 @@ export default function QuoteBrokerAuditPanel({
                                       : 'bg-black/50 border-zinc-800 text-zinc-200'
                                 }`}
                               >
-                                <b>{e.sucursal}:</b>{' '}
+                                <b className="text-orange-300">#{e.ticket}:</b>{' '}
                                 <span className="font-mono font-black">${e.lastPrice.toLocaleString('es-AR')}</span>
                               </span>
                             );
@@ -1429,21 +1439,25 @@ export default function QuoteBrokerAuditPanel({
                       </td>
                       <td className="p-3.5 text-right font-mono font-bold text-zinc-200 whitespace-nowrap">
                         <span className="text-emerald-400">${row.minPrice.toLocaleString('es-AR')}</span>
-                        {' → '}
-                        <span className="text-rose-400">${row.maxPrice.toLocaleString('es-AR')}</span>
+                        {row.maxPrice > row.minPrice && (
+                          <>
+                            {' → '}
+                            <span className="text-rose-400">${row.maxPrice.toLocaleString('es-AR')}</span>
+                          </>
+                        )}
                       </td>
                       <td className="p-3.5 text-center whitespace-nowrap">
-                        {row.branchesCount < 2 ? (
-                          <span className="px-2.5 py-1 rounded-full text-[10px] bg-zinc-800 text-zinc-400 font-bold">
-                            1 sucursal registrada ({row.entries[0]?.sucursal})
+                        {row.ordersCount < 2 ? (
+                          <span className="px-2.5 py-1 rounded-full text-[10px] bg-zinc-800 text-zinc-300 font-bold">
+                            1 pedido registrado (#{row.entries[0]?.ticket})
                           </span>
                         ) : row.hasDiscrepancy ? (
                           <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-500/20 text-rose-300 border border-rose-500/40">
-                            ⚠️ +{row.diffPct}% (+${row.diffAbs.toLocaleString('es-AR')} en {row.priciestBranch} vs {row.cheapestBranch})
+                            ⚠️ +{row.diffPct}% (+${row.diffAbs.toLocaleString('es-AR')} entre #{row.priciestBranch} y #{row.cheapestBranch})
                           </span>
                         ) : (
                           <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                            ✅ Mismo Precio ($0 dif.)
+                            ✅ Mismo valor entre {row.ordersCount} pedidos ($0 dif.)
                           </span>
                         )}
                       </td>
@@ -1457,7 +1471,7 @@ export default function QuoteBrokerAuditPanel({
       )}
 
       {/* =======================================================================
-          VISTA 4: ESTADÍSTICAS DE DEMORA POR SUCURSAL Y POR FRANJA HORARIA
+          VISTA 4: ESTADÍSTICAS DE DEMORA DE SUCURSAL CENTRO Y POR FRANJA HORARIA
       ======================================================================= */}
       {subView === 'delays_schedule' && (
         <div className="space-y-5">
@@ -1469,15 +1483,15 @@ export default function QuoteBrokerAuditPanel({
               </div>
               <div>
                 <p className="text-[11px] font-black uppercase text-rose-400">
-                  Horario con Mayor Demora Detectada
+                  Horario con Mayor Demora en Sucursal Centro
                 </p>
                 <p className="text-base font-black text-white mt-0.5">
                   {auditReport.slowestSlot ? auditReport.slowestSlot.label : 'Sin datos suficientes'}
                 </p>
                 <p className="text-xs text-zinc-400 mt-1">
                   {auditReport.slowestSlot
-                    ? `Promedio de ${auditReport.slowestSlot.avgDelayMin} min hábiles (máx. ${auditReport.slowestSlot.maxDelayMin} min) en ${auditReport.slowestSlot.totalPedidos} pedidos.`
-                    : 'A medida que entren cotizaciones se identificará la franja cuello de botella.'}
+                    ? `Promedio de ${auditReport.slowestSlot.avgDelayMin} min hábiles (máx. ${auditReport.slowestSlot.maxDelayMin} min) en ${auditReport.slowestSlot.totalPedidos} ${auditReport.slowestSlot.totalPedidos === 1 ? 'pedido' : 'pedidos'}.`
+                    : 'A medida que entren cotizaciones en Centro se identificará la franja con mayor demora.'}
                 </p>
               </div>
             </div>
@@ -1488,15 +1502,15 @@ export default function QuoteBrokerAuditPanel({
               </div>
               <div>
                 <p className="text-[11px] font-black uppercase text-emerald-400">
-                  Horario más Rápido para Cotizar
+                  Horario más Rápido en Sucursal Centro
                 </p>
                 <p className="text-base font-black text-white mt-0.5">
                   {auditReport.fastestSlot ? auditReport.fastestSlot.label : 'Sin datos suficientes'}
                 </p>
                 <p className="text-xs text-zinc-400 mt-1">
                   {auditReport.fastestSlot
-                    ? `Promedio de solo ${auditReport.fastestSlot.avgDelayMin} min hábiles (${auditReport.fastestSlot.totalPedidos} pedidos en esa franja).`
-                    : 'Se calculará automáticamente con los pedidos respondidos.'}
+                    ? `Promedio de ${auditReport.fastestSlot.avgDelayMin} min hábiles (${auditReport.fastestSlot.totalPedidos} ${auditReport.fastestSlot.totalPedidos === 1 ? 'pedido' : 'pedidos'} en esa franja).`
+                    : 'Se calculará automáticamente con los pedidos respondidos por Centro.'}
                 </p>
               </div>
             </div>
@@ -1507,16 +1521,16 @@ export default function QuoteBrokerAuditPanel({
             <div>
               <h4 className="text-sm font-black text-white uppercase tracking-wide flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-orange-500" />
-                ¿Hay Más o Menos Demora Según el Horario del Día? (Análisis por Franja Horaria)
+                ¿Hay Más o Menos Demora en Sucursal Centro Según el Horario del Día?
               </h4>
               <p className="text-xs text-zinc-400 mt-0.5">
-                Mide cuánto tardan las sucursales en responder un presupuesto según la hora en que entra la consulta del cliente.
+                Mide cuánto tarda <b>Sucursal Centro</b> en responder un presupuesto según la franja horaria en que entra la consulta del cliente.
               </p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
               {auditReport.hourlySlotStats.map((slot) => {
-                const pctBar = slot.avgDelayMin ? Math.min(100, Math.round((slot.avgDelayMin / 35) * 100)) : 0;
+                const pctBar = slot.avgDelayMin ? Math.min(100, Math.round((slot.avgDelayMin / 65) * 100)) : 0;
                 const isSlow = slot.avgDelayMin != null && slot.avgDelayMin > activation.slaMinutes;
                 const isMedium = slot.avgDelayMin != null && slot.avgDelayMin > 15 && slot.avgDelayMin <= activation.slaMinutes;
                 return (
@@ -1577,11 +1591,11 @@ export default function QuoteBrokerAuditPanel({
             </div>
           </div>
 
-          {/* RANKING DE TIEMPOS Y VELOCIDAD POR SUCURSAL */}
+          {/* RESUMEN EXCLUSIVO DE LA SUCURSAL ACTIVA EN PILOTO (CENTRO) */}
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden">
             <div className="p-4 px-5 border-b border-zinc-800">
               <h4 className="text-sm font-black text-white uppercase tracking-wide">
-                Comparativa de Tiempos de Respuesta, Modalidad (PDF vs Texto) y Ticket Promedio por Sucursal
+                Resumen de Rendimiento de Sucursal en Piloto ({activeBranches.join(', ')}) — Las demás sucursales continúan derivando directo
               </h4>
             </div>
 
@@ -1589,72 +1603,63 @@ export default function QuoteBrokerAuditPanel({
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-black/40 border-b border-zinc-800 text-[11px] font-black uppercase text-zinc-400">
-                    <th className="p-3.5">Sucursal</th>
+                    <th className="p-3.5">Sucursal Observada</th>
                     <th className="p-3.5 text-center">Estado Piloto</th>
                     <th className="p-3.5 text-center">Pedidos</th>
                     <th className="p-3.5 text-center">Demora Promedio (Mín / Máx)</th>
                     <th className="p-3.5 text-center">% Rápidos (≤15m)</th>
-                    <th className="p-3.5 text-center">Excesos &gt;{activation.slaMinutes}m</th>
+                    <th className="p-3.5 text-center">Superó {activation.slaMinutes}m</th>
                     <th className="p-3.5 text-center">% en PDF</th>
                     <th className="p-3.5 text-right">Ticket Promedio</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-800/60">
-                  {auditReport.branchStats.map((b) => {
-                    const isPilot = activeBranches.includes(b.key);
-                    return (
-                      <tr key={b.key} className="hover:bg-zinc-800/40">
-                        <td className="p-3.5 font-black text-white">{b.name}</td>
-                        <td className="p-3.5 text-center">
-                          {isPilot ? (
-                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                              INTERMEDIARIO ACTIVO
-                            </span>
-                          ) : (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-zinc-800 text-zinc-400">
-                              Derivación Clásica
-                            </span>
-                          )}
-                        </td>
-                        <td className="p-3.5 text-center font-black text-white">{b.total}</td>
-                        <td className="p-3.5 text-center font-mono font-black">
-                          {b.avgDelayMin != null ? (
-                            <span
-                              className={`px-2.5 py-1 rounded-lg ${
-                                b.avgDelayMin <= 15
-                                  ? 'bg-emerald-500/15 text-emerald-400'
-                                  : b.avgDelayMin <= activation.slaMinutes
-                                    ? 'bg-amber-500/15 text-amber-400'
-                                    : 'bg-rose-500/15 text-rose-400'
-                              }`}
-                            >
-                              {b.avgDelayMin} min (mín {b.minDelayMin}m / máx {b.maxDelayMin}m)
-                            </span>
-                          ) : (
-                            <span className="text-zinc-500">—</span>
-                          )}
-                        </td>
-                        <td className="p-3.5 text-center font-bold text-emerald-400">
-                          {b.respondedCount > 0 ? `${b.fastPct}%` : '—'}
-                        </td>
-                        <td className="p-3.5 text-center">
-                          {b.slaBreaches > 0 ? (
-                            <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 font-black">
-                              {b.slaBreaches} alerta{b.slaBreaches > 1 ? 's' : ''}
-                            </span>
-                          ) : (
-                            <span className="text-zinc-500">0</span>
-                          )}
-                        </td>
-                        <td className="p-3.5 text-center font-bold text-zinc-300">
-                          {b.respondedCount > 0 ? `${b.pdfPct}% PDF` : '—'}
-                        </td>
-                        <td className="p-3.5 text-right font-mono font-black text-white">
-                          {b.avgTicketArs > 0 ? `$${b.avgTicketArs.toLocaleString('es-AR')}` : '—'}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {auditReport.branchStats.map((b) => (
+                    <tr key={b.key} className="hover:bg-zinc-800/40">
+                      <td className="p-3.5 font-black text-white">{b.name}</td>
+                      <td className="p-3.5 text-center">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                          PILOTO INTERMEDIARIO ACTIVO
+                        </span>
+                      </td>
+                      <td className="p-3.5 text-center font-black text-white">{b.total}</td>
+                      <td className="p-3.5 text-center font-mono font-black">
+                        {b.avgDelayMin != null ? (
+                          <span
+                            className={`px-2.5 py-1 rounded-lg ${
+                              b.avgDelayMin <= 15
+                                ? 'bg-emerald-500/15 text-emerald-400'
+                                : b.avgDelayMin <= activation.slaMinutes
+                                  ? 'bg-amber-500/15 text-amber-400'
+                                  : 'bg-rose-500/15 text-rose-400'
+                            }`}
+                          >
+                            {b.avgDelayMin} min (mín {b.minDelayMin}m / máx {b.maxDelayMin}m)
+                          </span>
+                        ) : (
+                          <span className="text-zinc-500">—</span>
+                        )}
+                      </td>
+                      <td className="p-3.5 text-center font-bold text-emerald-400">
+                        {b.respondedCount > 0 ? `${b.fastPct}%` : '—'}
+                      </td>
+                      <td className="p-3.5 text-center">
+                        {b.slaBreaches > 0 ? (
+                          <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 font-black">
+                            {b.slaBreaches} pedido{b.slaBreaches > 1 ? 's' : ''}
+                          </span>
+                        ) : (
+                          <span className="text-zinc-500">0</span>
+                        )}
+                      </td>
+                      <td className="p-3.5 text-center font-bold text-zinc-300">
+                        {b.respondedCount > 0 ? `${b.pdfPct}% PDF` : '—'}
+                      </td>
+                      <td className="p-3.5 text-right font-mono font-black text-white">
+                        {b.avgTicketArs > 0 ? `$${b.avgTicketArs.toLocaleString('es-AR')}` : '—'}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>

@@ -686,28 +686,38 @@ export function parseQuoteFromTextOrPdf(rawText, options = {}) {
 }
 
 // ============================================================================
-// EXTRACTOR Y ANALIZADOR PROFUNDO DE CHARLAS Y PRESUPUESTOS EN SESIONES
+// EXTRACTOR Y ANALIZADOR PROFUNDO DE CHARLAS Y PRESUPUESTOS (SOLO SUCURSALES ACTIVAS EN PILOTO: CENTRO)
 // ============================================================================
-export function extractAllQuotesFromSessions(sessions = [], extraQuotes = []) {
+export function isBranchObservedInPilot(branchNameOrKey, activeBranchKeys = ['Centro']) {
+  const keys = Array.isArray(activeBranchKeys) && activeBranchKeys.length > 0 ? activeBranchKeys : ['Centro'];
+  const raw = String(branchNameOrKey || 'Centro').toLowerCase();
+  return keys.some((k) => raw.includes(String(k).toLowerCase()));
+}
+
+export function extractAllQuotesFromSessions(sessions = [], extraQuotes = [], activeBranchKeys = ['Centro']) {
   const map = new Map();
 
   for (const q of extraQuotes || []) {
-    if (q && q.ticket_id) {
+    if (q && q.ticket_id && isBranchObservedInPilot(q.sucursal || 'Centro', activeBranchKeys)) {
       map.set(q.ticket_id, {
         ...q,
+        sucursal: q.sucursal || 'Centro',
         modelo_normalizado: q.modelo_normalizado || normalizeVehicleModelGroup(q.vehiculo)
       });
     }
   }
 
   for (const s of sessions || []) {
+    const sessionBranch = s.sucursal_cotizacion || s.sucursal_elegida || '';
     const historial = parseSafeJson(s.historial_json, []);
     const histList = parseSafeJson(s.cotizaciones_historial_json, []);
     if (Array.isArray(histList)) {
       for (const q of histList) {
-        if (q && q.ticket_id) {
+        const qBranch = q?.sucursal || sessionBranch || 'Centro';
+        if (q && q.ticket_id && isBranchObservedInPilot(qBranch, activeBranchKeys)) {
           map.set(q.ticket_id, {
             ...q,
+            sucursal: qBranch,
             cliente_jid: q.cliente_jid || s.documentId,
             cliente_nombre: q.cliente_nombre || s.cliente_nombre || 'Cliente',
             cliente_telefono: q.cliente_telefono || s.cliente_telefono || '',
@@ -725,32 +735,37 @@ export function extractAllQuotesFromSessions(sessions = [], extraQuotes = []) {
 
     const curr = parseSafeJson(s.cotizacion_actual_json, null);
     if (curr && curr.ticket_id && !map.has(curr.ticket_id)) {
-      map.set(curr.ticket_id, {
-        ...curr,
-        cliente_jid: curr.cliente_jid || s.documentId,
-        cliente_nombre: curr.cliente_nombre || s.cliente_nombre || 'Cliente',
-        cliente_telefono: curr.cliente_telefono || s.cliente_telefono || '',
-        vehiculo: curr.vehiculo || s.vehiculo || 'Vehículo',
-        modelo_normalizado: normalizeVehicleModelGroup(curr.vehiculo || s.vehiculo),
-        historial_charla: Array.isArray(historial) ? historial : [],
-        estado: s.estado_cotizacion || curr.estado || 'presupuesto_enviado'
-      });
+      const currBranch = curr.sucursal || sessionBranch || 'Centro';
+      if (isBranchObservedInPilot(currBranch, activeBranchKeys)) {
+        map.set(curr.ticket_id, {
+          ...curr,
+          sucursal: currBranch,
+          cliente_jid: curr.cliente_jid || s.documentId,
+          cliente_nombre: curr.cliente_nombre || s.cliente_nombre || 'Cliente',
+          cliente_telefono: curr.cliente_telefono || s.cliente_telefono || '',
+          vehiculo: curr.vehiculo || s.vehiculo || 'Vehículo',
+          modelo_normalizado: normalizeVehicleModelGroup(curr.vehiculo || s.vehiculo),
+          historial_charla: Array.isArray(historial) ? historial : [],
+          estado: s.estado_cotizacion || curr.estado || 'presupuesto_enviado'
+        });
+      }
     }
 
-    // Pedidos activos esperando respuesta de la sucursal o repregunta
+    // Pedidos activos esperando respuesta de la sucursal o repregunta (solo sucursal piloto activa)
     if (
       s.ticket_id &&
       (s.estado_cotizacion === 'esperando_sucursal' ||
         s.estado_cotizacion === 'esperando_respuesta_cliente' ||
         s.estado_cotizacion === 'presupuesto_enviado') &&
-      !map.has(s.ticket_id)
+      !map.has(s.ticket_id) &&
+      isBranchObservedInPilot(sessionBranch || 'Centro', activeBranchKeys)
     ) {
       map.set(s.ticket_id, {
         ticket_id: s.ticket_id,
         cliente_jid: s.documentId,
         cliente_nombre: s.cliente_nombre || 'Cliente',
         cliente_telefono: s.cliente_telefono || '',
-        sucursal: s.sucursal_cotizacion || s.sucursal_elegida || 'Centro',
+        sucursal: sessionBranch || 'Centro',
         vehiculo: s.vehiculo || 'No especificado',
         modelo_normalizado: normalizeVehicleModelGroup(s.vehiculo),
         fecha_pedido: s.fecha_pedido_cotizacion || s.ultima_interaccion,
@@ -769,9 +784,15 @@ export function extractAllQuotesFromSessions(sessions = [], extraQuotes = []) {
       });
     }
 
-    // ESCANEO INTELIGENTE DE CHARLAS: si una sesión en sesiones_clientes tiene mensajes con códigos de filtros,
-    // marcas de aceite o montos cotizados en el historial y aún no tenía objeto cotizacion_actual_json, lo analiza automáticamente
-    if (Array.isArray(historial) && historial.length > 0 && !s.ticket_id) {
+    // ESCANEO INTELIGENTE DE CHARLAS DE LA SUCURSAL PILOTO (CENTRO):
+    if (
+      Array.isArray(historial) &&
+      historial.length > 0 &&
+      !s.ticket_id &&
+      sessionBranch &&
+      sessionBranch !== 'Sin definir' &&
+      isBranchObservedInPilot(sessionBranch, activeBranchKeys)
+    ) {
       const combinedChatText = historial.map((m) => m?.texto || '').join('\n');
       const hasFilterOrOilAndPrice =
         (/\b(WO|JFO|FAP|JFA|WR|AKX|FCI|FCD|JFC|MOTUL|LIQUI\s*MOLY|GULF|5W30|5W40|0W20|10W40)\b/i.test(combinedChatText) &&
@@ -781,8 +802,8 @@ export function extractAllQuotesFromSessions(sessions = [], extraQuotes = []) {
         const autoId = `CHAT-${String(s.documentId || '').replace(/\D/g, '').slice(-4) || '001'}`;
         if (!map.has(autoId)) {
           const parsedFromChat = parseQuoteFromTextOrPdf(combinedChatText, {
-            branchKey: s.sucursal_elegida && s.sucursal_elegida !== 'Sin definir' ? s.sucursal_elegida : 'Centro',
-            branchName: `Check Oil Suc. ${s.sucursal_elegida || 'Centro'}`,
+            branchKey: sessionBranch,
+            branchName: `Check Oil Suc. ${sessionBranch}`,
             vehicleHint: s.vehiculo || 'Vehículo en charla',
             ticketId: autoId,
             formatoOrigen: 'charla_analizada'
@@ -817,14 +838,22 @@ export function extractAllQuotesFromSessions(sessions = [], extraQuotes = []) {
 }
 
 // ============================================================================
-// CONSOLIDADOR DE ESTADÍSTICAS: SUCURSALES, MODELOS, PRECIOS Y FRANJAS HORARIAS
+// CONSOLIDADOR DE ESTADÍSTICAS: FOCO EN SUCURSAL PILOTO (CENTRO) Y COMPARATIVA ENTRE PEDIDOS
 // ============================================================================
 export function buildBranchQuotesAuditReport(quotes = [], botConfig = {}) {
   const schedule = getParsedBusinessHours(botConfig);
+  const activeBranchKeys = getParsedActiveBrokerBranches(botConfig);
+  const observedBranches = BROKER_BRANCHES.filter((b) =>
+    activeBranchKeys.some((k) => b.key.toLowerCase() === String(k).toLowerCase())
+  );
+  const effectiveBranches = observedBranches.length > 0 ? observedBranches : [BROKER_BRANCHES[0]];
+
   const slaLimit = Number(botConfig?.sla_recordatorio_minutos || 15);
   const nowIso = new Date().toISOString();
 
-  const enrichedQuotes = quotes.map((q) => {
+  const filteredQuotes = quotes.filter((q) => isBranchObservedInPilot(q.sucursal || 'Centro', activeBranchKeys));
+
+  const enrichedQuotes = filteredQuotes.map((q) => {
     const waitingLiveMin =
       !q.fecha_respuesta && q.fecha_pedido && q.estado === 'esperando_sucursal'
         ? calculateBusinessMinutesBetween(q.fecha_pedido, nowIso, schedule)
@@ -840,6 +869,7 @@ export function buildBranchQuotesAuditReport(quotes = [], botConfig = {}) {
 
     return {
       ...q,
+      sucursal: q.sucursal || 'Centro',
       modelo_normalizado: modelGroup,
       waitingLiveMin,
       effectiveDelay,
@@ -853,10 +883,10 @@ export function buildBranchQuotesAuditReport(quotes = [], botConfig = {}) {
     };
   });
 
-  // 1. KPIs por sucursal
-  const branchStats = BROKER_BRANCHES.map((b) => {
+  // 1. KPIs de la sucursal observada en el piloto (Centro por ahora; no muestra las que siguen derivando)
+  const branchStats = effectiveBranches.map((b) => {
     const bQuotes = enrichedQuotes.filter((q) =>
-      String(q.sucursal || '').toLowerCase().includes(b.key.toLowerCase())
+      String(q.sucursal || 'Centro').toLowerCase().includes(b.key.toLowerCase())
     );
     const responded = bQuotes.filter((q) => Boolean(q.fecha_respuesta) || q.estado === 'presupuesto_enviado' || q.estado === 'confirmado');
     const waiting = bQuotes.filter((q) => q.estado === 'esperando_sucursal');
@@ -897,7 +927,7 @@ export function buildBranchQuotesAuditReport(quotes = [], botConfig = {}) {
     };
   });
 
-  // 2. Matriz de Filtros y Aceites cotizados por Modelo de Vehículo y Sucursal
+  // 2. Matriz de Filtros y Aceites cotizados por Modelo de Vehículo (Comparación ENTRE PEDIDOS de Centro)
   const modelMap = new Map();
   for (const q of enrichedQuotes) {
     if (!q.filtros?.length && !q.aceite && !q.total_cotizado) continue;
@@ -943,14 +973,17 @@ export function buildBranchQuotesAuditReport(quotes = [], botConfig = {}) {
     group.cotizaciones.push({
       ticket_id: q.ticket_id,
       sucursal: branchKey,
+      cliente_nombre: q.cliente_nombre || 'Cliente',
       vehiculo_detalle: q.vehiculo,
       fecha_pedido: q.fecha_pedido,
+      hourFormatted: q.requestHourFormatted,
       demora_min: q.effectiveDelay,
       formato_origen: q.formato_origen,
       filtrosPorTipo: byType,
       aceite: q.aceite,
       oilLabel,
       total_cotizado: Number(q.total_cotizado || 0),
+      total_con_descuento: Number(q.total_con_descuento || 0),
       isDemoPreview: Boolean(q.isDemoPreview)
     });
   }
@@ -962,7 +995,7 @@ export function buildBranchQuotesAuditReport(quotes = [], botConfig = {}) {
     const diffTotalAbs = maxTotal - minTotal;
     const diffTotalPct = minTotal > 0 ? Math.round((diffTotalAbs / minTotal) * 100) : 0;
 
-    // Detectar si para el mismo modelo de auto dos sucursales pasaron distinto código de filtro
+    // Detectar si para el mismo modelo de auto se cotizaron distintos códigos de filtro entre pedidos
     const filterCodeMismatch = Object.entries(g.codigosPorTipo)
       .filter(([, setCodes]) => setCodes.size > 1)
       .map(([tipo, setCodes]) => `${tipo.toUpperCase()}: ${Array.from(setCodes).join(' vs ')}`);
@@ -983,7 +1016,7 @@ export function buildBranchQuotesAuditReport(quotes = [], botConfig = {}) {
     };
   });
 
-  // 3. Dispersión de Precios por Filtro y por Aceite entre Sucursales
+  // 3. Comparación de Precios por Filtro y por Aceite ENTRE PEDIDOS de Sucursal Centro
   const itemBuckets = new Map();
 
   for (const q of enrichedQuotes) {
@@ -1004,16 +1037,18 @@ export function buildBranchQuotesAuditReport(quotes = [], botConfig = {}) {
           codigo: normalizeFilterCodeKey(f.codigo),
           descripcion: `${f.marca || 'WEGA'} ${normalizeFilterCodeKey(f.codigo)}`,
           modelosDondeAplica: new Set(),
-          porSucursal: {}
+          porPedido: []
         });
       }
       const bucket = itemBuckets.get(itemKey);
       bucket.modelosDondeAplica.add(q.modelo_normalizado);
-      if (!bucket.porSucursal[branchKey]) {
-        bucket.porSucursal[branchKey] = { precios: [], ultimoPrecio: price, ultimoTicket: q.ticket_id, vehiculo: q.vehiculo };
-      }
-      bucket.porSucursal[branchKey].precios.push(price);
-      bucket.porSucursal[branchKey].ultimoPrecio = price;
+      bucket.porPedido.push({
+        ticket: q.ticket_id,
+        sucursal: branchKey,
+        vehiculo: q.vehiculo,
+        hourFormatted: q.requestHourFormatted,
+        price
+      });
     }
 
     if (q.aceite && q.aceite.marca) {
@@ -1038,59 +1073,60 @@ export function buildBranchQuotesAuditReport(quotes = [], botConfig = {}) {
             codigo: oilCode,
             descripcion: `${oilCode} ($/Litro)`,
             modelosDondeAplica: new Set(),
-            porSucursal: {}
+            porPedido: []
           });
         }
         const bucket = itemBuckets.get(itemKey);
         bucket.modelosDondeAplica.add(q.modelo_normalizado);
-        if (!bucket.porSucursal[branchKey]) {
-          bucket.porSucursal[branchKey] = { precios: [], ultimoPrecio: unitOilPrice, ultimoTicket: q.ticket_id, vehiculo: q.vehiculo };
-        }
-        bucket.porSucursal[branchKey].precios.push(unitOilPrice);
-        bucket.porSucursal[branchKey].ultimoPrecio = unitOilPrice;
+        bucket.porPedido.push({
+          ticket: q.ticket_id,
+          sucursal: branchKey,
+          vehiculo: q.vehiculo,
+          hourFormatted: q.requestHourFormatted,
+          price: unitOilPrice
+        });
       }
     }
   }
 
   const priceDispersionRows = Array.from(itemBuckets.values())
     .map((b) => {
-      const entries = Object.entries(b.porSucursal).map(([suc, info]) => {
-        const avg = Math.round(info.precios.reduce((acc, v) => acc + v, 0) / info.precios.length);
-        return {
-          sucursal: suc,
-          avgPrice: avg,
-          lastPrice: info.ultimoPrecio,
-          count: info.precios.length,
-          ticket: info.ultimoTicket,
-          vehiculo: info.vehiculo
-        };
-      });
-      const allPrices = entries.flatMap((e) => [e.avgPrice, e.lastPrice]).filter((n) => n > 0);
+      const entries = b.porPedido.map((p) => ({
+        ticket: p.ticket,
+        sucursal: p.sucursal,
+        vehiculo: p.vehiculo,
+        hourFormatted: p.hourFormatted,
+        avgPrice: p.price,
+        lastPrice: p.price,
+        count: 1
+      }));
+      const allPrices = entries.map((e) => e.lastPrice).filter((n) => n > 0);
       const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 0;
       const maxPrice = allPrices.length > 0 ? Math.max(...allPrices) : 0;
       const diffAbs = maxPrice - minPrice;
       const diffPct = minPrice > 0 ? Math.round((diffAbs / minPrice) * 100) : 0;
 
-      const cheapestBranch = entries.find((e) => e.lastPrice === minPrice)?.sucursal || '';
-      const priciestBranch = entries.find((e) => e.lastPrice === maxPrice)?.sucursal || '';
+      const cheapestOrder = entries.find((e) => e.lastPrice === minPrice)?.ticket || '';
+      const priciestOrder = entries.find((e) => e.lastPrice === maxPrice)?.ticket || '';
 
       return {
         ...b,
         modelosList: Array.from(b.modelosDondeAplica),
         entries,
+        ordersCount: entries.length,
         branchesCount: entries.length,
         minPrice,
         maxPrice,
         diffAbs,
         diffPct,
-        cheapestBranch,
-        priciestBranch,
+        cheapestBranch: cheapestOrder,
+        priciestBranch: priciestOrder,
         hasDiscrepancy: diffPct >= 3 && diffAbs >= 500
       };
     })
-    .sort((a, b) => b.diffPct - a.diffPct || b.branchesCount - a.branchesCount);
+    .sort((a, b) => b.diffPct - a.diffPct || b.ordersCount - a.ordersCount);
 
-  // 4. Estadística de Demoras por Franja Horaria (¿Hay más o menos demora en ciertos horarios?)
+  // 4. Estadística de Demoras por Franja Horaria en Sucursal Centro
   const hourlySlotStats = TIME_SLOTS_CONFIG.map((slot) => {
     const slotQuotes = enrichedQuotes.filter((q) => q.timeSlotId === slot.id);
     const delays = slotQuotes
@@ -1102,19 +1138,11 @@ export function buildBranchQuotesAuditReport(quotes = [], botConfig = {}) {
     const maxDelayMin = delays.length > 0 ? Math.max(...delays) : null;
     const slaBreaches = slotQuotes.filter((q) => q.exceededSla).length;
 
-    // Desglose por sucursal dentro de esta franja horaria
-    const byBranch = {};
-    for (const q of slotQuotes) {
-      if (q.effectiveDelay != null && q.effectiveDelay > 0) {
-        const bKey = q.sucursal || 'Centro';
-        if (!byBranch[bKey]) byBranch[bKey] = [];
-        byBranch[bKey].push(q.effectiveDelay);
-      }
-    }
-    const branchBreakdown = Object.entries(byBranch).map(([suc, arr]) => ({
-      sucursal: suc,
-      avgMin: Math.round(arr.reduce((a, c) => a + c, 0) / arr.length),
-      count: arr.length
+    const byOrder = slotQuotes.map((q) => ({
+      ticket: q.ticket_id,
+      vehiculo: q.vehiculo,
+      delayMin: q.effectiveDelay,
+      hourFormatted: q.requestHourFormatted
     }));
 
     return {
@@ -1124,7 +1152,12 @@ export function buildBranchQuotesAuditReport(quotes = [], botConfig = {}) {
       minDelayMin,
       maxDelayMin,
       slaBreaches,
-      branchBreakdown
+      ordersInSlot: byOrder,
+      branchBreakdown: byOrder.filter((o) => o.delayMin != null).map((o) => ({
+        sucursal: `#${o.ticket}`,
+        avgMin: o.delayMin,
+        count: 1
+      }))
     };
   });
 
@@ -1146,6 +1179,7 @@ export function buildBranchQuotesAuditReport(quotes = [], botConfig = {}) {
   const globalAvgDelayMin = allDelays.length > 0 ? Math.round(allDelays.reduce((a, c) => a + c, 0) / allDelays.length) : null;
 
   return {
+    activeBranchKeys,
     totalQuotes: enrichedQuotes.length,
     respondedCount: allResponded.length,
     waitingCount: allWaiting.length,
@@ -1165,80 +1199,53 @@ export function buildBranchQuotesAuditReport(quotes = [], botConfig = {}) {
 }
 
 // ============================================================================
-// DATASET DEMO MULTI-SUCURSAL PARA VER MATRIZ DE MODELOS, FILTROS Y HORARIOS
+// EJEMPLOS DE SIMULACIÓN EXCLUSIVOS DE SUCURSAL CENTRO (DESACTIVADOS POR DEFECTO)
 // ============================================================================
 export const DEMO_PREVIEW_QUOTES = [
   {
-    ticket_id: 'DEMO-101',
+    ticket_id: 'DEMO-C01',
     isDemoPreview: true,
-    cliente_nombre: 'Matías (Ejemplo Pulse 1.0)',
-    cliente_telefono: '5492944912803',
-    sucursal: 'Centro',
-    sucursal_nombre: 'Check Oil Suc. Centro',
-    vehiculo: 'Fiat Pulse Audace 2025 1.0 Turbo',
-    fecha_pedido: '2026-11-10T12:15:00.000Z', // 09:15 AR (Mañana)
-    fecha_respuesta: '2026-11-10T12:23:00.000Z',
-    demora_total_min: 8,
-    demora_habil_min: 8,
-    demora_neta_sucursal_min: 8,
-    formato_origen: 'pdf',
-    archivo_nombre: 'Presupuesto_Centro_Pulse_00421.pdf',
-    total_cotizado: 149500,
-    total_con_descuento: 134550,
-    descuento_porcentaje: 10,
-    aceite: { marca: 'MOTUL', linea: '8100', viscosidad: '0W20', litros: 4, precio_por_litro: 22500, subtotal: 90000 },
-    filtros: [
-      { tipo: 'aceite', marca: 'WEGA', codigo: 'WO-120', cantidad: 1, precio_unitario: 14500, subtotal: 14500 },
-      { tipo: 'aire', marca: 'WEGA', codigo: 'FAP-3285', cantidad: 1, precio_unitario: 24000, subtotal: 24000 },
-      { tipo: 'habitaculo', marca: 'WEGA', codigo: 'AKX-1938', cantidad: 1, precio_unitario: 21000, subtotal: 21000 }
-    ],
-    resumen_items: 'MOTUL 8100 0W20 (4L) + 3 Filtros (WO-120, FAP-3285, AKX-1938)',
-    observaciones_calidad: 'Franja Mañana (09:15 hs) • Respondió en 8 min con PDF completo.',
-    estado: 'confirmado'
-  },
-  {
-    ticket_id: 'DEMO-102',
-    isDemoPreview: true,
-    cliente_nombre: 'Diego (Comparativa Pulse 1.0)',
-    cliente_telefono: '5492944550911',
-    sucursal: 'Ñireco',
-    sucursal_nombre: 'Check Oil Suc. Ñireco',
-    vehiculo: 'Fiat Pulse Impetus 2024 1.0 Turbo',
-    fecha_pedido: '2026-11-10T15:40:00.000Z', // 12:40 AR (Mediodía Pico)
-    fecha_respuesta: '2026-11-10T16:07:00.000Z',
-    demora_total_min: 27,
-    demora_habil_min: 27,
-    demora_neta_sucursal_min: 27,
-    formato_origen: 'texto',
-    archivo_nombre: '',
-    total_cotizado: 162000,
-    total_con_descuento: 0,
-    descuento_porcentaje: 0,
-    aceite: { marca: 'MOTUL', linea: '8100', viscosidad: '0W20', litros: 4, precio_por_litro: 24500, subtotal: 98000 },
-    filtros: [
-      { tipo: 'aceite', marca: 'WEGA', codigo: 'WO-120', cantidad: 1, precio_unitario: 16500, subtotal: 16500 },
-      { tipo: 'aire', marca: 'WEGA', codigo: 'FAP-3285', cantidad: 1, precio_unitario: 26500, subtotal: 26500 },
-      { tipo: 'habitaculo', marca: 'WEGA', codigo: 'AKX-1938', cantidad: 1, precio_unitario: 21000, subtotal: 21000 }
-    ],
-    resumen_items: 'MOTUL 8100 0W20 (4L) + 3 Filtros (WO-120, FAP-3285, AKX-1938)',
-    observaciones_calidad: 'Franja Mediodía (12:40 hs) • Demoró 27m (>25m SLA) • Diferencia +$12.500 vs Centro para el mismo auto.',
-    estado: 'presupuesto_enviado'
-  },
-  {
-    ticket_id: 'DEMO-103',
-    isDemoPreview: true,
-    cliente_nombre: 'Juan Pérez (Ejemplo Hilux 2.8)',
+    cliente_nombre: 'Ejemplo 1 (Suc. Centro • Mañana)',
     cliente_telefono: '5492944550101',
     sucursal: 'Centro',
     sucursal_nombre: 'Check Oil Suc. Centro',
-    vehiculo: 'Toyota Hilux 2019 2.8 TDI',
-    fecha_pedido: '2026-11-10T13:10:00.000Z', // 10:10 AR (Mañana)
-    fecha_respuesta: '2026-11-10T13:19:00.000Z',
-    demora_total_min: 9,
-    demora_habil_min: 9,
-    demora_neta_sucursal_min: 9,
+    vehiculo: 'Fiat Pulse Impetus 2024 1.0 Turbo',
+    fecha_pedido: '2026-11-10T12:15:00.000Z',
+    fecha_respuesta: '2026-11-10T12:27:00.000Z',
+    demora_total_min: 12,
+    demora_habil_min: 12,
+    demora_neta_sucursal_min: 12,
     formato_origen: 'pdf',
-    archivo_nombre: 'Presupuesto_Centro_Hilux_00412.pdf',
+    archivo_nombre: 'PRESUP_CENTRO_PULSE_2.PDF',
+    total_cotizado: 222421,
+    total_con_descuento: 189058,
+    descuento_porcentaje: 15,
+    aceite: { marca: 'Gulf', linea: 'Sintético', viscosidad: '5W30', litros: 4, precio_por_litro: 34017.5, subtotal: 136070 },
+    filtros: [
+      { tipo: 'aceite', marca: 'WEGA', codigo: 'WE-WO121', cantidad: 1, precio_unitario: 14695, subtotal: 14695 },
+      { tipo: 'aire', marca: 'WEGA', codigo: 'WE-FAP2835', cantidad: 1, precio_unitario: 33657, subtotal: 33657 },
+      { tipo: 'combustible', marca: 'WEGA', codigo: 'WE-FCI1660', cantidad: 1, precio_unitario: 20468, subtotal: 20468 },
+      { tipo: 'habitaculo', marca: 'WEGA', codigo: 'WE-AKX35323', cantidad: 1, precio_unitario: 17529, subtotal: 17529 }
+    ],
+    resumen_items: 'Gulf 5W30 (4L) + Filtros WEGA (WO121, FAP2835, FCI1660, AKX35323)',
+    observaciones_calidad: 'Pedido en Sucursal Centro (Franja Mañana 09:15 hs) • Demora 12 min.',
+    estado: 'confirmado'
+  },
+  {
+    ticket_id: 'DEMO-C02',
+    isDemoPreview: true,
+    cliente_nombre: 'Ejemplo 2 (Suc. Centro • Tarde)',
+    cliente_telefono: '5492944550202',
+    sucursal: 'Centro',
+    sucursal_nombre: 'Check Oil Suc. Centro',
+    vehiculo: 'Toyota Hilux SRX 2021 2.8 TDI',
+    fecha_pedido: '2026-11-10T18:10:00.000Z',
+    fecha_respuesta: '2026-11-10T18:24:00.000Z',
+    demora_total_min: 14,
+    demora_habil_min: 14,
+    demora_neta_sucursal_min: 14,
+    formato_origen: 'pdf',
+    archivo_nombre: 'PRESUP_CENTRO_HILUX.PDF',
     total_cotizado: 236500,
     total_con_descuento: 212850,
     descuento_porcentaje: 10,
@@ -1250,92 +1257,7 @@ export const DEMO_PREVIEW_QUOTES = [
       { tipo: 'habitaculo', marca: 'WEGA', codigo: 'AKX-1965', cantidad: 1, precio_unitario: 18500, subtotal: 18500 }
     ],
     resumen_items: 'MOTUL 8100 5W30 (8L) + 4 Filtros (JFO-0211, JFA-0295, JFC-209, AKX-1965)',
-    observaciones_calidad: 'PDF formal del sistema • Cotizó kit completo 4 filtros + 10% OFF efvo/transf.',
+    observaciones_calidad: 'Pedido en Sucursal Centro (Franja Tarde 15:10 hs) • Demora 14 min.',
     estado: 'confirmado'
-  },
-  {
-    ticket_id: 'DEMO-104',
-    isDemoPreview: true,
-    cliente_nombre: 'Martín (Comparativa Hilux 2.8)',
-    cliente_telefono: '5492944550888',
-    sucursal: 'Km13',
-    sucursal_nombre: 'Check Oil Suc. Km13',
-    vehiculo: 'Toyota Hilux SRX 2021 2.8 TDI',
-    fecha_pedido: '2026-11-10T21:15:00.000Z', // 18:15 AR (Cierre)
-    fecha_respuesta: '2026-11-10T21:34:00.000Z',
-    demora_total_min: 19,
-    demora_habil_min: 19,
-    demora_neta_sucursal_min: 19,
-    formato_origen: 'pdf',
-    archivo_nombre: 'Presupuesto_Km13_Hilux.pdf',
-    total_cotizado: 248000,
-    total_con_descuento: 0,
-    descuento_porcentaje: 0,
-    aceite: { marca: 'LIQUI MOLY', linea: 'TOP TEC', viscosidad: '5W30', litros: 8, precio_por_litro: 21000, subtotal: 168000 },
-    filtros: [
-      { tipo: 'aceite', marca: 'WEGA', codigo: 'JFO-0211', cantidad: 1, precio_unitario: 17500, subtotal: 17500 },
-      { tipo: 'aire', marca: 'WEGA', codigo: 'JFA-0295', cantidad: 1, precio_unitario: 26000, subtotal: 26000 },
-      { tipo: 'combustible', marca: 'WEGA', codigo: 'JFC-298', cantidad: 1, precio_unitario: 18000, subtotal: 18000 },
-      { tipo: 'habitaculo', marca: 'WEGA', codigo: 'AKX-1965', cantidad: 1, precio_unitario: 18500, subtotal: 18500 }
-    ],
-    resumen_items: 'LIQUI MOLY TOP TEC 5W30 (8L) + 4 Filtros (JFO-0211, JFA-0295, JFC-298, AKX-1965)',
-    observaciones_calidad: 'Franja Cierre (18:15 hs) • OJO: Cotizó filtro combustible JFC-298 en vez de JFC-209.',
-    estado: 'presupuesto_enviado'
-  },
-  {
-    ticket_id: 'DEMO-105',
-    isDemoPreview: true,
-    cliente_nombre: 'Lucía Gómez (Ejemplo Gol 1.6)',
-    cliente_telefono: '5492944550202',
-    sucursal: 'Centro',
-    sucursal_nombre: 'Check Oil Suc. Centro',
-    vehiculo: 'VW Gol Trend 2017 1.6 MSI',
-    fecha_pedido: '2026-11-10T18:05:00.000Z', // 15:05 AR (Tarde)
-    fecha_respuesta: '2026-11-10T18:19:00.000Z',
-    demora_total_min: 14,
-    demora_habil_min: 14,
-    demora_neta_sucursal_min: 14,
-    formato_origen: 'pdf',
-    archivo_nombre: 'Presupuesto_Centro_Gol_00419.pdf',
-    total_cotizado: 132000,
-    total_con_descuento: 0,
-    descuento_porcentaje: 0,
-    aceite: { marca: 'MOTUL', linea: '8100', viscosidad: '5W40', litros: 4, precio_por_litro: 18500, subtotal: 74000 },
-    filtros: [
-      { tipo: 'aceite', marca: 'WEGA', codigo: 'WO-130', cantidad: 1, precio_unitario: 14500, subtotal: 14500 },
-      { tipo: 'aire', marca: 'WEGA', codigo: 'FAP-4033', cantidad: 1, precio_unitario: 22500, subtotal: 22500 },
-      { tipo: 'combustible', marca: 'WEGA', codigo: 'FCI-1630', cantidad: 1, precio_unitario: 21000, subtotal: 21000 }
-    ],
-    resumen_items: 'MOTUL 8100 5W40 (4L) + 3 Filtros (WO-130, FAP-4033, FCI-1630)',
-    observaciones_calidad: 'Franja Tarde (15:05 hs) • Demora neta sucursal: 14 min.',
-    estado: 'presupuesto_enviado'
-  },
-  {
-    ticket_id: 'DEMO-106',
-    isDemoPreview: true,
-    cliente_nombre: 'Carlos Ruiz (Comparativa Gol/Suran 1.6)',
-    cliente_telefono: '5492944550303',
-    sucursal: 'Estadio',
-    sucursal_nombre: 'Check Oil Suc. Estadio',
-    vehiculo: 'VW Suran 2016 1.6 MSI',
-    fecha_pedido: '2026-11-10T16:10:00.000Z', // 13:10 AR (Mediodía Pico)
-    fecha_respuesta: '2026-11-10T16:41:00.000Z',
-    demora_total_min: 31,
-    demora_habil_min: 31,
-    demora_neta_sucursal_min: 31,
-    formato_origen: 'texto',
-    archivo_nombre: '',
-    total_cotizado: 144500,
-    total_con_descuento: 0,
-    descuento_porcentaje: 0,
-    aceite: { marca: 'MOTUL', linea: '8100', viscosidad: '5W40', litros: 4, precio_por_litro: 20200, subtotal: 80800 },
-    filtros: [
-      { tipo: 'aceite', marca: 'WEGA', codigo: 'WO-130', cantidad: 1, precio_unitario: 16900, subtotal: 16900 },
-      { tipo: 'aire', marca: 'WEGA', codigo: 'FAP-4033', cantidad: 1, precio_unitario: 22500, subtotal: 22500 },
-      { tipo: 'combustible', marca: 'WEGA', codigo: 'FCI-1630', cantidad: 1, precio_unitario: 24300, subtotal: 24300 }
-    ],
-    resumen_items: 'MOTUL 8100 5W40 (4L) + 3 Filtros (WO-130, FAP-4033, FCI-1630)',
-    observaciones_calidad: 'Franja Mediodía (13:10 hs) • Superó 25m (31m) • Diferencia en WO-130 (+17%) y Motul 5W40 (+9%).',
-    estado: 'presupuesto_enviado'
   }
 ];

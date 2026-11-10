@@ -938,11 +938,11 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
           <div>
             <h2 className="text-2xl font-black text-white flex items-center gap-3">
               <Scale className="w-7 h-7 text-orange-500" />
-              Central de Presupuestos, Filtros, Aceites y Demoras por Sucursal
-              <HelpTooltip text="Módulo exclusivo de cotizaciones: analiza las charlas y PDFs enviados por cada sucursal para comparar qué filtros y aceites cotizan por modelo, diferencias de precios y demoras según la franja horaria." />
+              Presupuestos y Auditoría — Piloto Sucursal Centro
+              <HelpTooltip text="Observación exclusiva de Sucursal Centro (las demás sucursales continúan derivando por ahora). Analiza charlas y PDFs enviados por Centro y compara entre sus pedidos: filtros y aceite por modelo, precios y demoras según el horario." />
             </h2>
             <p className="text-sm text-zinc-400 mt-1">
-              Auditoría independiente de pedidos de cotización, comparativa de códigos de filtros por modelo, dispersión de precios y tiempos de respuesta por horario.
+              Seguimiento exclusivo de pedidos de cotización en Sucursal Centro: comparativa entre pedidos de filtros y aceite por modelo, precios y tiempos de respuesta por horario.
             </p>
           </div>
 
