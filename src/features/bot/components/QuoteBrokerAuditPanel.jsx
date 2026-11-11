@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   FileText,
   Clock,
@@ -59,7 +59,9 @@ export default function QuoteBrokerAuditPanel({
   onRefreshSessions = null,
   onOpenChatSession = null,
   isMirrorSandbox = false,
-  workflowDownloadUrl = './CheckOil_Workflow_Intermediario_v2.2.json'
+  workflowDownloadUrl = './CheckOil_Workflow_Intermediario_v2.2.json',
+  lastSync = '',
+  isSyncing = false
 }) {
   // 6 vistas exclusivas de presupuestos y auditoría (Piloto Sucursal Centro)
   // 'overview' | 'models_matrix' | 'dispersion' | 'delays_schedule' | 'simulator' | 'config'
@@ -71,6 +73,43 @@ export default function QuoteBrokerAuditPanel({
   const [dispersionFilter, setDispersionFilter] = useState('all'); // 'all' | 'filtro' | 'aceite'
   const [modelSearch, setModelSearch] = useState('');
   const [isScanningChats, setIsScanningChats] = useState(false);
+  const [localBalloon, setLocalBalloon] = useState(null);
+
+  useEffect(() => {
+    if (!isMirrorSandbox) return;
+    const handleMouseOver = (e) => {
+      const target = e.target?.closest?.('[data-globo], [title]');
+      if (!target) {
+        setLocalBalloon(null);
+        return;
+      }
+      const rawTitle = target.getAttribute('title');
+      if (rawTitle) {
+        target.setAttribute('data-globo', rawTitle);
+        target.removeAttribute('title');
+      }
+      const text = target.getAttribute('data-globo');
+      if (!text || text.trim().length < 2) {
+        setLocalBalloon(null);
+        return;
+      }
+      const rect = target.getBoundingClientRect();
+      const balloonWidth = 290;
+      const left = Math.max(12, Math.min(window.innerWidth - balloonWidth - 12, rect.left + rect.width / 2 - balloonWidth / 2));
+      const placeAbove = rect.bottom + 110 > window.innerHeight && rect.top > 110;
+      const top = placeAbove ? Math.max(12, rect.top - 10) : Math.min(window.innerHeight - 80, rect.bottom + 8);
+      setLocalBalloon({ text: text.trim(), top, left, placeAbove });
+    };
+    const handleClear = () => setLocalBalloon(null);
+    document.addEventListener('mouseover', handleMouseOver, true);
+    document.addEventListener('mousedown', handleClear, true);
+    document.addEventListener('scroll', handleClear, true);
+    return () => {
+      document.removeEventListener('mouseover', handleMouseOver, true);
+      document.removeEventListener('mousedown', handleClear, true);
+      document.removeEventListener('scroll', handleClear, true);
+    };
+  }, [isMirrorSandbox]);
 
   // Analizador rápido manual de PDF / Texto de cualquier sucursal para cargar a la estadística
   const [quickBranch, setQuickBranch] = useState('Centro');
@@ -622,7 +661,22 @@ export default function QuoteBrokerAuditPanel({
   };
 
   return (
-    <div className="space-y-5 text-white">
+    <div className="space-y-4 text-white">
+      {localBalloon && (
+        <div
+          style={{
+            top: `${localBalloon.top}px`,
+            left: `${localBalloon.left}px`,
+            transform: localBalloon.placeAbove ? 'translateY(-100%)' : 'none'
+          }}
+          className="fixed z-[160] w-[290px] pointer-events-none bg-zinc-950/95 backdrop-blur-md border border-orange-500/60 rounded-2xl p-3 shadow-[0_15px_40px_rgba(0,0,0,0.9)] animate-in fade-in duration-100"
+        >
+          <div className="flex items-start gap-2">
+            <span className="text-orange-400 text-xs font-black shrink-0 mt-0.5">💬</span>
+            <p className="text-[11px] text-zinc-200 leading-relaxed font-sans">{localBalloon.text}</p>
+          </div>
+        </div>
+      )}
       {bannerMsg && (
         <div className="p-3.5 rounded-2xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs font-black flex items-center justify-between">
           <span>{bannerMsg}</span>
@@ -633,102 +687,145 @@ export default function QuoteBrokerAuditPanel({
       {/* =======================================================================
           BARRA DE HERRAMIENTAS Y NAVEGACIÓN EXCLUSIVA DE PRESUPUESTOS
       ======================================================================= */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 shadow-sm">
-        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
-          <div className="space-y-1">
-            <div className="flex flex-wrap items-center gap-2">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-4 lg:p-5 shadow-sm">
+        {/* Fila 1: Título compacto con globo explicativo + botones de acción sin desborde */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-3.5 border-b border-zinc-800/80">
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
+            <Scale className="w-5 h-5 text-orange-500 shrink-0" />
+            <h2 className="text-base lg:text-lg font-black text-white truncate">
+              Presupuestos y Auditoría — Sucursal Centro
+            </h2>
+            <span
+              className="px-2 py-0.5 rounded-full text-[10px] font-black bg-zinc-800 text-orange-300 border border-orange-500/30 cursor-help whitespace-nowrap"
+              title="Observación exclusiva de Sucursal Centro (las demás sucursales continúan derivando directo por ahora). Analiza cada charla y PDF enviado por Centro y compara entre sus pedidos: qué filtros y aceite cotiza para cada modelo, si hay diferencias de precios entre pedidos y qué demoras tiene según la franja horaria."
+            >
+              ⓘ Qué hace este módulo
+            </span>
+            {lastSync && (
               <span
-                className={`px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wide border flex items-center gap-1.5 ${
-                  activation.statusTone === 'emerald'
-                    ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'
-                    : activation.statusTone === 'amber'
-                      ? 'bg-amber-500/15 text-amber-300 border-amber-500/40'
-                      : 'bg-zinc-800 text-zinc-400 border-zinc-700'
-                }`}
+                className="text-[10px] text-zinc-500 font-bold whitespace-nowrap"
+                title={`Última sincronización con n8n / Firestore: ${lastSync}`}
               >
-                <Clock className="w-3.5 h-3.5" />
-                {activation.statusBadge}
+                • Sinc: {lastSync}
               </span>
-
-              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-black/50 text-zinc-300 border border-zinc-800">
-                {activation.inBizHours ? '🟢 En Horario Comercial' : '🌙 Fuera de Horario Comercial (SLA en pausa)'}
-              </span>
-
-              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-orange-500/15 text-orange-300 border border-orange-500/30">
-                Pedidos Reales ({activeBranches.join(', ')}): {realAndSandboxQuotes.length} {showDemoPreview ? `(+${DEMO_PREVIEW_QUOTES.length} ejemplos Centro)` : ''}
-              </span>
-
-              <div
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-950 border border-orange-500/40 text-[11px]"
-                title="Cambiar cada cuántos minutos hábiles el Bot le envía recordatorio por WhatsApp a Sucursal Centro si no contestó el presupuesto"
-              >
-                <span className="font-black text-orange-400">⏰ Recordatorio: cada</span>
-                <select
-                  value={String(mergedCfg.sla_recordatorio_minutos || '15')}
-                  disabled={savingCfg}
-                  onChange={(e) => handleSaveConfigPatch({ sla_recordatorio_minutos: String(e.target.value) })}
-                  className="bg-orange-500/20 text-orange-300 font-black px-1.5 py-0.5 rounded-md border border-orange-500/40 outline-none cursor-pointer"
-                >
-                  {['10', '15', '20', '25', '30', '45', '60'].map((m) => (
-                    <option key={m} value={m} className="bg-zinc-900 text-white">
-                      {m} min
-                    </option>
-                  ))}
-                  {!['10', '15', '20', '25', '30', '45', '60'].includes(String(mergedCfg.sla_recordatorio_minutos || '15')) && (
-                    <option value={String(mergedCfg.sla_recordatorio_minutos)} className="bg-zinc-900 text-white">
-                      {mergedCfg.sla_recordatorio_minutos} min
-                    </option>
-                  )}
-                </select>
-                <button
-                  type="button"
-                  onClick={() => setSubView('config')}
-                  className="text-[10px] text-zinc-400 hover:text-white underline ml-0.5"
-                >
-                  Personalizar
-                </button>
-              </div>
-            </div>
-
-            <p className="text-xs text-zinc-400 leading-relaxed max-w-4xl pt-1">
-              Observación exclusiva de <b>Sucursal {activeBranches.join(', ')}</b> (las demás sucursales continúan derivando directo por ahora): analiza cada charla y PDF enviado por <b>{activeBranches.join(', ')}</b> y <b>compara entre sus pedidos</b> qué filtros y aceite cotiza para cada modelo, si hay diferencias de precios entre pedidos y qué demoras tiene según el horario del día.
-            </p>
+            )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={handleDeepScanConversations}
               disabled={isScanningChats}
-              className="px-3.5 py-2 rounded-xl text-xs font-black bg-emerald-500 hover:bg-emerald-400 text-black flex items-center gap-1.5 transition-all shadow-sm"
+              className="px-3 py-1.5 rounded-xl text-xs font-black bg-emerald-500 hover:bg-emerald-400 text-black flex items-center gap-1.5 transition-all shadow-sm whitespace-nowrap"
               title="Escanea las conversaciones y presupuestos de Sucursal Centro para extraer códigos de filtros, aceites, precios y tiempos de respuesta"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isScanningChats ? 'animate-spin' : ''}`} />
-              {isScanningChats ? 'Analizando charlas...' : '🔍 Analizar Pedidos de Centro'}
+              <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${isScanningChats ? 'animate-spin' : ''}`} />
+              <span>{isScanningChats ? 'Analizando...' : '🔍 Analizar Pedidos'}</span>
             </button>
 
             <button
               type="button"
               onClick={() => setShowQuickLoader((v) => !v)}
-              className="px-3.5 py-2 rounded-xl text-xs font-black bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-500/40 flex items-center gap-1.5 transition-all"
+              className="px-3 py-1.5 rounded-xl text-xs font-black bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-500/40 flex items-center gap-1.5 transition-all whitespace-nowrap"
               title="Subir un PDF o pegar un presupuesto de Sucursal Centro para incorporarlo a la comparativa entre pedidos"
             >
-              <Upload className="w-3.5 h-3.5" />
-              ➕ Cargar PDF / Pedido Centro
+              <Upload className="w-3.5 h-3.5 shrink-0" />
+              <span>➕ Cargar PDF / Pedido</span>
             </button>
 
             <button
               type="button"
               onClick={() => setShowDemoPreview((v) => !v)}
-              className={`px-3 py-2 rounded-xl text-xs font-black border flex items-center gap-1.5 transition-all ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-black border flex items-center gap-1.5 transition-all whitespace-nowrap ${
                 showDemoPreview
                   ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
                   : 'bg-black/60 text-zinc-400 border-zinc-800 hover:text-white'
               }`}
               title="Muestra u oculta 2 pedidos de ejemplo adicionales de Sucursal Centro para ensayar la comparación entre pedidos"
             >
-              <Eye className="w-3.5 h-3.5" />
-              {showDemoPreview ? 'Ocultar Ejemplos (Ver Solo Reales)' : 'Ver +2 Pedidos Ejemplo (Centro)'}
+              <Eye className="w-3.5 h-3.5 shrink-0" />
+              <span>{showDemoPreview ? 'Ocultar Ejemplos' : 'Ver +2 Ejemplos'}</span>
+            </button>
+
+            {onRefreshSessions && (
+              <button
+                type="button"
+                onClick={onRefreshSessions}
+                disabled={isSyncing}
+                className="px-3 py-1.5 rounded-xl text-xs font-black bg-orange-600 hover:bg-orange-500 text-black flex items-center gap-1.5 transition-colors disabled:opacity-50 whitespace-nowrap"
+                title="Actualizar las conversaciones y cotizaciones en vivo desde Firestore / n8n"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${isSyncing ? 'animate-spin' : ''}`} />
+                <span>{isSyncing ? 'Actualizando...' : 'Actualizar'}</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Fila 2: Píldoras de estado en una sola línea (whitespace-nowrap) con globos explicativos */}
+        <div className="flex flex-wrap items-center gap-2 pt-3">
+          <span
+            className={`px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-wide border flex items-center gap-1.5 whitespace-nowrap ${
+              activation.statusTone === 'emerald'
+                ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'
+                : activation.statusTone === 'amber'
+                  ? 'bg-amber-500/15 text-amber-300 border-amber-500/40'
+                  : 'bg-zinc-800 text-zinc-400 border-zinc-700'
+            }`}
+            title="Estado actual del modo intermediario de presupuestos en Sucursal Centro"
+          >
+            <Clock className="w-3.5 h-3.5 shrink-0" />
+            <span>{activation.statusBadge}</span>
+          </span>
+
+          <span
+            className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-black/50 text-zinc-300 border border-zinc-800 whitespace-nowrap"
+            title={
+              activation.inBizHours
+                ? 'Dentro del horario comercial configurado: el reloj de demora SLA y los recordatorios a Sucursal Centro están activos.'
+                : 'Fuera del horario comercial: el reloj de demora SLA se pausa automáticamente hasta la próxima apertura.'
+            }
+          >
+            {activation.inBizHours ? '🟢 Horario Comercial' : '🌙 Fuera de Horario (SLA en pausa)'}
+          </span>
+
+          <span
+            className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-orange-500/15 text-orange-300 border border-orange-500/30 whitespace-nowrap"
+            title={`Pedidos reales registrados en Sucursal ${activeBranches.join(', ')}: ${realAndSandboxQuotes.length}${showDemoPreview ? ` (más ${DEMO_PREVIEW_QUOTES.length} pedidos de ejemplo activados)` : ''}`}
+          >
+            📋 Pedidos Centro: {realAndSandboxQuotes.length}
+            {showDemoPreview ? ` (+${DEMO_PREVIEW_QUOTES.length} ej.)` : ''}
+          </span>
+
+          <div
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-950 border border-orange-500/40 text-[11px] whitespace-nowrap"
+            title="Configurar cada cuántos minutos hábiles el Bot le envía recordatorio por WhatsApp a Sucursal Centro si no contestó el presupuesto"
+          >
+            <span className="font-black text-orange-400">⏰ Recordatorio:</span>
+            <select
+              value={String(mergedCfg.sla_recordatorio_minutos || '15')}
+              disabled={savingCfg}
+              onChange={(e) => handleSaveConfigPatch({ sla_recordatorio_minutos: String(e.target.value) })}
+              className="bg-orange-500/20 text-orange-300 font-black px-1.5 py-0.5 rounded-md border border-orange-500/40 outline-none cursor-pointer"
+            >
+              {['10', '15', '20', '25', '30', '45', '60'].map((m) => (
+                <option key={m} value={m} className="bg-zinc-900 text-white">
+                  cada {m} min
+                </option>
+              ))}
+              {!['10', '15', '20', '25', '30', '45', '60'].includes(String(mergedCfg.sla_recordatorio_minutos || '15')) && (
+                <option value={String(mergedCfg.sla_recordatorio_minutos)} className="bg-zinc-900 text-white">
+                  cada {mergedCfg.sla_recordatorio_minutos} min
+                </option>
+              )}
+            </select>
+            <button
+              type="button"
+              onClick={() => setSubView('config')}
+              className="text-[10px] text-zinc-400 hover:text-white underline ml-0.5"
+              title="Abrir configuración avanzada de minutos y horarios"
+            >
+              ⚙️
             </button>
           </div>
         </div>
@@ -814,41 +911,41 @@ export default function QuoteBrokerAuditPanel({
         )}
 
         {/* PESTAÑAS INTERNAS DEL MÓDULO DE PRESUPUESTOS (SUCURSAL CENTRO) */}
-        <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-zinc-800">
+        <div className="flex flex-wrap items-center gap-1.5 mt-3.5 pt-3.5 border-t border-zinc-800">
           {[
             {
               id: 'overview',
-              label: `📋 1. Pedidos y Charlas Centro (${auditReport.totalQuotes})`,
-              tooltip: 'Listado de todos los pedidos de presupuesto en Sucursal Centro, valores enviados y desglose de PDF/charla',
+              label: `📋 1. Pedidos (${auditReport.totalQuotes})`,
+              tooltip: 'Listado de todos los pedidos de presupuesto en Sucursal Centro, valores enviados y desglose de PDF o charla',
               icon: FileText
             },
             {
               id: 'models_matrix',
-              label: `🚗 2. Filtros y Aceite por Modelo (${auditReport.vehicleModelsComparison.length})`,
+              label: `🚗 2. Filtros por Modelo (${auditReport.vehicleModelsComparison.length})`,
               tooltip: 'Qué códigos de filtros (aceite, aire, combustible, habitáculo) y qué aceite cotiza Sucursal Centro en cada pedido según el modelo de auto',
               icon: Car
             },
             {
               id: 'dispersion',
-              label: `💲 3. Precios entre Pedidos (${auditReport.priceDispersionRows.length} ítems)`,
-              tooltip: 'Comparativa de precios unitarios de cada filtro y aceite entre los distintos pedidos cotizados por Sucursal Centro',
+              label: `💲 3. Precios (${auditReport.priceDispersionRows.length})`,
+              tooltip: 'Comparativa de precios unitarios de cada filtro y aceite por litro entre los distintos pedidos cotizados por Sucursal Centro',
               icon: Scale
             },
             {
               id: 'delays_schedule',
-              label: '⏱️ 4. Demoras y Horarios (Centro)',
+              label: '⏱️ 4. Demoras y Horarios',
               tooltip: 'Estadística de tiempo de respuesta de Sucursal Centro y en qué horarios del día tiene mayor o menor demora',
               icon: Clock
             },
             {
               id: 'simulator',
-              label: '🧪 5. Simulador + Lector PDF',
+              label: '🧪 5. Simulador PDF',
               tooltip: 'Entorno de prueba Cliente ↔ Bot ↔ Sucursal Centro para ensayar cotizaciones y lectura de PDFs',
               icon: Sparkles
             },
             {
               id: 'config',
-              label: '⚙️ 6. Configuración Piloto Centro y SLA',
+              label: '⚙️ 6. Config y SLA',
               tooltip: 'Configurar el recordatorio en minutos (15 min por defecto), horarios hábiles y estado del piloto en Sucursal Centro',
               icon: Building2
             }
@@ -861,7 +958,7 @@ export default function QuoteBrokerAuditPanel({
                 type="button"
                 onClick={() => setSubView(tab.id)}
                 title={tab.tooltip}
-                className={`px-3.5 py-2.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all ${
+                className={`px-3 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all whitespace-nowrap ${
                   active
                     ? 'bg-orange-500 text-black shadow-[0_0_15px_rgba(249,115,22,0.35)]'
                     : 'bg-black/60 text-zinc-300 hover:bg-zinc-800 hover:text-white border border-zinc-800'
@@ -878,71 +975,72 @@ export default function QuoteBrokerAuditPanel({
       {/* =======================================================================
           KPIs GLOBALES DE COTIZACIÓN (SIEMPRE VISIBLES ARRIBA)
       ======================================================================= */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <div
           onClick={() => setSubView('overview')}
-          className="bg-zinc-900 border border-zinc-800 hover:border-zinc-700 p-4 rounded-2xl cursor-pointer transition-all"
+          className="bg-zinc-900 border border-zinc-800 hover:border-zinc-700 p-3.5 rounded-2xl cursor-pointer transition-all min-w-0"
           title="Total de pedidos de cotización registrados en Sucursal Centro y cuántos están esperando respuesta"
         >
-          <p className="text-[10px] font-black uppercase text-zinc-500">Pedidos Suc. Centro</p>
-          <p className="text-2xl font-black text-white mt-1">{auditReport.totalQuotes}</p>
-          <p className="text-[11px] text-zinc-400 mt-1">
+          <p className="text-[10px] font-black uppercase text-zinc-500 truncate">Pedidos Centro</p>
+          <p className="text-2xl font-black text-white mt-0.5">{auditReport.totalQuotes}</p>
+          <p className="text-[11px] text-zinc-400 mt-1 truncate">
             Cotizados: <b className="text-emerald-400">{auditReport.respondedCount}</b> • Espera: <b className="text-amber-400">{auditReport.waitingCount}</b>
           </p>
         </div>
 
         <div
           onClick={() => setSubView('models_matrix')}
-          className="bg-zinc-900 border border-zinc-800 hover:border-orange-500/40 p-4 rounded-2xl cursor-pointer transition-all"
+          className="bg-zinc-900 border border-zinc-800 hover:border-orange-500/40 p-3.5 rounded-2xl cursor-pointer transition-all min-w-0"
           title="Haz clic para ver qué filtros y aceites cotizó Sucursal Centro en cada pedido según el modelo de vehículo"
         >
-          <p className="text-[10px] font-black uppercase text-zinc-500">Modelos Cotizados (Centro)</p>
-          <p className="text-2xl font-black text-cyan-400 mt-1">{auditReport.vehicleModelsComparison.length}</p>
-          <p className="text-[11px] text-orange-400 font-bold mt-1 flex items-center gap-1">
-            {auditReport.modelsWithDifferenceCount > 0 ? `${auditReport.modelsWithDifferenceCount} con variación entre pedidos` : 'Ver filtros por modelo'} <ArrowRight className="w-3 h-3" />
+          <p className="text-[10px] font-black uppercase text-zinc-500 truncate">Modelos Cotizados</p>
+          <p className="text-2xl font-black text-cyan-400 mt-0.5">{auditReport.vehicleModelsComparison.length}</p>
+          <p className="text-[11px] text-orange-400 font-bold mt-1 flex items-center gap-1 truncate">
+            <span className="truncate">{auditReport.modelsWithDifferenceCount > 0 ? `${auditReport.modelsWithDifferenceCount} con variación` : 'Ver filtros por modelo'}</span>
+            <ArrowRight className="w-3 h-3 shrink-0" />
           </p>
         </div>
 
         <div
           onClick={() => setSubView('dispersion')}
-          className="bg-zinc-900 border border-zinc-800 hover:border-orange-500/40 p-4 rounded-2xl cursor-pointer transition-all"
+          className="bg-zinc-900 border border-zinc-800 hover:border-orange-500/40 p-3.5 rounded-2xl cursor-pointer transition-all min-w-0"
           title="Haz clic para comparar los valores de filtros y aceite por litro entre los pedidos cotizados por Sucursal Centro"
         >
-          <p className="text-[10px] font-black uppercase text-zinc-500">Filtros y Aceite Auditados</p>
-          <p className="text-2xl font-black mt-1 text-emerald-400">
+          <p className="text-[10px] font-black uppercase text-zinc-500 truncate">Filtros y Aceite</p>
+          <p className="text-2xl font-black mt-0.5 text-emerald-400">
             {auditReport.priceDispersionRows.length} ítems
           </p>
-          <p className="text-[11px] text-zinc-400 mt-1">
-            {auditReport.discrepanciesCount > 0 ? `${auditReport.discrepanciesCount} con dif. entre pedidos` : 'Comparativa entre pedidos de Centro'}
+          <p className="text-[11px] text-zinc-400 mt-1 truncate">
+            {auditReport.discrepanciesCount > 0 ? `${auditReport.discrepanciesCount} con dif. entre pedidos` : 'Comparativa en Centro'}
           </p>
         </div>
 
         <div
           onClick={() => setSubView('delays_schedule')}
-          className="bg-zinc-900 border border-zinc-800 hover:border-orange-500/40 p-4 rounded-2xl cursor-pointer transition-all"
+          className="bg-zinc-900 border border-zinc-800 hover:border-orange-500/40 p-3.5 rounded-2xl cursor-pointer transition-all min-w-0"
           title="Haz clic para ver las demoras de Sucursal Centro en cada pedido y en qué horario del día tarda más o menos"
         >
-          <p className="text-[10px] font-black uppercase text-zinc-500">Demora Hábil Centro</p>
-          <p className="text-2xl font-black text-orange-400 mt-1">
+          <p className="text-[10px] font-black uppercase text-zinc-500 truncate">Demora Hábil Centro</p>
+          <p className="text-2xl font-black text-orange-400 mt-0.5">
             {auditReport.globalAvgDelayMin != null ? `${auditReport.globalAvgDelayMin} min` : '—'}
           </p>
           <p className="text-[11px] text-zinc-400 mt-1 truncate">
-            {auditReport.slowestSlot ? `Franja mayor demora: ${auditReport.slowestSlot.shortLabel}` : `Recordatorio cada ${activation.slaMinutes} min`}
+            {auditReport.slowestSlot ? `Mayor demora: ${auditReport.slowestSlot.shortLabel}` : `Recordatorio ${activation.slaMinutes}m`}
           </p>
         </div>
 
         <div
           onClick={() => setSubView('overview')}
-          className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl"
+          className="bg-zinc-900 border border-zinc-800 p-3.5 rounded-2xl min-w-0"
           title="Porcentaje de presupuestos enviados por Sucursal Centro que fueron aceptados/confirmados por el cliente"
         >
-          <p className="text-[10px] font-black uppercase text-zinc-500">Confirmados en Centro</p>
-          <p className="text-2xl font-black text-emerald-400 mt-1">
+          <p className="text-[10px] font-black uppercase text-zinc-500 truncate">Confirmados Centro</p>
+          <p className="text-2xl font-black text-emerald-400 mt-0.5">
             {auditReport.confirmedCount}{' '}
             <span className="text-sm text-zinc-500">({auditReport.globalAcceptancePct}%)</span>
           </p>
-          <p className="text-[11px] text-zinc-400 mt-1">
-            Derivados tras aceptar presupuesto
+          <p className="text-[11px] text-zinc-400 mt-1 truncate">
+            Derivados al aceptar
           </p>
         </div>
       </div>
@@ -952,15 +1050,18 @@ export default function QuoteBrokerAuditPanel({
       ======================================================================= */}
       {subView === 'overview' && (
         <div className="space-y-5">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5">
-            <div className="flex flex-wrap justify-between items-center gap-2 mb-4">
-              <div>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-4 lg:p-5">
+            <div className="flex flex-wrap justify-between items-center gap-2 mb-3">
+              <div className="flex flex-wrap items-center gap-2">
                 <h4 className="text-sm font-black text-white uppercase tracking-wide">
-                  Pedidos de Cotización, Valores Enviados y Análisis de Filtros / Aceite ({auditReport.enrichedQuotes.length})
+                  Pedidos de Cotización en Sucursal Centro ({auditReport.enrichedQuotes.length})
                 </h4>
-                <p className="text-xs text-zinc-400">
-                  Haz clic en cualquier pedido para ver qué filtros y aceite cotizó la sucursal, cuánto tardó, en qué franja horaria entró y la charla con el cliente.
-                </p>
+                <span
+                  className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-zinc-800 text-zinc-300 cursor-help whitespace-nowrap"
+                  title="Haz clic en cualquier pedido para desplegar qué filtros y aceite cotizó Sucursal Centro, cuánto tardó, en qué franja horaria entró y los mensajes de la charla con el cliente."
+                >
+                  ⓘ Clic en un pedido para ver detalle
+                </span>
               </div>
             </div>
 
@@ -1181,14 +1282,17 @@ export default function QuoteBrokerAuditPanel({
       {subView === 'models_matrix' && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 space-y-4">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-            <div>
-              <h4 className="text-base font-black text-white flex items-center gap-2">
-                <Car className="w-5 h-5 text-orange-500" />
-                Matriz por Modelo en Sucursal Centro: ¿Qué Filtros y Qué Aceite Cotiza en Cada Pedido?
+            <div className="flex flex-wrap items-center gap-2">
+              <Car className="w-5 h-5 text-orange-500 shrink-0" />
+              <h4 className="text-sm lg:text-base font-black text-white">
+                Matriz por Modelo en Sucursal Centro (Filtros y Aceite por Pedido)
               </h4>
-              <p className="text-xs text-zinc-400 mt-0.5">
-                Observa exclusivamente los pedidos de <b>Sucursal Centro</b> y compara entre pedidos de un mismo modelo qué códigos de filtro (Aceite, Aire, Combustible, Habitáculo), qué lubricante y qué valor total se presupuestó.
-              </p>
+              <span
+                className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-zinc-800 text-zinc-300 cursor-help whitespace-nowrap"
+                title="Observa exclusivamente los pedidos de Sucursal Centro y compara entre pedidos de un mismo modelo qué códigos de filtro (Aceite, Aire, Combustible, Habitáculo), qué lubricante y qué valor total se presupuestó."
+              >
+                ⓘ Cómo se compara
+              </span>
             </div>
 
             <div className="relative w-full md:w-72">
@@ -1350,14 +1454,17 @@ export default function QuoteBrokerAuditPanel({
       {subView === 'dispersion' && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 space-y-4">
           <div className="flex flex-wrap justify-between items-center gap-3">
-            <div>
-              <h4 className="text-base font-black text-white flex items-center gap-2">
-                <Scale className="w-5 h-5 text-orange-500" />
-                Valores de Filtros y Aceite por Litro Cotizados en Sucursal Centro (Comparativa entre Pedidos)
+            <div className="flex flex-wrap items-center gap-2">
+              <Scale className="w-5 h-5 text-orange-500 shrink-0" />
+              <h4 className="text-sm lg:text-base font-black text-white">
+                Valores de Filtros y Aceite por Litro en Sucursal Centro (Entre Pedidos)
               </h4>
-              <p className="text-xs text-zinc-400 mt-0.5">
-                Registra cada código de filtro (ej. <code className="text-amber-300">WO-121</code>, <code className="text-amber-300">FAP-2835</code>, <code className="text-amber-300">FCI-1660</code>, <code className="text-amber-300">AKX-35323</code>) y cada aceite por litro cotizado por <b>Sucursal Centro</b>, comparando su valor entre los distintos pedidos.
-              </p>
+              <span
+                className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-zinc-800 text-zinc-300 cursor-help whitespace-nowrap"
+                title="Registra cada código de filtro (ej. WO-121, FAP-2835, FCI-1660, AKX-35323) y cada aceite por litro cotizado por Sucursal Centro, comparando su valor entre los distintos pedidos."
+              >
+                ⓘ Detalle de comparación
+              </span>
             </div>
 
             <div className="flex items-center gap-1.5 bg-black/50 p-1.5 rounded-xl border border-zinc-800">
@@ -1518,14 +1625,17 @@ export default function QuoteBrokerAuditPanel({
 
           {/* MAPA DE DEMORAS SEGÚN FRANJA HORARIA DEL DÍA */}
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 space-y-4">
-            <div>
-              <h4 className="text-sm font-black text-white uppercase tracking-wide flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-orange-500" />
-                ¿Hay Más o Menos Demora en Sucursal Centro Según el Horario del Día?
+            <div className="flex flex-wrap items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-orange-500 shrink-0" />
+              <h4 className="text-sm font-black text-white uppercase tracking-wide">
+                Demoras en Sucursal Centro Según la Franja Horaria del Día
               </h4>
-              <p className="text-xs text-zinc-400 mt-0.5">
-                Mide cuánto tarda <b>Sucursal Centro</b> en responder un presupuesto según la franja horaria en que entra la consulta del cliente.
-              </p>
+              <span
+                className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-zinc-800 text-zinc-300 cursor-help whitespace-nowrap"
+                title="Mide cuánto tarda Sucursal Centro en responder un presupuesto según la franja horaria en que entra la consulta del cliente."
+              >
+                ⓘ Cómo se mide
+              </span>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">

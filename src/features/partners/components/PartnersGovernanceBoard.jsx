@@ -367,37 +367,46 @@ export default function PartnersGovernanceBoard() {
       )}
 
       {/* CABECERA EJECUTIVA DEL DIRECTORIO DE SOCIOS */}
-      <div className="bg-gradient-to-r from-zinc-900 via-zinc-900/95 to-amber-950/30 border border-amber-500/40 rounded-3xl p-5 lg:p-6 mb-6 shrink-0 shadow-[0_0_30px_rgba(245,158,11,0.1)]">
-        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-5">
-          <div className="space-y-1.5">
+      <div className="bg-gradient-to-r from-zinc-900 via-zinc-900/95 to-amber-950/30 border border-amber-500/40 rounded-3xl p-4 lg:p-5 mb-5 shrink-0 shadow-[0_0_30px_rgba(245,158,11,0.1)]">
+        <div className="flex flex-wrap justify-between items-center gap-3">
+          <div className="space-y-1.5 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => setCurrentView('tasks')}
-                className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 text-xs font-black flex items-center gap-1.5 transition-colors"
+                className="px-3 py-1 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 text-xs font-black flex items-center gap-1.5 transition-colors whitespace-nowrap"
                 title="Volver al tablero sin salir del sistema"
               >
                 <ArrowLeft className="w-3.5 h-3.5 text-orange-500" />
                 Volver
               </button>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-[10px] font-black uppercase tracking-widest text-amber-300">
-                <Lock className="w-3 h-3" /> ACCESO EXCLUSIVO SOCIOS • UNANIMIDAD 3/3
+              <span
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-[10px] font-black uppercase tracking-widest text-amber-300 whitespace-nowrap"
+                title="Espacio privado exclusivo de Martín, Alejandro y Juan Pablo"
+              >
+                <Lock className="w-3 h-3" /> SOCIOS • UNANIMIDAD 3/3
+              </span>
+              <span
+                className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-zinc-800 text-orange-300 border border-orange-500/30 cursor-help whitespace-nowrap"
+                title="Espacio privado de Martín, Alejandro y Juan Pablo para exponer ideas o nuevas normas operativas. Para que una propuesta quede efectiva como Regla Firme debe contar con la aprobación unánime de los 3 socios (3/3). Todos pueden acordar, rechazar/observar y debatir con comentarios."
+              >
+                ⓘ Cómo funciona el voto 3/3
               </span>
             </div>
 
-            <h2 className="text-2xl lg:text-3xl font-black text-white flex items-center gap-3 pt-1">
-              <Scale className="w-8 h-8 text-amber-400 shrink-0" />
-              Directorio de Socios: Ideas, Normas y Reglas Firmes
+            <h2 className="text-lg lg:text-2xl font-black text-white flex items-center gap-2.5 pt-0.5">
+              <Scale className="w-6 h-6 text-amber-400 shrink-0" />
+              <span className="truncate">Directorio de Socios: Ideas, Normas y Reglas Firmes</span>
             </h2>
-            <p className="text-xs sm:text-sm text-zinc-400 max-w-3xl leading-relaxed">
-              Espacio privado de <b>Martín, Alejandro y Juan Pablo</b> para exponer ideas o nuevas normas operativas. Para que una propuesta quede efectiva como <b>Regla Firme</b> debe contar con la aprobación unánime de los <b>3 socios (3/3)</b>. Todos pueden acordar, rechazar/observar y debatir con comentarios.
-            </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row xl:flex-col items-stretch sm:items-center xl:items-end gap-3 w-full xl:w-auto">
+          <div className="flex flex-wrap items-center gap-2.5">
             {/* Selector de Identidad del Socio Activo (Martín / Alejandro / Juan Pablo) */}
-            <div className="bg-black/60 border border-zinc-800 rounded-2xl p-2.5 flex flex-col sm:flex-row items-start sm:items-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400 px-2">
-                Operando y firmando como:
+            <div
+              className="bg-black/60 border border-zinc-800 rounded-2xl p-2 flex flex-wrap items-center gap-1.5"
+              title="Selecciona con cuál de los 3 socios estás operando y firmando tus votos o comentarios"
+            >
+              <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400 px-1.5 whitespace-nowrap">
+                Socio:
               </span>
               <div className="flex flex-wrap gap-1.5">
                 {PARTNERS_LIST.map((p) => {
@@ -407,46 +416,46 @@ export default function PartnersGovernanceBoard() {
                       key={p.id}
                       type="button"
                       onClick={() => handleSelectActivePartner(p.id)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all border ${
+                      className={`px-2.5 py-1 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all border whitespace-nowrap ${
                         isSelected
                           ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-black border-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.4)]'
                           : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-white hover:border-zinc-700'
                       }`}
                     >
                       <span
-                        className={`w-5 h-5 rounded-full text-[10px] font-black flex items-center justify-center ${
+                        className={`w-4 h-4 rounded-full text-[9px] font-black flex items-center justify-center ${
                           isSelected ? 'bg-black text-amber-400' : 'bg-zinc-800 text-zinc-300'
                         }`}
                       >
                         {p.name.charAt(0)}
                       </span>
                       <span>{p.name}</span>
-                      {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                      {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2.5">
-              <button
-                type="button"
-                onClick={handleExportFirmRules}
-                className="bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-colors"
-              >
-                <Download className="w-4 h-4 text-amber-400" />
-                Descargar Estatuto de Reglas Firmes
-              </button>
+            <button
+              type="button"
+              onClick={handleExportFirmRules}
+              className="bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors whitespace-nowrap"
+              title="Descargar documento con todas las Reglas Firmes aprobadas por unanimidad 3/3"
+            >
+              <Download className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span>Estatuto</span>
+            </button>
 
-              <button
-                type="button"
-                onClick={handleOpenNewModal}
-                className="bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-black font-black px-5 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-[0_0_20px_rgba(245,158,11,0.35)] transition-all"
-              >
-                <Plus className="w-4 h-4 stroke-[3]" />
-                Exponer Nueva Idea o Regla ({activePartner.name})
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleOpenNewModal}
+              className="bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-black font-black px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-[0_0_20px_rgba(245,158,11,0.35)] transition-all whitespace-nowrap"
+              title="Exponer una nueva idea, norma operativa o regla para someter a votación de los 3 socios"
+            >
+              <Plus className="w-4 h-4 stroke-[3] shrink-0" />
+              <span>Nueva Idea / Regla ({activePartner.name})</span>
+            </button>
           </div>
         </div>
 

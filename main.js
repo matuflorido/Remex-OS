@@ -2,10 +2,22 @@ const { app, BrowserWindow, ipcMain, dialog, Notification } = require('electron'
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
 
+function applyResponsiveZoom(win) {
+  if (!win || win.isDestroyed()) return;
+  try {
+    const [width] = win.getContentSize();
+    // Escala visual proporcional automática cuando la ventana es más pequeña que 1240px
+    const factor = width >= 1240 ? 1.0 : Math.max(0.78, Math.min(1.0, Number((width / 1240).toFixed(3))));
+    win.webContents.setZoomFactor(factor);
+  } catch (e) {}
+}
+
 function createWindow () {
   const win = new BrowserWindow({
     width: 1280,
     height: 800,
+    minWidth: 860,
+    minHeight: 560,
     title: "Remex OS Enterprise",
     autoHideMenuBar: true,
     webPreferences: {
@@ -15,6 +27,14 @@ function createWindow () {
   });
 
   win.loadFile(path.join(__dirname, 'dist', 'index.html'));
+
+  win.webContents.on('did-finish-load', () => {
+    applyResponsiveZoom(win);
+  });
+
+  win.on('resize', () => {
+    applyResponsiveZoom(win);
+  });
 }
 
 app.whenReady().then(() => {

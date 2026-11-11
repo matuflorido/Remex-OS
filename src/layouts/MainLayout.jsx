@@ -19,6 +19,7 @@ export default function MainLayout({ children }) {
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
     try {
+      if (typeof window !== 'undefined' && window.innerWidth < 1150) return false;
       const saved = localStorage.getItem('remex_sidebar_open');
       return saved !== null ? saved === 'true' : true;
     } catch {
@@ -26,6 +27,7 @@ export default function MainLayout({ children }) {
     }
   });
   const [hoverHint, setHoverHint] = useState(null); // { title, badge, desc, top, left }
+  const [globalBalloon, setGlobalBalloon] = useState(null); // { text, top, left, placeAbove }
   const [notifications, setNotifications] = useState([]);
   const [showNotifs, setShowNotifs] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -39,6 +41,72 @@ export default function MainLayout({ children }) {
       return next;
     });
   };
+
+  // Auto-contraer la barra lateral cuando la ventana se minimiza o achica (<1150px)
+  useEffect(() => {
+    let prevW = window.innerWidth;
+    const onResize = () => {
+      const w = window.innerWidth;
+      if (w < 1150 && prevW >= 1150) {
+        setIsSidebarOpen(false);
+      } else if (w >= 1260 && prevW < 1260) {
+        try {
+          const saved = localStorage.getItem('remex_sidebar_open');
+          if (saved !== 'false') setIsSidebarOpen(true);
+        } catch {
+          setIsSidebarOpen(true);
+        }
+      }
+      prevW = w;
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  // Sistema global de Globos Flotantes instantáneos al pasar el mouse (reemplaza textos largos y tooltips lentos)
+  useEffect(() => {
+    const handleMouseOver = (e) => {
+      const target = e.target?.closest?.('[data-globo], [title]');
+      if (!target) {
+        setGlobalBalloon(null);
+        return;
+      }
+      const rawTitle = target.getAttribute('title');
+      if (rawTitle) {
+        target.setAttribute('data-globo', rawTitle);
+        target.removeAttribute('title');
+      }
+      const text = target.getAttribute('data-globo');
+      if (!text || text.trim().length < 2) {
+        setGlobalBalloon(null);
+        return;
+      }
+      const rect = target.getBoundingClientRect();
+      const balloonWidth = 290;
+      const left = Math.max(12, Math.min(window.innerWidth - balloonWidth - 12, rect.left + rect.width / 2 - balloonWidth / 2));
+      const placeAbove = rect.bottom + 110 > window.innerHeight && rect.top > 110;
+      const top = placeAbove ? Math.max(12, rect.top - 10) : Math.min(window.innerHeight - 80, rect.bottom + 8);
+      setGlobalBalloon({ text: text.trim(), top, left, placeAbove });
+    };
+
+    const handleMouseOut = (e) => {
+      const related = e.relatedTarget?.closest?.('[data-globo], [title]');
+      if (!related) setGlobalBalloon(null);
+    };
+
+    const handleClear = () => setGlobalBalloon(null);
+
+    document.addEventListener('mouseover', handleMouseOver, true);
+    document.addEventListener('mouseout', handleMouseOut, true);
+    document.addEventListener('mousedown', handleClear, true);
+    document.addEventListener('scroll', handleClear, true);
+    return () => {
+      document.removeEventListener('mouseover', handleMouseOver, true);
+      document.removeEventListener('mouseout', handleMouseOut, true);
+      document.removeEventListener('mousedown', handleClear, true);
+      document.removeEventListener('scroll', handleClear, true);
+    };
+  }, []);
 
   const handleNavHoverEnter = (e, title, desc, badge = '') => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -134,7 +202,7 @@ export default function MainLayout({ children }) {
       {hoverHint && (
         <div
           style={{ top: `${hoverHint.top}px`, left: `${hoverHint.left}px` }}
-          className="fixed z-[150] w-72 pointer-events-none bg-zinc-950/95 backdrop-blur-md border border-orange-500/50 rounded-2xl p-3.5 shadow-[0_15px_40px_rgba(0,0,0,0.85)] animate-in fade-in duration-150"
+          className="fixed z-[160] w-72 pointer-events-none bg-zinc-950/95 backdrop-blur-md border border-orange-500/50 rounded-2xl p-3.5 shadow-[0_15px_40px_rgba(0,0,0,0.85)] animate-in fade-in duration-150"
         >
           <div className="flex items-center justify-between gap-2 mb-1">
             <span className="text-xs font-black text-white">{hoverHint.title}</span>
@@ -145,6 +213,22 @@ export default function MainLayout({ children }) {
             )}
           </div>
           <p className="text-[11px] text-zinc-300 leading-relaxed font-sans">{hoverHint.desc}</p>
+        </div>
+      )}
+
+      {globalBalloon && !hoverHint && (
+        <div
+          style={{
+            top: `${globalBalloon.top}px`,
+            left: `${globalBalloon.left}px`,
+            transform: globalBalloon.placeAbove ? 'translateY(-100%)' : 'none'
+          }}
+          className="fixed z-[160] w-[290px] pointer-events-none bg-zinc-950/95 backdrop-blur-md border border-orange-500/60 rounded-2xl p-3 shadow-[0_15px_40px_rgba(0,0,0,0.9)] animate-in fade-in duration-100"
+        >
+          <div className="flex items-start gap-2">
+            <span className="text-orange-400 text-xs font-black shrink-0 mt-0.5">💬</span>
+            <p className="text-[11px] text-zinc-200 leading-relaxed font-sans">{globalBalloon.text}</p>
+          </div>
         </div>
       )}
 
@@ -481,43 +565,43 @@ export default function MainLayout({ children }) {
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0 bg-zinc-950 relative">
-        <header className="h-[76px] bg-zinc-900/80 border-b border-zinc-800 px-6 flex items-center justify-between shrink-0 z-50">
-          <div className="flex items-center gap-3 flex-1">
-            <div className="relative w-full max-w-xs hidden md:block">
+        <header className="h-[64px] bg-zinc-900/80 border-b border-zinc-800 px-4 lg:px-6 flex items-center justify-between gap-2 shrink-0 z-50">
+          <div className="flex items-center gap-2.5 flex-1 min-w-0">
+            <div className="relative w-full max-w-[230px] hidden md:block">
               <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
               <input 
                 type="text" 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Buscar tarea, cliente..." 
-                className="w-full bg-black border border-zinc-800 rounded-xl pl-10 pr-4 py-2 text-xs text-white focus:border-orange-500 outline-none transition-colors"
+                className="w-full bg-black border border-zinc-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-white focus:border-orange-500 outline-none transition-colors"
               />
             </div>
 
             <button
               onClick={() => setCurrentView('bot_quotes')}
-              className={`px-3 py-2 rounded-xl text-xs font-black flex items-center gap-2 border transition-all shrink-0 ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 border transition-all shrink-0 whitespace-nowrap ${
                 currentView === 'bot_quotes'
                   ? 'bg-amber-500 text-black border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)]'
                   : 'bg-amber-950/40 text-amber-300 border-amber-500/40 hover:bg-amber-900/50'
               }`}
-              title="Módulo exclusivo de Presupuestos: compara qué filtros y aceites cotiza cada sucursal por modelo, diferencias de precios y demoras por franja horaria"
+              title="Módulo exclusivo de Presupuestos (Piloto Sucursal Centro): compara entre pedidos de Centro qué filtros y aceite cotiza por modelo, precios y demoras según el horario"
             >
-              <Scale className="w-4 h-4 text-orange-400" />
+              <Scale className="w-3.5 h-3.5 text-orange-400 shrink-0" />
               <span>🧾 Presupuestos (Centro)</span>
             </button>
 
             {canAccessPartnersSection(user) && (
               <button
                 onClick={() => setCurrentView('partners')}
-                className={`px-3 py-2 rounded-xl text-xs font-black flex items-center gap-2 border transition-all shrink-0 ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 border transition-all shrink-0 whitespace-nowrap ${
                   currentView === 'partners'
                     ? 'bg-emerald-500 text-black border-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.4)]'
                     : 'bg-emerald-950/40 text-emerald-300 border-emerald-500/40 hover:bg-emerald-900/50'
                 }`}
                 title="Directorio exclusivo para Martín, Alejandro y Juan Pablo: votación unánime 3/3 para aprobar normas y reglas firmes"
               >
-                <Award className="w-4 h-4 text-emerald-400" />
+                <Award className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                 <span>🏛️ Socios (3/3)</span>
               </button>
             )}

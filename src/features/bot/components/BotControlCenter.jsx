@@ -933,43 +933,14 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
 
   if (isQuotesStandalone) {
     return (
-      <div className="flex-1 p-6 lg:p-8 overflow-y-auto custom-scrollbar bg-zinc-950 flex flex-col h-full">
-        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-5 shrink-0">
-          <div>
-            <h2 className="text-2xl font-black text-white flex items-center gap-3">
-              <Scale className="w-7 h-7 text-orange-500" />
-              Presupuestos y Auditoría — Piloto Sucursal Centro
-              <HelpTooltip text="Observación exclusiva de Sucursal Centro (las demás sucursales continúan derivando por ahora). Analiza charlas y PDFs enviados por Centro y compara entre sus pedidos: filtros y aceite por modelo, precios y demoras según el horario." />
-            </h2>
-            <p className="text-sm text-zinc-400 mt-1">
-              Seguimiento exclusivo de pedidos de cotización en Sucursal Centro: comparativa entre pedidos de filtros y aceite por modelo, precios y tiempos de respuesta por horario.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            {lastSync && (
-              <span className="text-xs text-zinc-500 font-bold">
-                Sincronizado: {lastSync}
-              </span>
-            )}
-            <button
-              onClick={() => loadDashboard(false)}
-              disabled={isSyncing}
-              className="bg-orange-600 hover:bg-orange-500 text-black font-black px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 transition-colors disabled:opacity-50"
-            >
-              <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-              {isSyncing ? 'Actualizando...' : 'Actualizar Cotizaciones'}
-            </button>
-          </div>
-        </div>
-
+      <div className="flex-1 p-4 lg:p-6 overflow-y-auto custom-scrollbar bg-zinc-950 flex flex-col h-full">
         {errorMsg && (
-          <div className="mb-5 bg-red-950/30 border border-red-500/40 rounded-2xl p-4 flex items-center justify-between text-red-300 text-sm">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
+          <div className="mb-4 bg-red-950/30 border border-red-500/40 rounded-2xl p-3.5 flex items-center justify-between text-red-300 text-xs">
+            <div className="flex items-center gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
               <span>{errorMsg}</span>
             </div>
-            <button onClick={() => loadDashboard(false)} className="text-xs font-black underline">Reintentar</button>
+            <button onClick={() => loadDashboard(false)} className="text-xs font-black underline whitespace-nowrap ml-2">Reintentar</button>
           </div>
         )}
 
@@ -981,62 +952,67 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
           onOpenChatSession={null}
           isMirrorSandbox={false}
           workflowDownloadUrl="./CheckOil_Workflow_Intermediario_v2.2.json"
+          lastSync={lastSync}
+          isSyncing={isSyncing}
         />
       </div>
     );
   }
 
   return (
-    <div className="flex-1 p-6 lg:p-8 overflow-y-auto custom-scrollbar bg-zinc-950 flex flex-col h-full">
-      {/* HEADER SUPERIOR Y CONTROL MAESTRO */}
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-5 shrink-0">
-        <div>
-          <h2 className="text-2xl font-black text-white flex items-center gap-3">
-            <Bot className="w-7 h-7 text-orange-500" />
+    <div className="flex-1 p-4 lg:p-6 overflow-y-auto custom-scrollbar bg-zinc-950 flex flex-col h-full">
+      {/* HEADER SUPERIOR Y CONTROL MAESTRO COMPACTO CON GLOBOS */}
+      <div className="flex flex-wrap justify-between items-center gap-3 mb-4 shrink-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <Bot className="w-6 h-6 text-orange-500 shrink-0" />
+          <h2 className="text-lg lg:text-xl font-black text-white">
             Centro de Control Bot & IA (Check-Oil)
-            <HelpTooltip text="Monitorea charlas de WhatsApp con fecha exacta, audita por qué algunos clientes no llegaron a derivarse, alerta cuando dejan de responder e inyecta aprendizajes en vivo." />
           </h2>
-          <p className="text-sm text-zinc-500 mt-1">
-            Supervisión en vivo de recepción, diagnóstico de no derivados, control por fechas y aprendizaje continuo.
-          </p>
+          <span
+            className="px-2 py-0.5 rounded-full text-[10px] font-black bg-zinc-800 text-orange-300 border border-orange-500/30 cursor-help whitespace-nowrap"
+            title="Monitorea charlas de WhatsApp con fecha exacta, audita por qué algunos clientes no llegaron a derivarse, alerta cuando dejan de responder e inyecta aprendizajes en vivo."
+          >
+            ⓘ Info en globo
+          </span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={handleToggleGlobalBot}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 border transition-all ${
+            className={`px-3 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 border transition-all whitespace-nowrap ${
               isGlobalBotActive
                 ? 'bg-emerald-950/40 text-emerald-400 border-emerald-500/40 hover:bg-emerald-900/50'
                 : 'bg-red-950/50 text-red-400 border-red-500/50 hover:bg-red-900/50 animate-pulse'
             }`}
+            title="Activar o pausar globalmente las respuestas automáticas del Bot Check-Oil en WhatsApp"
           >
-            {isGlobalBotActive ? <PlayCircle className="w-4 h-4" /> : <PauseCircle className="w-4 h-4" />}
-            {isGlobalBotActive ? 'BOT GLOBAL: ACTIVO' : 'BOT GLOBAL: EN PAUSA'}
+            {isGlobalBotActive ? <PlayCircle className="w-4 h-4 shrink-0" /> : <PauseCircle className="w-4 h-4 shrink-0" />}
+            <span>{isGlobalBotActive ? 'BOT: ACTIVO' : 'BOT: EN PAUSA'}</span>
           </button>
 
           <button
             onClick={handleToggleAutoPause}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 border transition-all ${
+            className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all whitespace-nowrap ${
               isAutoPauseActive
                 ? 'bg-orange-950/30 text-orange-400 border-orange-500/40'
                 : 'bg-zinc-900 text-zinc-400 border-zinc-800'
             }`}
             title="Si un operador humano escribe desde WhatsApp en una charla activa, el bot se pausa automáticamente y solo observa/resume."
           >
-            <Eye className="w-4 h-4" />
-            Auto-Pausa al Escribir: {isAutoPauseActive ? 'ON' : 'OFF'}
+            <Eye className="w-4 h-4 shrink-0" />
+            <span>Auto-Pausa: {isAutoPauseActive ? 'ON' : 'OFF'}</span>
           </button>
 
           <div
-            className="bg-zinc-900 border border-orange-500/40 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2"
-            title="Configurar cada cuántos minutos el Bot le envía recordatorio por WhatsApp a la sucursal cuando hay un presupuesto pendiente"
+            className="bg-zinc-900 border border-orange-500/40 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 whitespace-nowrap"
+            title="Configurar cada cuántos minutos el Bot le envía recordatorio por WhatsApp a Sucursal Centro cuando hay un presupuesto pendiente"
           >
-            <Clock className="w-4 h-4 text-orange-500 shrink-0" />
+            <Clock className="w-3.5 h-3.5 text-orange-500 shrink-0" />
             <span className="text-zinc-300">Recordatorio:</span>
             <select
               value={String(botConfig.sla_recordatorio_minutos || '15')}
               onChange={(e) => handleUpdateBrokerConfig({ sla_recordatorio_minutos: String(e.target.value) })}
-              className="bg-orange-500/20 text-orange-300 font-black px-2 py-0.5 rounded-lg border border-orange-500/40 outline-none cursor-pointer"
+              className="bg-orange-500/20 text-orange-300 font-black px-1.5 py-0.5 rounded-lg border border-orange-500/40 outline-none cursor-pointer"
             >
               {['10', '15', '20', '25', '30', '45', '60'].map((m) => (
                 <option key={m} value={m} className="bg-zinc-900 text-white">
@@ -1053,19 +1029,21 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
 
           <button
             onClick={handleExportCSV}
-            className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-colors"
+            className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors whitespace-nowrap"
+            title="Exportar el listado completo de sesiones y métricas a un archivo CSV/Excel"
           >
-            <Download className="w-4 h-4 text-orange-500" />
-            Exportar CSV
+            <Download className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+            <span>CSV</span>
           </button>
 
           <button
             onClick={() => loadDashboard(false)}
             disabled={isSyncing}
-            className="bg-orange-600 hover:bg-orange-500 text-black font-black px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 transition-colors disabled:opacity-50"
+            className="bg-orange-600 hover:bg-orange-500 text-black font-black px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-colors disabled:opacity-50 whitespace-nowrap"
+            title="Sincronizar conversaciones y estados con n8n / Firestore"
           >
-            <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-            {isSyncing ? 'Sincronizando...' : 'Actualizar'}
+            <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${isSyncing ? 'animate-spin' : ''}`} />
+            <span>{isSyncing ? 'Sincronizando...' : 'Actualizar'}</span>
           </button>
         </div>
       </div>
@@ -1226,16 +1204,19 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
           </div>
 
           {/* NUEVA SECCIÓN: RADIOGRAFÍA DE NO DERIVADOS (POR QUÉ NO LLEGARON A DERIVARSE) */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-5 border-b border-zinc-800 pb-4">
-              <div>
-                <h3 className="text-base font-black text-white flex items-center gap-2">
-                  <Filter className="w-5 h-5 text-amber-400" />
-                  Radiografía de Clientes No Derivados ({stats.nonDerived} casos): ¿Por qué no llegaron a derivarse?
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-4 lg:p-5">
+            <div className="flex flex-wrap justify-between items-center gap-3 mb-4 border-b border-zinc-800 pb-3.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <Filter className="w-4 h-4 text-amber-400 shrink-0" />
+                <h3 className="text-sm lg:text-base font-black text-white">
+                  Radiografía de Clientes No Derivados ({stats.nonDerived} casos)
                 </h3>
-                <p className="text-xs text-zinc-400 mt-1">
-                  Clasificación automática de los motivos por los que una conversación no terminó en derivación a sucursal. Haz clic en cualquier motivo para inspeccionar las charlas.
-                </p>
+                <span
+                  className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-zinc-800 text-zinc-300 cursor-help whitespace-nowrap"
+                  title="Clasificación automática de los motivos por los que una conversación no terminó en derivación a sucursal. Pasa el mouse por cada tarjeta para ver la explicación o haz clic para inspeccionar las charlas."
+                >
+                  ⓘ Pasar mouse para detalle
+                </span>
               </div>
               <button
                 onClick={() => {
@@ -1243,16 +1224,17 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
                   setChatFilter('nonderived');
                   setNonDerivedSubFilter('all');
                 }}
-                className="bg-zinc-800 hover:bg-zinc-700 text-amber-300 border border-amber-500/30 px-4 py-2 rounded-xl text-xs font-black shrink-0"
+                className="bg-zinc-800 hover:bg-zinc-700 text-amber-300 border border-amber-500/30 px-3.5 py-1.5 rounded-xl text-xs font-black whitespace-nowrap"
               >
-                Ver todos los No Derivados ({stats.nonDerived})
+                Ver todos ({stats.nonDerived})
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               {stats.nonDerivedBreakdown.map((item) => (
                 <div
                   key={item.id}
+                  title={`${item.label}: ${item.description}`}
                   onClick={() => {
                     setActiveTab('chats');
                     setChatFilter('nonderived');
@@ -1260,25 +1242,27 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
                     const firstMatch = sessions.find(s => !s.isDerived && s.nonDerivedInfo?.id === item.id);
                     if (firstMatch) setSelectedSessionId(firstMatch.documentId);
                   }}
-                  className="bg-black/50 hover:bg-zinc-800/60 border border-zinc-800 hover:border-orange-500/40 rounded-2xl p-4 cursor-pointer transition-all flex flex-col justify-between"
+                  className="bg-black/50 hover:bg-zinc-800/60 border border-zinc-800 hover:border-orange-500/40 rounded-2xl p-3.5 cursor-pointer transition-all flex flex-col justify-between min-w-0"
                 >
                   <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${item.color}`}>
+                    <div className="flex justify-between items-center gap-1.5 mb-2">
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border truncate ${item.color}`}>
                         {item.shortBadge}
                       </span>
-                      <span className="text-xl font-black text-white">{item.count}</span>
+                      <span className="text-xl font-black text-white shrink-0">{item.count}</span>
                     </div>
-                    <p className="text-xs font-bold text-zinc-200 mb-1">{item.label}</p>
-                    <p className="text-[11px] text-zinc-500 leading-relaxed">{item.description}</p>
+                    <p className="text-xs font-bold text-zinc-200 truncate">{item.label}</p>
+                    <p className="text-[10px] text-zinc-500 mt-1 flex items-center gap-1">
+                      <span>ⓘ Ver explicación en globo</span>
+                    </p>
                   </div>
 
-                  <div className="mt-4">
+                  <div className="mt-3">
                     <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden mb-1.5">
                       <div className={`h-full ${item.barColor}`} style={{ width: `${item.pct}%` }} />
                     </div>
-                    <div className="flex justify-between items-center text-[10px] font-bold text-zinc-400">
-                      <span>{item.pct}% de los no derivados</span>
+                    <div className="flex justify-between items-center text-[10px] font-bold text-zinc-400 whitespace-nowrap">
+                      <span>{item.pct}%</span>
                       <span className="text-orange-400 underline">Ver charlas →</span>
                     </div>
                   </div>
