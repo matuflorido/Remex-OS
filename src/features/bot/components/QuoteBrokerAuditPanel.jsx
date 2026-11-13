@@ -74,6 +74,7 @@ export default function QuoteBrokerAuditPanel({
   const [modelSearch, setModelSearch] = useState('');
   const [isScanningChats, setIsScanningChats] = useState(false);
   const [localBalloon, setLocalBalloon] = useState(null);
+  const [customSlaDraft, setCustomSlaDraft] = useState(null);
 
   useEffect(() => {
     if (!isMirrorSandbox) return;
@@ -340,6 +341,47 @@ export default function QuoteBrokerAuditPanel({
     const now = new Date().toISOString();
 
     if (simState.estado === 'sin_iniciar' || simState.estado === 'confirmado') {
+      // Desambiguación de calle Gallardo (Centro vs Estadio)
+      if (/gallardo/i.test(txt) && !/\b(centro|estadio|735|1414)\b/i.test(txt)) {
+        const botGallardoReply =
+          'Sobre calle *Gallardo* tenemos dos sucursales en Bariloche:\n' +
+          '• *Sucursal Centro* (Av. Ángel Gallardo 735)\n' +
+          '• *Sucursal Estadio* (Av. Ángel Gallardo 1414)\n\n' +
+          '¿En cuál de las dos preferís atenderte?';
+        const nextGallardo = {
+          ...INITIAL_SIM_STATE,
+          clientThread: [
+            ...simState.clientThread,
+            { rol: 'cliente', autor: '👤 Cliente', texto: txt, fecha: now },
+            { rol: 'bot', autor: '🤖 Bot Check-Oil (Asocia calle Gallardo)', texto: botGallardoReply, fecha: now }
+          ]
+        };
+        setClientInput('');
+        persistSim(nextGallardo);
+        return;
+      }
+
+      // Consulta genérica de cambio de aceite y/o filtros sin datos del vehículo -> pedir los 3 ítems estructurados
+      const hasKnownCar = /\b(pulse|hilux|gol|amarok|cronos|ranger|corolla|kangoo|partner|tiida|frontier|senda|408|208|etios|yaris|suran|sandero|duster|corsa|ka|focus|fiesta|cruze|onix|tracker|toro|ecosport)\b/i.test(txt);
+      if (!hasKnownCar && /\b(aceite|filtro|filtros|service|servicio|cambio|cotiz|presupuesto)\b/i.test(txt)) {
+        const botIntakeReply =
+          '¡Hola! Para cotizar correctamente tu servicio necesitaría que me mandes cada uno de estos ítems:\n\n' +
+          'Marca y Modelo:\n' +
+          'Motor:\n' +
+          'Sucursal donde desea ser atendido:';
+        const nextIntake = {
+          ...INITIAL_SIM_STATE,
+          clientThread: [
+            ...simState.clientThread,
+            { rol: 'cliente', autor: '👤 Cliente', texto: txt, fecha: now },
+            { rol: 'bot', autor: '🤖 Bot Check-Oil', texto: botIntakeReply, fecha: now }
+          ]
+        };
+        setClientInput('');
+        persistSim(nextIntake);
+        return;
+      }
+
       const newTicket = `COT-${Math.floor(1000 + Math.random() * 9000)}`;
       const carDetected =
         /pulse/i.test(txt)
@@ -2196,8 +2238,22 @@ export default function QuoteBrokerAuditPanel({
                     min={5}
                     max={180}
                     step={1}
-                    value={mergedCfg.sla_recordatorio_minutos || 15}
-                    onChange={(e) => handleSaveConfigPatch({ sla_recordatorio_minutos: String(Math.max(5, Number(e.target.value || 15))) })}
+                    value={customSlaDraft !== null ? customSlaDraft : (mergedCfg.sla_recordatorio_minutos || 15)}
+                    onFocus={() => setCustomSlaDraft(String(mergedCfg.sla_recordatorio_minutos || 15))}
+                    onChange={(e) => setCustomSlaDraft(e.target.value)}
+                    onBlur={() => {
+                      if (customSlaDraft !== null) {
+                        const cleanMin = Math.min(180, Math.max(5, Number(customSlaDraft || 15)));
+                        setCustomSlaDraft(null);
+                        handleSaveConfigPatch({ sla_recordatorio_minutos: String(cleanMin) });
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        e.currentTarget.blur();
+                      }
+                    }}
                     className="w-24 bg-black border border-zinc-700 rounded-xl px-3 py-1.5 text-sm font-mono font-black text-orange-400"
                   />
                 </div>

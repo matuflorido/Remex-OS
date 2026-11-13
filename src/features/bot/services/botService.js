@@ -6,9 +6,13 @@ const N8N_BOT_API_URL = 'https://n8n.check-oil.tech/webhook/remex-bot-api';
 
 /**
  * Obtiene todas las sesiones, configuración y estadísticas directamente desde el webhook API de n8n
- * (conectado a Firestore check-oil-bot).
+ * (conectado a PostgreSQL checkoil_bot sin límites de cuota).
  */
-const LOCAL_BOT_CACHE_KEY = 'remex_bot_dashboard_cache_v21';
+const LOCAL_BOT_CACHE_KEY = 'remex_bot_dashboard_cache_v23';
+
+// Guardia temporal de guardado para evitar que un poll en vuelo pise cambios recién hechos en bot_config_global
+let lastConfigSaveMs = 0;
+let lastConfigPatch = null;
 
 export const fetchBotDashboardFromN8n = async () => {
   try {
@@ -33,32 +37,40 @@ export const fetchBotDashboardFromN8n = async () => {
       }
     } catch (e) {}
 
+    const recentOptimisticPatch =
+      lastConfigPatch && Date.now() - lastConfigSaveMs < 20000 ? lastConfigPatch : {};
+
+    const remoteConfig = {
+      ...(data?.config || {}),
+      ...recentOptimisticPatch,
+    };
+
     const enrichedConfig = {
       ...DEFAULT_BROKER_CONFIG,
       ...localSyncCfg,
-      ...(data?.config || {}),
+      ...remoteConfig,
       modo_presupuesto_intermediario:
-        data?.config?.modo_presupuesto_intermediario ??
+        remoteConfig?.modo_presupuesto_intermediario ??
         localSyncCfg?.modo_presupuesto_intermediario ??
         DEFAULT_BROKER_CONFIG.modo_presupuesto_intermediario,
       fecha_inicio_intermediario:
-        data?.config?.fecha_inicio_intermediario ??
+        remoteConfig?.fecha_inicio_intermediario ??
         localSyncCfg?.fecha_inicio_intermediario ??
         DEFAULT_BROKER_CONFIG.fecha_inicio_intermediario,
       sucursales_intermediario_json:
-        data?.config?.sucursales_intermediario_json ??
+        remoteConfig?.sucursales_intermediario_json ??
         localSyncCfg?.sucursales_intermediario_json ??
         DEFAULT_BROKER_CONFIG.sucursales_intermediario_json,
       sla_recordatorio_minutos:
-        data?.config?.sla_recordatorio_minutos ??
+        remoteConfig?.sla_recordatorio_minutos ??
         localSyncCfg?.sla_recordatorio_minutos ??
         DEFAULT_BROKER_CONFIG.sla_recordatorio_minutos,
       max_recordatorios_sla:
-        data?.config?.max_recordatorios_sla ??
+        remoteConfig?.max_recordatorios_sla ??
         localSyncCfg?.max_recordatorios_sla ??
         DEFAULT_BROKER_CONFIG.max_recordatorios_sla,
       horario_comercial_json:
-        data?.config?.horario_comercial_json ??
+        remoteConfig?.horario_comercial_json ??
         localSyncCfg?.horario_comercial_json ??
         DEFAULT_BROKER_CONFIG.horario_comercial_json
     };
@@ -100,10 +112,15 @@ export const fetchBotDashboardFromN8n = async () => {
 };
 
 /**
- * Actualiza una sesión de cliente o la configuración global (__bot_config__) en n8n / Firestore,
+ * Actualiza una sesión de cliente o la configuración global (bot_config_global) en n8n / PostgreSQL,
  * y opcionalmente envía un mensaje directo de WhatsApp vía Evolution API.
  */
 export const upsertBotDocumentInN8n = async (documentId, data, sendWhatsappText = '') => {
+  if (documentId === 'bot_config_global' && data && typeof data === 'object') {
+    lastConfigSaveMs = Date.now();
+    lastConfigPatch = { ...(lastConfigPatch || {}), ...data };
+  }
+
   const response = await fetch(N8N_BOT_API_URL, {
     method: 'POST',
     headers: {

@@ -4,7 +4,7 @@ import useUIStore from '../store/useUIStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { canAccessPartnersSection } from '../features/partners/services/partnerGovernanceService';
 
-const CURRENT_VERSION = '2.5.4';
+const CURRENT_VERSION = '2.5.5';
 
 export default function UpdateModal() {
   const [isOpen, setIsOpen] = useState(false);
@@ -64,10 +64,30 @@ export default function UpdateModal() {
 
         <div className="p-6 md:p-8 overflow-y-auto custom-scrollbar flex-1 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-zinc-900/40 via-zinc-950 to-zinc-950">
           <p className="text-zinc-300 mb-6 text-sm">
-            La versión <strong>2.5.1</strong> incorpora el <strong>Recordatorio Configurable en Minutos (por defecto cada 15 min)</strong> desde el Bot y desde Presupuestos, la <strong>Barra Lateral Extendible/Cerrable</strong> y el <strong>Módulo de Presupuestos 100% Independiente</strong>:
+            La versión <strong>2.5.5</strong> incorpora la nueva base de datos dedicada en <strong>PostgreSQL sin límites de lectura</strong>, persistencia inmediata del horario de recordatorio, visualización completa de todas las cotizaciones de Sucursal Centro y mejoras clave en el Bot Check-Oil:
           </p>
 
           <div className="space-y-4">
+            <div className="bg-zinc-900/80 border border-orange-500/60 p-4 rounded-xl flex gap-3">
+              <Scale className="w-5 h-5 text-orange-400 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-white font-bold text-sm mb-1">⚡ Motor PostgreSQL Dedicado + Todas las Cotizaciones de Centro y Recordatorio Estable</h4>
+                <p className="text-zinc-400 text-sm leading-relaxed">
+                  Se migró el motor del Bot y Presupuestos a una base PostgreSQL dedicada en el servidor propio (sin límites diarios de cuota). Ahora el <strong>recordatorio configurable (ej. 30 min)</strong> queda guardado de forma permanente sin volver atrás, y el panel de <strong>Presupuestos</strong> sincroniza el 100% de las cotizaciones consultadas y PDFs enviados por Sucursal Centro.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-zinc-900/80 border border-emerald-500/50 p-4 rounded-xl flex gap-3">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-white font-bold text-sm mb-1">🤖 Nueva Solicitud de Datos (Aceite/Filtros), Repreguntas de Sucursal y Calle Gallardo</h4>
+                <p className="text-zinc-400 text-sm leading-relaxed">
+                  Al solicitar cambio de aceite y/o filtros, el Bot pide ordenadamente <strong>Marca y Modelo</strong>, <strong>Motor</strong> y <strong>Sucursal donde desea ser atendido</strong>, gestiona detalles adicionales consultados por la sucursal hacia el cliente, y asocia automáticamente <strong>calle Gallardo</strong> con <strong>Sucursal Centro (735)</strong> o <strong>Sucursal Estadio (1414)</strong>.
+                </p>
+              </div>
+            </div>
+
             <div className="bg-zinc-900/80 border border-orange-500/50 p-4 rounded-xl flex gap-3">
               <Scale className="w-5 h-5 text-orange-400 shrink-0 mt-0.5" />
               <div>

@@ -293,9 +293,21 @@ export function evaluateBrokerActivationStatus(botConfig = {}, nowDate = new Dat
 // ============================================================================
 // NORMALIZADOR INTELIGENTE DE MODELOS DE VEHÍCULOS (PARA AGRUPAR COTIZACIONES)
 // ============================================================================
+export function cleanVehicleDisplayName(rawVehicle = '') {
+  const cleaned = String(rawVehicle || '')
+    .replace(/\bno\s+especificado\b/gi, '')
+    .replace(/\bsin\s+especificar\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!cleaned || cleaned.toLowerCase() === 'vehículo') {
+    return 'Vehículo sin especificar';
+  }
+  return cleaned;
+}
+
 export function normalizeVehicleModelGroup(rawVehicle = '') {
-  const s = String(rawVehicle || '').trim();
-  if (!s || s.toLowerCase() === 'no especificado' || s.toLowerCase() === 'vehículo') {
+  const s = cleanVehicleDisplayName(rawVehicle);
+  if (!s || s === 'Vehículo sin especificar') {
     return 'Vehículo sin especificar';
   }
   const low = s.toLowerCase();
@@ -721,7 +733,7 @@ export function extractAllQuotesFromSessions(sessions = [], extraQuotes = [], ac
             cliente_jid: q.cliente_jid || s.documentId,
             cliente_nombre: q.cliente_nombre || s.cliente_nombre || 'Cliente',
             cliente_telefono: q.cliente_telefono || s.cliente_telefono || '',
-            vehiculo: q.vehiculo || s.vehiculo || 'Vehículo',
+            vehiculo: cleanVehicleDisplayName(q.vehiculo || s.vehiculo),
             modelo_normalizado: normalizeVehicleModelGroup(q.vehiculo || s.vehiculo),
             historial_charla: Array.isArray(historial) ? historial : [],
             estado:
@@ -743,7 +755,7 @@ export function extractAllQuotesFromSessions(sessions = [], extraQuotes = [], ac
           cliente_jid: curr.cliente_jid || s.documentId,
           cliente_nombre: curr.cliente_nombre || s.cliente_nombre || 'Cliente',
           cliente_telefono: curr.cliente_telefono || s.cliente_telefono || '',
-          vehiculo: curr.vehiculo || s.vehiculo || 'Vehículo',
+          vehiculo: cleanVehicleDisplayName(curr.vehiculo || s.vehiculo),
           modelo_normalizado: normalizeVehicleModelGroup(curr.vehiculo || s.vehiculo),
           historial_charla: Array.isArray(historial) ? historial : [],
           estado: s.estado_cotizacion || curr.estado || 'presupuesto_enviado'
@@ -751,22 +763,43 @@ export function extractAllQuotesFromSessions(sessions = [], extraQuotes = [], ac
       }
     }
 
-    // Pedidos activos esperando respuesta de la sucursal o repregunta (solo sucursal piloto activa)
+    // Detectar ticket en historial si por algún motivo ticket_id no quedó en nivel raíz
+    const chatCombinedStr = Array.isArray(historial) ? historial.map((m) => m?.texto || '').join('\n') : '';
+    const ticketInChatMatch = chatCombinedStr.match(/#(COT-\d{3,5})/i);
+    const effectiveTicketId =
+      s.ticket_id ||
+      (ticketInChatMatch ? ticketInChatMatch[1].toUpperCase() : '') ||
+      ((s.estado_charla === 'esperando_cotizacion' || s.estado_charla === 'presupuesto_enviado') &&
+      isBranchObservedInPilot(sessionBranch || 'Centro', activeBranchKeys)
+        ? `COT-${String(s.documentId || '').replace(/\D/g, '').slice(-4) || '0001'}`
+        : '');
+    const effectiveQuoteState =
+      s.estado_cotizacion ||
+      (s.estado_charla === 'esperando_cotizacion'
+        ? 'esperando_sucursal'
+        : s.estado_charla === 'presupuesto_enviado'
+          ? 'presupuesto_enviado'
+          : ticketInChatMatch
+            ? 'esperando_sucursal'
+            : '');
+
+    // Pedidos activos esperando respuesta de la sucursal, repregunta, enviados o confirmados (solo sucursal piloto activa)
     if (
-      s.ticket_id &&
-      (s.estado_cotizacion === 'esperando_sucursal' ||
-        s.estado_cotizacion === 'esperando_respuesta_cliente' ||
-        s.estado_cotizacion === 'presupuesto_enviado') &&
-      !map.has(s.ticket_id) &&
+      effectiveTicketId &&
+      (effectiveQuoteState === 'esperando_sucursal' ||
+        effectiveQuoteState === 'esperando_respuesta_cliente' ||
+        effectiveQuoteState === 'presupuesto_enviado' ||
+        effectiveQuoteState === 'confirmado') &&
+      !map.has(effectiveTicketId) &&
       isBranchObservedInPilot(sessionBranch || 'Centro', activeBranchKeys)
     ) {
-      map.set(s.ticket_id, {
-        ticket_id: s.ticket_id,
+      map.set(effectiveTicketId, {
+        ticket_id: effectiveTicketId,
         cliente_jid: s.documentId,
         cliente_nombre: s.cliente_nombre || 'Cliente',
         cliente_telefono: s.cliente_telefono || '',
         sucursal: sessionBranch || 'Centro',
-        vehiculo: s.vehiculo || 'No especificado',
+        vehiculo: cleanVehicleDisplayName(s.vehiculo),
         modelo_normalizado: normalizeVehicleModelGroup(s.vehiculo),
         fecha_pedido: s.fecha_pedido_cotizacion || s.ultima_interaccion,
         fecha_respuesta: s.fecha_respuesta_cotizacion || '',
@@ -777,10 +810,10 @@ export function extractAllQuotesFromSessions(sessions = [], extraQuotes = [], ac
         filtros: [],
         historial_charla: Array.isArray(historial) ? historial : [],
         resumen_items:
-          s.estado_cotizacion === 'esperando_respuesta_cliente'
+          effectiveQuoteState === 'esperando_respuesta_cliente'
             ? `Sucursal repreguntó: "${s.ultima_pregunta_sucursal || ''}"`
             : 'Esperando cotización de la sucursal...',
-        estado: s.estado_cotizacion
+        estado: effectiveQuoteState
       });
     }
 

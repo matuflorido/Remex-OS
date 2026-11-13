@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Bot,
   PauseCircle,
@@ -106,24 +106,34 @@ Teléfono de WhatsApp del cliente (YA DETECTADO): {{ $json.telefonoCliente }}
 Nombre de perfil de WhatsApp del cliente (YA DETECTADO): {{ $json.pushName }}
 REGLA CRÍTICA DE CERO FRICCIÓN: ESTÁ ESTRICTAMENTE PROHIBIDO pedirle al cliente su número de teléfono o su nombre para derivarlo. Usa directamente los datos detectados por WhatsApp.
 
-SUCURSALES DISPONIBLES Y TELÉFONOS INTERNOS (NO LOS PREGUNTES):
-- Check Oil Suc. Centro (Bariloche): 5492944579792 -> ÚNICA SUCURSAL CON PEDIDO DE PRESUPUESTO POR INTERMEDIARIO
-- Check Oil Suc. Estadio (Bariloche): 5492944638500 -> DERIVACIÓN DIRECTA
-- Check Oil Suc. Ñireco (Bariloche): 5492944907667 -> DERIVACIÓN DIRECTA
-- Check Oil Suc. Km13 (Bariloche): 5492944615570 -> DERIVACIÓN DIRECTA
-- Check Oil Suc. Bolsón (El Bolsón): 5492944631155 -> DERIVACIÓN DIRECTA
-- Check Oil Suc. Dominico (Avellaneda): 5491161217529 -> DERIVACIÓN DIRECTA
+SUCURSALES DISPONIBLES, DIRECCIONES Y TELÉFONOS INTERNOS (NO LOS PREGUNTES):
+- Check Oil Suc. Centro (Av. Ángel Gallardo 735, Bariloche): 5492944579792 -> ÚNICA SUCURSAL CON PEDIDO DE PRESUPUESTO POR INTERMEDIARIO
+- Check Oil Suc. Estadio (Av. Ángel Gallardo 1414, Bariloche): 5492944638500 -> DERIVACIÓN DIRECTA
+- Check Oil Suc. Ñireco (Los Ñires 277 / 303, Bariloche): 5492944907667 -> DERIVACIÓN DIRECTA
+- Check Oil Suc. Km13 (Av. Bustillo Km 13, Bariloche): 5492944615570 -> DERIVACIÓN DIRECTA
+- Check Oil Suc. Bolsón (Av. Sarmiento 3280, El Bolsón): 5492944631155 -> DERIVACIÓN DIRECTA
+- Check Oil Suc. Dominico (Av. Bartolomé Mitre 4899, Villa Domínico - Avellaneda): 5491161217529 -> DERIVACIÓN DIRECTA
+
+REGLA DE ASOCIACIÓN DE CALLES Y UBICACIONES:
+- Si el cliente menciona "Gallardo" (sin aclarar numeración ni Centro/Estadio), el Bot entiende que SOLO puede ser Sucursal Centro (Av. Ángel Gallardo 735) o Sucursal Estadio (Av. Ángel Gallardo 1414) y pregunta únicamente cuál de esas dos prefiere.
+- Asociaciones directas: "Los Ñires" -> Ñireco | "Bustillo" -> Km13 | "Sarmiento" -> El Bolsón | "Mitre / Villa Domínico / Avellaneda" -> Dominico.
 
 FLUJO DE CONVERSACIÓN:
-PASO 1: SALUDO Y DESCUBRIMIENTO (según hora local AR).
-PASO 2: EXTRACCIÓN DE DATOS DEL VEHÍCULO (Marca, Modelo, Año y Motor en una sola pregunta; inferir Marca si el modelo es inconfundible).
-PASO 3: OFRECER ZONAS Y SUCURSAL (Bariloche, El Bolsón o Buenos Aires - Dominico).
-PASO 4A (EXCLUSIVO SUCURSAL CENTRO — Modo Intermediario de Presupuesto):
+PASO 1: SALUDO Y CONSULTA DE SERVICIO DE CAMBIO DE ACEITE Y/O FILTROS:
+- Cuando el cliente solicita un servicio o cotización de cambio de aceite y/o filtros, solicitar los ítems faltantes con este formato limpio:
+  Para cotizar correctamente tu servicio necesitaría que me mandes cada uno de estos ítems:
+
+  Marca y Modelo:
+  Motor:
+  Sucursal donde desea ser atendido:
+  (Omitir cualquier ítem que el cliente ya haya informado; no bloquear por el año salvo que la sucursal lo pida luego).
+PASO 2A (EXCLUSIVO SUCURSAL CENTRO — Modo Intermediario de Presupuesto):
 - NO derivar ni mostrar el teléfono del cliente hasta que confirme el presupuesto.
 - Ejecutar Gestionar_Presupuesto_Sucursal (#COT-XXXX sin teléfono del cliente).
+- Si la sucursal necesita algún detalle adicional (ej. año exacto, tipo de aceite, DPF, filtro habitáculo), la sucursal le pregunta al Bot, el Bot le traslada la consulta al cliente (estado esperando_respuesta_cliente) y al recibir respuesta se la reenvía a la sucursal (vuelve a esperando_sucursal).
 - Cuando la sucursal Centro responde con el PDF o texto del presupuesto, analizar códigos de filtros/aceite y valores, medir demora hábil y reenviar Resumen + PDF adjunto al cliente.
 - Recién cuando el cliente CONFIRMA/ACEPTA el presupuesto o pide turno, ejecutar Enviar_Derivacion_Sucursal liberando teléfono y wa.me.
-PASO 4B (DOMINICO, ÑIRECO, ESTADIO, KM13 Y BOLSÓN — Derivación Directa Obligatoria):
+PASO 2B (DOMINICO, ÑIRECO, ESTADIO, KM13 Y BOLSÓN — Derivación Directa Obligatoria):
 - PROHIBIDO pedir presupuesto por intermediario en estas 5 sucursales.
 - Ejecutar SIEMPRE Enviar_Derivacion_Sucursal de inmediato con {{ $json.telefonoCliente }} y https://wa.me/{{ $json.telefonoCliente }}.
 
@@ -417,6 +427,7 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
   const [newRuleAnswer, setNewRuleAnswer] = useState('');
   const [editingLearningSessionId, setEditingLearningSessionId] = useState(null);
   const [editingLearningRuleText, setEditingLearningRuleText] = useState('');
+  const configDirtyRef = useRef(false);
 
   const loadDashboard = async (silent = false) => {
     if (!silent) setIsLoading(true);
@@ -424,7 +435,7 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
     setErrorMsg('');
     try {
       const data = await fetchBotDashboardFromN8n();
-      if (data?.config) {
+      if (data?.config && !(silent && configDirtyRef.current)) {
         setBotConfig(data.config);
       }
       if (Array.isArray(data?.sessions)) {
@@ -844,6 +855,7 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
     setIsSyncing(true);
     try {
       await upsertBotDocumentInN8n('bot_config_global', botConfig);
+      configDirtyRef.current = false;
     } finally {
       setIsSyncing(false);
     }
@@ -2059,7 +2071,10 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
               </label>
               <textarea
                 value={botConfig.prompt_extra || ''}
-                onChange={(e) => setBotConfig({ ...botConfig, prompt_extra: e.target.value })}
+                onChange={(e) => {
+                  configDirtyRef.current = true;
+                  setBotConfig({ ...botConfig, prompt_extra: e.target.value });
+                }}
                 rows={4}
                 placeholder="Ej: Hoy sábado la sucursal Centro cierra a las 13:00 hs. Si el cliente ya indicó sucursal en su primer mensaje, no volver a preguntar zona..."
                 className="w-full bg-black border border-zinc-800 rounded-xl p-3 text-xs text-white focus:border-orange-500 outline-none"
@@ -2076,7 +2091,10 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
                 max={60000}
                 step={1000}
                 value={botConfig.delay_respuesta_ms || 20000}
-                onChange={(e) => setBotConfig({ ...botConfig, delay_respuesta_ms: String(e.target.value) })}
+                onChange={(e) => {
+                  configDirtyRef.current = true;
+                  setBotConfig({ ...botConfig, delay_respuesta_ms: String(e.target.value) });
+                }}
                 className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-orange-500 outline-none font-mono"
               />
               <p className="text-[11px] text-zinc-500 mt-1">
@@ -2098,7 +2116,10 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
                     <button
                       key={m}
                       type="button"
-                      onClick={() => handleUpdateBrokerConfig({ sla_recordatorio_minutos: String(m) })}
+                      onClick={() => {
+                        configDirtyRef.current = false;
+                        handleUpdateBrokerConfig({ sla_recordatorio_minutos: String(m) });
+                      }}
                       className={`px-3 py-1.5 rounded-xl text-xs font-black border transition-all ${
                         active
                           ? 'bg-orange-500 text-black border-orange-400'
@@ -2119,7 +2140,15 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
                     max={180}
                     step={1}
                     value={botConfig.sla_recordatorio_minutos || 15}
-                    onChange={(e) => setBotConfig({ ...botConfig, sla_recordatorio_minutos: String(e.target.value) })}
+                    onChange={(e) => {
+                      configDirtyRef.current = true;
+                      setBotConfig({ ...botConfig, sla_recordatorio_minutos: String(e.target.value) });
+                    }}
+                    onBlur={(e) => {
+                      const cleanMin = Math.min(180, Math.max(5, Number(e.target.value || 15)));
+                      configDirtyRef.current = false;
+                      handleUpdateBrokerConfig({ sla_recordatorio_minutos: String(cleanMin) });
+                    }}
                     className="w-full bg-black border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-orange-400 font-mono font-black focus:border-orange-500 outline-none"
                   />
                 </div>
@@ -2127,7 +2156,10 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
                   <span className="block text-[11px] font-bold text-zinc-400 mb-1">Máx. recordatorios por pedido:</span>
                   <select
                     value={String(botConfig.max_recordatorios_sla || '3')}
-                    onChange={(e) => setBotConfig({ ...botConfig, max_recordatorios_sla: String(e.target.value) })}
+                    onChange={(e) => {
+                      configDirtyRef.current = false;
+                      handleUpdateBrokerConfig({ max_recordatorios_sla: String(e.target.value) });
+                    }}
                     className="w-full bg-black border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-white font-black focus:border-orange-500 outline-none"
                   >
                     <option value="1">1 recordatorio</option>
