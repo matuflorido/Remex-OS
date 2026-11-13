@@ -523,12 +523,19 @@ export function parseQuoteFromTextOrPdf(rawText, options = {}) {
     .map((l) => l.trim())
     .filter(Boolean);
 
-  const hasQuestionWords = /\?|motor|cilindrada|nafta|diesel|gasolera|patente|chasis|sint[eé]tico|semi|4x2|4x4|autom[aá]tic|manual/i.test(text);
-  const moneyMatches = text.match(/\$\s*\d[\d.,]*|\b\d{2,3}(?:\.\d{3})+(?:,\d{2})?\b/g) || [];
-  if (formatoOrigen === 'texto' && hasQuestionWords && moneyMatches.length === 0) {
+  const cleanTextForPrices = text
+    .replace(/#?COT-\d{3,6}/gi, ' ')
+    .replace(/\d+(?:[.,]\d+)*\s*(?:km|kil[oó]metros|lts?|litros?)\b/gi, ' ')
+    .replace(/\b(?:19[89]\d|20[0-3]\d)\b/g, ' ');
+  const moneyMatches = cleanTextForPrices.match(/\$\s*\d[\d.,]*|\b\d{2,3}(?:\.\d{3})+(?:,\d{2})?\b/g) || [];
+  if (formatoOrigen === 'texto' && moneyMatches.length === 0) {
+    const cleanQuestion = text.replace(/^\s*#?COT-\d{3,6}\s*[:\-–]?\s*/i, '').trim();
+    const formattedQuestion = cleanQuestion
+      ? cleanQuestion.charAt(0).toUpperCase() + cleanQuestion.slice(1)
+      : text;
     return {
       tipo_respuesta_sucursal: 'pregunta_al_cliente',
-      pregunta_para_cliente: `Para terminar de cotizar exacto tu ${vehicleHint}, desde ${branchName} me consultan: *${text}*`,
+      pregunta_para_cliente: `Desde ${branchName} nos consultan sobre tu vehículo:\n\n${formattedQuestion}`,
       resumen_para_cliente: '',
       quoteRecord: null
     };
@@ -659,14 +666,9 @@ export function parseQuoteFromTextOrPdf(rawText, options = {}) {
   }
 
   const resumenParaCliente =
-    `¡Hola! Ya tenemos el presupuesto de *${branchName}* para tu *${vehicleHint}* (Ref. #${ticketId}):\n\n` +
-    (bulletLines.length > 0 ? `${bulletLines.join('\n')}\n\n` : `• *Detalle:* ${text.slice(0, 260)}\n\n`) +
-    (totalCotizado > 0 ? `💰 *Total Presupuestado:* $${totalCotizado.toLocaleString('es-AR')}\n` : '') +
-    (totalConDescuento > 0
-      ? `💵 *Efectivo / Transferencia (${descuentoPorcentaje}% OFF):* $${totalConDescuento.toLocaleString('es-AR')}\n`
-      : '') +
-    (formatoOrigen === 'pdf' ? `\n📎 _Te adjuntamos también el presupuesto original en PDF._\n` : '\n') +
-    `¿Querés que *confirmemos este presupuesto* para reservar tu turno o coordinar con la sucursal?`;
+    formatoOrigen === 'pdf'
+      ? `Te enviamos adjunto el presupuesto de ${branchName} para tu vehículo. Si querés confirmarlo para coordinar con la sucursal, avisanos por este medio. Si necesitás algo más, estamos a tu disposición.`
+      : `Te enviamos el presupuesto de ${branchName}:\n\n${text.replace(/^\s*#?COT-\d{3,6}\s*[:\-–]?\s*/i, '').trim()}\n\nSi querés confirmarlo para coordinar con la sucursal, avisanos por este medio. Si necesitás algo más, estamos a tu disposición.`;
 
   return {
     tipo_respuesta_sucursal: 'presupuesto',
