@@ -28,7 +28,8 @@ import {
   MessageCircleWarning,
   HelpCircle,
   Filter,
-  Scale
+  Scale,
+  FileText
 } from 'lucide-react';
 import { Doughnut, Bar } from 'react-chartjs-2';
 import {
@@ -41,6 +42,11 @@ import {
   extractAllQuotesFromSessions
 } from '../services/quoteBrokerEngine';
 import QuoteBrokerAuditPanel from './QuoteBrokerAuditPanel';
+import BotNonDerivedReportPanel from './BotNonDerivedReportPanel';
+import {
+  evaluateEffectiveDerivation,
+  isGhostEmptySession
+} from '../services/botNonDerivedAnalyzer';
 import { useAuthStore } from '../../../store/useAuthStore';
 import HelpTooltip from '../../../components/ui/HelpTooltip';
 
@@ -404,6 +410,7 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
 
   // Datos desde n8n / Firestore
   const [sessions, setSessions] = useState([]);
+  const [rawLoadedSessions, setRawLoadedSessions] = useState([]);
   const [botConfig, setBotConfig] = useState({
     documentId: 'bot_config_global',
     bot_activo: 'true',
@@ -445,8 +452,13 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
       }
       if (Array.isArray(data?.sessions)) {
         const sucursalJids = SUCURSALES_LIST.map(s => `${s.phone}@s.whatsapp.net`);
+        setRawLoadedSessions(
+          data.sessions.filter(
+            s => !String(s?.documentId || '').endsWith('@g.us') && !sucursalJids.includes(s?.documentId)
+          )
+        );
         const cleanSessions = data.sessions
-          .filter(s => s.documentId && !s.documentId.endsWith('@g.us') && !sucursalJids.includes(s.documentId))
+          .filter(s => s.documentId && s.documentId !== 'undefined' && !s.documentId.endsWith('@g.us') && !sucursalJids.includes(s.documentId))
           .map(s => {
             let historial = [];
             try {
@@ -455,11 +467,11 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
             } catch (e) {
               historial = [];
             }
+            if (isGhostEmptySession(s, historial)) return null;
             const rawDate = s.ultima_interaccion || s._createTime || s._updateTime || '';
             const isPaused = s.bot_pausado === 'true' || s.bot_pausado === true;
-            const isDerived =
-              s.estado_charla === 'derivada' ||
-              Boolean(s.resumen_historico && s.resumen_historico.toLowerCase().includes('check oil'));
+            const derivEval = evaluateEffectiveDerivation(s, historial);
+            const isDerived = derivEval.isEffectivelyDerived;
 
             const timing = analyzeSessionTiming(rawDate, historial, isDerived, isPaused);
             const nonDerivedInfo = classifyNonDerivedSession(s, historial, isDerived);
@@ -470,10 +482,12 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
               updatedTime: timing.effectiveDateStr || rawDate,
               isPaused,
               isDerived,
+              wasOverwrittenByCourtesy: derivEval.wasOverwrittenByCourtesy,
               timing,
               nonDerivedInfo
             };
           })
+          .filter(Boolean)
           .sort((a, b) => new Date(b.updatedTime || 0).getTime() - new Date(a.updatedTime || 0).getTime());
 
         setSessions(cleanSessions);
@@ -1122,7 +1136,19 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
             }`}
           >
             <BarChart3 className="w-4 h-4" />
-            Estadísticas y No Derivados
+            Estadísticas y Sucursales
+          </button>
+
+          <button
+            onClick={() => setActiveTab('audit_nonderived')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all ${
+              activeTab === 'audit_nonderived'
+                ? 'bg-orange-500 text-black shadow-[0_0_15px_rgba(249,115,22,0.4)]'
+                : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            Informe Sin Derivación
           </button>
 
           <button
@@ -1183,6 +1209,21 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
           </span>
         )}
       </div>
+
+      {/* =========================================================
+          NUEVA PESTAÑA: INFORME FORENSE DE CONVERSACIONES SIN DERIVACIÓN
+      ========================================================= */}
+      {activeTab === 'audit_nonderived' && (
+        <div className="dark">
+          <BotNonDerivedReportPanel
+            rawSessions={rawLoadedSessions}
+            onOpenChatSession={(jid) => {
+              setSelectedSessionId(jid);
+              setActiveTab('chats');
+            }}
+          />
+        </div>
+      )}
 
       {/* =========================================================
           TAB 1: ESTADÍSTICAS, SUCURSALES Y RADIOGRAFÍA DE NO DERIVADOS

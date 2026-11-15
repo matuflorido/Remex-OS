@@ -1,4 +1,5 @@
-const { app, BrowserWindow, ipcMain, dialog, Notification } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Notification, shell } = require('electron');
+const fs = require('fs');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
 
@@ -95,6 +96,26 @@ ipcMain.on('check-for-updates-manual', () => {
     isManualCheck = false;
     dialog.showErrorBox('Error de Actualización', 'Detalle técnico: ' + err.message);
   });
+});
+
+ipcMain.handle('open-or-save-manual-pdf', async () => {
+  try {
+    const pdfSrc = path.join(__dirname, 'dist', 'manual', 'Manual_Profesional_Remex_OS.pdf');
+    const pdfBuffer = fs.readFileSync(pdfSrc);
+    const defaultDest = path.join(app.getPath('downloads'), 'Manual_Profesional_Remex_OS.pdf');
+    const { canceled, filePath } = await dialog.showSaveDialog({
+      title: 'Guardar Manual Profesional Remex Work-OS (PDF)',
+      defaultPath: defaultDest,
+      filters: [{ name: 'Documento PDF', extensions: ['pdf'] }]
+    });
+    if (canceled || !filePath) return { ok: false, canceled: true };
+    fs.writeFileSync(filePath, pdfBuffer);
+    await shell.openPath(filePath);
+    return { ok: true, filePath };
+  } catch (err) {
+    dialog.showErrorBox('Error al exportar el Manual PDF', err.message || String(err));
+    return { ok: false, error: err.message || String(err) };
+  }
 });
 
 // --- LÓGICA DE NOTIFICACIONES Y GLOBOS ---

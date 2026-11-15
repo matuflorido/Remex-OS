@@ -105,10 +105,17 @@ export const deleteTripInDb = async (tripId) => {
 
 export const subscribeToAllTrips = (callback) => {
   const q = query(collection(db, 'trips'));
-  return onSnapshot(q, (snapshot) => {
-    const trips = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
-    callback(trips);
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const trips = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
+      callback(trips);
+    },
+    (err) => {
+      console.warn('trips listener fallback:', err?.message || err);
+      callback([]);
+    }
+  );
 };
 
 // ==========================================
@@ -116,10 +123,17 @@ export const subscribeToAllTrips = (callback) => {
 // ==========================================
 export const subscribeToVehicles = (callback) => {
   const q = query(collection(db, 'fleet_vehicles'));
-  return onSnapshot(q, (snapshot) => {
-    const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-    callback(list);
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      callback(list);
+    },
+    (err) => {
+      console.warn('fleet_vehicles listener fallback:', err?.message || err);
+      callback([]);
+    }
+  );
 };
 
 export const saveVehicleInDb = async (vehicleId, data) => {
@@ -142,15 +156,19 @@ export const deleteVehicleInDb = async (vehicleId) => {
 // ==========================================
 export const subscribeToFleetLogs = (callback) => {
   const q = query(collection(db, 'fleet_logs'));
-  return onSnapshot(q, (snapshot) => {
-    const logs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-    logs.sort((a, b) => {
-      const da = new Date(a.date || 0).getTime();
-      const dbTime = new Date(b.date || 0).getTime();
-      return dbTime - da;
-    });
-    callback(logs);
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const logs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      logs.sort((a, b) => {
+        const da = new Date(a.date || 0).getTime();
+        const dbTime = new Date(b.date || 0).getTime();
+        return dbTime - da;
+      });
+      callback(logs);
+    },
+    () => callback([])
+  );
 };
 
 export const addFleetLogInDb = async (logData) => {

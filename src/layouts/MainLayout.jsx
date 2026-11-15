@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Activity, UserCircle, Wrench, Search, Bell, LogOut, Menu, X, CheckCircle2, BarChart3, CalendarDays, Settings, BookOpen, MessageSquare, Inbox, DollarSign, Bot, Scale, Award, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Activity, UserCircle, Wrench, Search, Bell, LogOut, Menu, X, CheckCircle2, BarChart3, CalendarDays, Settings, BookOpen, MessageSquare, Inbox, DollarSign, Bot, Scale, Award, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import useUIStore from '../store/useUIStore';
 import useSettingsStore from '../store/useSettingsStore';
@@ -7,6 +7,7 @@ import { subscribeToNotifications, markNotificationAsRead } from '../features/no
 import { canAccessPartnersSection } from '../features/partners/services/partnerGovernanceService';
 import SettingsModal from '../features/settings/components/SettingsModal';
 import UpdateModal from '../Components/UpdateModal';
+import RemexSystemCopilot from '../features/copilot/components/RemexSystemCopilot';
 import packageJson from '../../package.json';
 
 const electron = window.require ? window.require('electron') : null;
@@ -14,7 +15,7 @@ const ipcRenderer = electron ? electron.ipcRenderer : null;
 
 export default function MainLayout({ children }) {
   const { user, logout } = useAuthStore();
-  const { currentView, setCurrentView, searchQuery, setSearchQuery } = useUIStore();
+  const { currentView, setCurrentView, searchQuery, setSearchQuery, isCopilotOpen, setCopilotOpen } = useUIStore();
   const { notificationLevel } = useSettingsStore();
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
@@ -605,6 +606,15 @@ export default function MainLayout({ children }) {
                 <span>🏛️ Socios (3/3)</span>
               </button>
             )}
+
+            <button
+              onClick={() => setCopilotOpen(true)}
+              className="px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 border bg-orange-950/40 text-orange-300 border-orange-500/50 hover:bg-orange-500 hover:text-black transition-all shrink-0 whitespace-nowrap"
+              title="Ayudante Inteligente Remex OS: consultá dudas de cualquier módulo o pedile ejecutar acciones reales (crear tareas, eventos, cambiar SLA del bot)"
+            >
+              <Sparkles className="w-3.5 h-3.5 shrink-0" />
+              <span>✨ Ayudante IA</span>
+            </button>
           </div>
           
           <div className="flex items-center gap-4 sm:gap-6">
@@ -687,6 +697,13 @@ export default function MainLayout({ children }) {
       </div>
 
       {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
+      <RemexSystemCopilot
+        user={user}
+        isOpen={isCopilotOpen}
+        onOpen={() => setCopilotOpen(true)}
+        onClose={() => setCopilotOpen(false)}
+        onNavigateView={(v) => setCurrentView(v)}
+      />
       <UpdateModal />
     </div>
   );

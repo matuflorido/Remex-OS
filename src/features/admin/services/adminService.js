@@ -6,10 +6,17 @@ import { db, auth, app, firebaseConfig } from '../../../config/firebase';
 
 export const subscribeToUsers = (callback) => {
   const q = query(collection(db, 'users'));
-  return onSnapshot(q, (snapshot) => {
-    const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    callback(users);
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      callback(users);
+    },
+    (err) => {
+      console.warn('users listener fallback:', err?.message || err);
+      callback([]);
+    }
+  );
 };
 
 export const createUserProfile = async (uid, userData) => {

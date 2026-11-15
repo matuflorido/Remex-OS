@@ -5,11 +5,18 @@ import { createTaskInDb } from '../../tasks/services/taskService';
 // Escuchar el historial de fotos de deuda
 export const subscribeToDebtSnapshots = (callback) => {
   const q = query(collection(db, 'debt_snapshots'));
-  return onSnapshot(q, (snapshot) => {
-    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    // Ordenamos del más reciente al más antiguo
-    callback(data.sort((a, b) => new Date(b.date) - new Date(a.date)));
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // Ordenamos del más reciente al más antiguo
+      callback(data.sort((a, b) => new Date(b.date) - new Date(a.date)));
+    },
+    (err) => {
+      console.warn('debt_snapshots listener fallback:', err?.message || err);
+      callback([]);
+    }
+  );
 };
 
 // Guardar una nueva foto y calcular riesgos
