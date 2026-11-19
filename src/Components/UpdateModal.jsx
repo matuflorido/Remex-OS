@@ -4,7 +4,7 @@ import useUIStore from '../store/useUIStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { canAccessPartnersSection } from '../features/partners/services/partnerGovernanceService';
 
-const CURRENT_VERSION = '2.6.0';
+const CURRENT_VERSION = '2.7.0';
 
 export default function UpdateModal() {
   const [isOpen, setIsOpen] = useState(false);
@@ -64,10 +64,28 @@ export default function UpdateModal() {
 
         <div className="p-6 md:p-8 overflow-y-auto custom-scrollbar flex-1 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-zinc-900/40 via-zinc-950 to-zinc-950">
           <p className="text-zinc-300 mb-6 text-sm">
-            La versión <strong>2.6.0</strong> incorpora el nuevo <strong>Manual Profesional Interactivo y PDF Editorial (34 páginas widescreen)</strong>, el <strong>Ayudante IA Copiloto</strong>, el <strong>Informe Forense Sin Derivación</strong> y la <strong>Sala Exclusiva de Socios (3/3)</strong>:
+            La versión <strong>2.7.0</strong> incorpora el nuevo <strong>Simulador y Entrenador IA de Conversaciones (Bot v3.0)</strong>, el <strong>Reconocimiento Automático de Clientes y Patentes en Cochecita</strong>, y el ciclo de entrenamiento en <strong>Borrador antes de Publicar en Vivo</strong>:
           </p>
 
           <div className="space-y-4">
+            <div className="bg-zinc-900/80 border border-emerald-500/60 p-4 rounded-xl flex gap-3">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-white font-bold text-sm mb-1">🧪 Simulador de Conversaciones & Entrenador de Variables IA (Borrador → Vivo)</h4>
+                <p className="text-zinc-400 text-sm leading-relaxed">
+                  Nueva pestaña en <strong>Bot Check-Oil</strong> para conversar con el Bot real en modo Sandbox (sin enviar WhatsApp reales), probar como <strong>Cliente Cochecita</strong> (por teléfono o patente), <strong>Cliente Nuevo</strong> o <strong>Sucursal</strong>, inspeccionar variables internas en vivo y corregir respuestas tanto en el Simulador como desde el <strong>Monitor de Charlas</strong>.
+                </p>
+              </div>
+            </div>
+            <div className="bg-zinc-900/80 border border-orange-500/60 p-4 rounded-xl flex gap-3">
+              <CheckCircle2 className="w-5 h-5 text-orange-400 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-white font-bold text-sm mb-1">🚗 Cruce con Cochecita (Read-Only): Vehículos, Patentes y Último Servicio Completo</h4>
+                <p className="text-zinc-400 text-sm leading-relaxed">
+                  El Bot reconoce a los clientes registrados por su nombre, lista sus vehículos con patente cuando piden cotización, responde consultas de patentes de las 6 sucursales e incluye automáticamente la <strong>patente y todos los ítems del último servicio</strong> al pedir presupuesto o derivar.
+                </p>
+              </div>
+            </div>
             <div className="bg-zinc-900/80 border border-orange-500/60 p-4 rounded-xl flex gap-3">
               <CheckCircle2 className="w-5 h-5 text-orange-400 shrink-0 mt-0.5" />
               <div>

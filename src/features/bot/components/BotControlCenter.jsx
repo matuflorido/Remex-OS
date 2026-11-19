@@ -29,7 +29,10 @@ import {
   HelpCircle,
   Filter,
   Scale,
-  FileText
+  FileText,
+  FlaskConical,
+  Edit3,
+  Rocket
 } from 'lucide-react';
 import { Doughnut, Bar } from 'react-chartjs-2';
 import {
@@ -43,6 +46,7 @@ import {
 } from '../services/quoteBrokerEngine';
 import QuoteBrokerAuditPanel from './QuoteBrokerAuditPanel';
 import BotNonDerivedReportPanel from './BotNonDerivedReportPanel';
+import BotSimulatorAndTrainer, { BotTeachCorrectionModal } from './BotSimulatorAndTrainer';
 import {
   evaluateEffectiveDerivation,
   isGhostEmptySession
@@ -437,8 +441,11 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
   // Nueva regla aprendida manual / edición
   const [newRuleQuestion, setNewRuleQuestion] = useState('');
   const [newRuleAnswer, setNewRuleAnswer] = useState('');
+  const [newRulePublishStatus, setNewRulePublishStatus] = useState('borrador');
   const [editingLearningSessionId, setEditingLearningSessionId] = useState(null);
   const [editingLearningRuleText, setEditingLearningRuleText] = useState('');
+  const [monitorTeachModal, setMonitorTeachModal] = useState(null);
+  const [simulatorPreloadCase, setSimulatorPreloadCase] = useState(null);
   const configDirtyRef = useRef(false);
 
   const loadDashboard = async (silent = false) => {
@@ -454,11 +461,21 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
         const sucursalJids = SUCURSALES_LIST.map(s => `${s.phone}@s.whatsapp.net`);
         setRawLoadedSessions(
           data.sessions.filter(
-            s => !String(s?.documentId || '').endsWith('@g.us') && !sucursalJids.includes(s?.documentId)
+            s =>
+              !String(s?.documentId || '').endsWith('@g.us') &&
+              !String(s?.documentId || '').startsWith('__sim__') &&
+              !sucursalJids.includes(s?.documentId)
           )
         );
         const cleanSessions = data.sessions
-          .filter(s => s.documentId && s.documentId !== 'undefined' && !s.documentId.endsWith('@g.us') && !sucursalJids.includes(s.documentId))
+          .filter(
+            s =>
+              s.documentId &&
+              s.documentId !== 'undefined' &&
+              !s.documentId.endsWith('@g.us') &&
+              !s.documentId.startsWith('__sim__') &&
+              !sucursalJids.includes(s.documentId)
+          )
           .map(s => {
             let historial = [];
             try {
@@ -535,6 +552,11 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
       return [];
     }
   }, [botConfig.reglas_aprendidas_json]);
+
+  const draftRulesCount = useMemo(
+    () => learnedRules.filter(r => r.activa !== false && r.estado_publicacion === 'borrador').length,
+    [learnedRules]
+  );
 
   const isGlobalBotActive = botConfig.bot_activo !== 'false' && botConfig.bot_activo !== false;
   const isAutoPauseActive = botConfig.auto_pausa_humana !== 'false' && botConfig.auto_pausa_humana !== false;
@@ -825,6 +847,15 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
     await upsertBotDocumentInN8n(session.documentId, updatedSession);
   };
 
+  const handlePersistLearnedRules = async (nextRules) => {
+    const updatedConfig = {
+      ...botConfig,
+      reglas_aprendidas_json: JSON.stringify(nextRules)
+    };
+    setBotConfig(updatedConfig);
+    await upsertBotDocumentInN8n('bot_config_global', updatedConfig);
+  };
+
   const handleAddManualRule = async (e) => {
     e.preventDefault();
     if (!newRuleQuestion.trim() || !newRuleAnswer.trim()) return;
@@ -833,40 +864,35 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
       id: `manual-${Date.now()}`,
       pregunta: newRuleQuestion.trim(),
       respuesta: newRuleAnswer.trim(),
+      estado_publicacion: newRulePublishStatus,
       origen: `Creada por ${user?.name || 'Admin'} en Remex OS`,
       activa: true,
       fecha: new Date().toISOString().split('T')[0]
     };
 
     const nextRules = [newRule, ...learnedRules];
-    const updatedConfig = {
-      ...botConfig,
-      reglas_aprendidas_json: JSON.stringify(nextRules)
-    };
-    setBotConfig(updatedConfig);
     setNewRuleQuestion('');
     setNewRuleAnswer('');
-    await upsertBotDocumentInN8n('bot_config_global', updatedConfig);
+    await handlePersistLearnedRules(nextRules);
   };
 
   const handleToggleRuleActive = async (ruleId) => {
-    const nextRules = learnedRules.map(r => r.id === ruleId ? { ...r, activa: !r.activa } : r);
-    const updatedConfig = {
-      ...botConfig,
-      reglas_aprendidas_json: JSON.stringify(nextRules)
-    };
-    setBotConfig(updatedConfig);
-    await upsertBotDocumentInN8n('bot_config_global', updatedConfig);
+    const nextRules = learnedRules.map(r => r.id === ruleId ? { ...r, activa: r.activa === false ? true : false } : r);
+    await handlePersistLearnedRules(nextRules);
+  };
+
+  const handleToggleRulePublish = async (ruleId) => {
+    const nextRules = learnedRules.map(r => {
+      if (r.id !== ruleId) return r;
+      const nextPub = r.estado_publicacion === 'borrador' ? 'publicada' : 'borrador';
+      return { ...r, estado_publicacion: nextPub };
+    });
+    await handlePersistLearnedRules(nextRules);
   };
 
   const handleDeleteRule = async (ruleId) => {
     const nextRules = learnedRules.filter(r => r.id !== ruleId);
-    const updatedConfig = {
-      ...botConfig,
-      reglas_aprendidas_json: JSON.stringify(nextRules)
-    };
-    setBotConfig(updatedConfig);
-    await upsertBotDocumentInN8n('bot_config_global', updatedConfig);
+    await handlePersistLearnedRules(nextRules);
   };
 
   const handleSaveConfigSettings = async (e) => {
@@ -1174,6 +1200,23 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
           </button>
 
           <button
+            onClick={() => setActiveTab('simulator')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all ${
+              activeTab === 'simulator'
+                ? 'bg-orange-500 text-black shadow-[0_0_15px_rgba(249,115,22,0.4)]'
+                : 'text-orange-300 bg-orange-500/10 border border-orange-500/30 hover:bg-orange-500/20'
+            }`}
+          >
+            <FlaskConical className="w-4 h-4" />
+            Simulador y Entrenador IA
+            {draftRulesCount > 0 && (
+              <span className="px-2 py-0.5 text-[10px] rounded-full bg-amber-400 text-black font-black">
+                {draftRulesCount} borrador{draftRulesCount === 1 ? '' : 'es'}
+              </span>
+            )}
+          </button>
+
+          <button
             onClick={() => setActiveTab('learning')}
             className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all ${
               activeTab === 'learning'
@@ -1209,6 +1252,18 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
           </span>
         )}
       </div>
+
+      {/* =========================================================
+          NUEVA PESTAÑA: SIMULADOR SANDBOX Y ENTRENADOR IA
+      ========================================================= */}
+      {activeTab === 'simulator' && (
+        <BotSimulatorAndTrainer
+          learnedRules={learnedRules}
+          onUpdateRules={handlePersistLearnedRules}
+          preloadCase={simulatorPreloadCase}
+          onClearPreloadCase={() => setSimulatorPreloadCase(null)}
+        />
+      )}
 
       {/* =========================================================
           NUEVA PESTAÑA: INFORME FORENSE DE CONVERSACIONES SIN DERIVACIÓN
@@ -1778,6 +1833,20 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
                           const isClient = m.rol === 'cliente';
                           const isOperator = m.rol === 'operador';
                           const isBranch = m.rol === 'sucursal';
+                          const isBotBubble = !isClient && !isOperator && !isBranch;
+
+                          // Buscar el mensaje inmediato anterior del cliente o sucursal para contexto de corrección
+                          let prevClientMsg = '';
+                          if (isBotBubble) {
+                            for (let k = idx - 1; k >= 0; k--) {
+                              const prevItem = selectedSession.historial[k];
+                              if (prevItem && (prevItem.rol === 'cliente' || prevItem.rol === 'sucursal')) {
+                                prevClientMsg = prevItem.texto || '';
+                                break;
+                              }
+                            }
+                          }
+
                           return (
                             <div
                               key={idx}
@@ -1812,6 +1881,23 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
                                 </div>
                                 <p className="whitespace-pre-wrap">{m.texto}</p>
                               </div>
+                              {isBotBubble && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setMonitorTeachModal({
+                                      clientMessage: prevClientMsg,
+                                      botReply: m.texto || '',
+                                      clientPhone: selectedSession.cliente_telefono || '',
+                                      clientName: selectedSession.cliente_nombre || selectedSession.cliente_telefono || 'Cliente'
+                                    })
+                                  }
+                                  className="mt-1 text-[10px] font-black px-2.5 py-0.5 rounded-lg bg-zinc-900 hover:bg-orange-500 text-orange-300 hover:text-black border border-orange-500/30 flex items-center gap-1 transition-all"
+                                >
+                                  <Edit3 className="w-3 h-3" />
+                                  Corregir / Enseñar respuesta
+                                </button>
+                              )}
                             </div>
                           );
                         })
@@ -2040,12 +2126,22 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
                 placeholder="Cómo debe actuar o responder el bot..."
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500 outline-none resize-none"
               />
-              <button
-                type="submit"
-                className="w-full bg-orange-600 hover:bg-orange-500 text-black font-black py-2 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors"
-              >
-                <Plus className="w-4 h-4" /> Agregar a la Base de Conocimiento del Bot
-              </button>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <select
+                  value={newRulePublishStatus}
+                  onChange={(e) => setNewRulePublishStatus(e.target.value)}
+                  className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white font-bold outline-none focus:border-orange-500"
+                >
+                  <option value="borrador">🧪 Guardar en Borrador (Probar en Simulador)</option>
+                  <option value="publicada">🟢 Publicar directo en Vivo (WhatsApp)</option>
+                </select>
+                <button
+                  type="submit"
+                  className="flex-1 bg-orange-600 hover:bg-orange-500 text-black font-black py-2 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors"
+                >
+                  <Plus className="w-4 h-4" /> Agregar Regla al Bot
+                </button>
+              </div>
             </form>
 
             <div className="space-y-3 flex-1 overflow-y-auto custom-scrollbar pr-1">
@@ -2054,46 +2150,91 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
                   No hay reglas aprendidas cargadas todavía.
                 </div>
               ) : (
-                learnedRules.map((rule) => (
-                  <div
-                    key={rule.id}
-                    className={`p-4 rounded-2xl border transition-all ${
-                      rule.activa !== false
-                        ? 'bg-zinc-950/70 border-zinc-800'
-                        : 'bg-zinc-950/20 border-zinc-900 opacity-50'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start gap-2 mb-1.5">
-                      <span className="text-xs font-black text-orange-400">
-                        {rule.pregunta}
-                      </span>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          onClick={() => handleToggleRuleActive(rule.id)}
-                          className={`text-[10px] font-black px-2 py-0.5 rounded-md border ${
-                            rule.activa !== false
-                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                              : 'bg-zinc-800 text-zinc-500 border-zinc-700'
-                          }`}
-                        >
-                          {rule.activa !== false ? 'ACTIVA' : 'PAUSADA'}
-                        </button>
-                        <button
-                          onClick={() => handleDeleteRule(rule.id)}
-                          className="text-zinc-500 hover:text-red-400"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                learnedRules.map((rule) => {
+                  const isDraft = rule.estado_publicacion === 'borrador';
+                  return (
+                    <div
+                      key={rule.id}
+                      className={`p-4 rounded-2xl border transition-all ${
+                        rule.activa === false
+                          ? 'bg-zinc-950/20 border-zinc-900 opacity-50'
+                          : isDraft
+                          ? 'bg-amber-950/15 border-amber-500/30'
+                          : 'bg-zinc-950/70 border-zinc-800'
+                      }`}
+                    >
+                      <div className="flex flex-wrap justify-between items-start gap-2 mb-1.5">
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span
+                              className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                                isDraft
+                                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                  : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                              }`}
+                            >
+                              {isDraft ? '🧪 BORRADOR (Solo Simulador)' : '🟢 EN VIVO (WhatsApp)'}
+                            </span>
+                            {rule.permitir_derivar === 'prohibir_derivar' && (
+                              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                                🚫 Bloquea derivación
+                              </span>
+                            )}
+                          </div>
+                          <span className="block text-xs font-black text-orange-400">
+                            {rule.pregunta}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleRulePublish(rule.id)}
+                            className={`text-[10px] font-black px-2.5 py-0.5 rounded-md border flex items-center gap-1 ${
+                              isDraft
+                                ? 'bg-emerald-500 text-black border-emerald-400 hover:bg-emerald-400'
+                                : 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:bg-zinc-700'
+                            }`}
+                          >
+                            {isDraft ? (
+                              <>
+                                <Rocket className="w-3 h-3" /> Publicar en Vivo
+                              </>
+                            ) : (
+                              'A Borrador'
+                            )}
+                          </button>
+                          <button
+                            onClick={() => handleToggleRuleActive(rule.id)}
+                            className={`text-[10px] font-black px-2 py-0.5 rounded-md border ${
+                              rule.activa !== false
+                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                                : 'bg-zinc-800 text-zinc-500 border-zinc-700'
+                            }`}
+                          >
+                            {rule.activa !== false ? 'ACTIVA' : 'PAUSADA'}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteRule(rule.id)}
+                            className="text-zinc-500 hover:text-red-400"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
+                      <p className="text-xs text-zinc-300 leading-relaxed">{rule.respuesta}</p>
+                      {rule.respuesta_ideal && (
+                        <div className="mt-2 text-[11px] text-emerald-200 bg-emerald-950/25 border border-emerald-500/20 rounded-xl p-2">
+                          <b>Respuesta ideal entrenada:</b> “{rule.respuesta_ideal}”
+                        </div>
+                      )}
+                      {rule.origen && (
+                        <p className="text-[10px] text-zinc-500 mt-2">
+                          {rule.origen} • {rule.fecha || ''}
+                        </p>
+                      )}
                     </div>
-                    <p className="text-xs text-zinc-300 leading-relaxed">{rule.respuesta}</p>
-                    {rule.origen && (
-                      <p className="text-[10px] text-zinc-500 mt-2">
-                        {rule.origen} • {rule.fecha || ''}
-                      </p>
-                    )}
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
@@ -2244,6 +2385,24 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
           </div>
         </div>
       )}
+
+      {/* MODAL DE ENTRENAMIENTO DESDE CHARLAS REALES (MONITOR DE CHARLAS) */}
+      <BotTeachCorrectionModal
+        isOpen={Boolean(monitorTeachModal)}
+        onClose={() => setMonitorTeachModal(null)}
+        initialClientMessage={monitorTeachModal?.clientMessage || ''}
+        initialBotReply={monitorTeachModal?.botReply || ''}
+        sourceLabel={`Charla real (${monitorTeachModal?.clientName || 'Cliente'})`}
+        clientPhoneHint={monitorTeachModal?.clientPhone || ''}
+        onSaveRule={async (newRule) => {
+          const nextRules = [newRule, ...learnedRules];
+          await handlePersistLearnedRules(nextRules);
+        }}
+        onOpenInSimulator={({ phone, message }) => {
+          setSimulatorPreloadCase({ phone, message });
+          setActiveTab('simulator');
+        }}
+      />
     </div>
   );
 }

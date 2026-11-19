@@ -3,6 +3,7 @@ import { db } from '../../../config/firebase';
 import { DEFAULT_BROKER_CONFIG } from './quoteBrokerEngine';
 
 const N8N_BOT_API_URL = 'https://n8n.check-oil.tech/webhook/remex-bot-api';
+const N8N_BOT_SIM_URL = 'https://n8n.check-oil.tech/webhook/remex-bot-sim';
 
 /**
  * Obtiene todas las sesiones, configuración y estadísticas directamente desde el webhook API de n8n
@@ -171,4 +172,90 @@ export const subscribeToLocalBotCache = (callback) => {
   } catch (e) {
     return () => {};
   }
+};
+
+/**
+ * Ejecuta un turno en el Simulador Sandbox del Bot (100% motor real n8n + Cochecita, 0 envíos reales de WhatsApp)
+ */
+export const simulateBotTurnInN8n = async ({
+  simSessionId,
+  mode = 'cliente_nuevo',
+  simulatedPhone = '',
+  simulatedPlate = '',
+  sucursalKey = 'Centro',
+  pushName = 'Cliente Simulado',
+  text = '',
+  quotedText = '',
+  draftRules = null,
+}) => {
+  const response = await fetch(N8N_BOT_SIM_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      simulation: true,
+      simSessionId,
+      mode,
+      simulatedPhone,
+      simulatedPlate,
+      sucursalKey,
+      pushName,
+      text,
+      quotedText,
+      draftRules,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Error en simulador n8n (${response.status})`);
+  }
+  return await response.json();
+};
+
+/**
+ * Convierte una corrección o explicación del supervisor en una Regla Estructurada con Variables + Few-Shot
+ */
+export const synthesizeBotRuleInN8n = async ({
+  mensajeCliente,
+  respuestaBotOriginal,
+  explicacionUsuario,
+  respuestaIdealUsuario = '',
+  permitirDerivarHint = 'auto',
+  categoriaHint = 'auto',
+}) => {
+  const response = await fetch(N8N_BOT_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'synthesize_rule',
+      mensajeCliente,
+      respuestaBotOriginal,
+      explicacionUsuario,
+      respuestaIdealUsuario,
+      permitirDerivarHint,
+      categoriaHint,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Error sintetizando regla en n8n (${response.status})`);
+  }
+  return await response.json();
+};
+
+/**
+ * Limpia el historial de una sesión simulada en PostgreSQL
+ */
+export const resetSimulatedSessionInN8n = async (simSessionId) => {
+  const response = await fetch(N8N_BOT_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'reset_sim',
+      simSessionId,
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`Error reiniciando simulación (${response.status})`);
+  }
+  return await response.json();
 };

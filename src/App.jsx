@@ -14,6 +14,7 @@ import FinanceDashboard from './features/finances/components/FinanceDashboard';
 import InboxBoard from './features/inbox/components/InboxBoard';
 import BotControlCenter from './features/bot/components/BotControlCenter';
 import PartnersGovernanceBoard from './features/partners/components/PartnersGovernanceBoard';
+import BackupControlCenter from './features/backups/components/BackupControlCenter';
 
 export default function App() {
   const { user, loading, init } = useAuthStore();
@@ -58,6 +59,15 @@ export default function App() {
         return <AdminPanel />;
       case 'reports':
         return <ReportsDashboard />;
+      case 'backups':
+        return (
+          <div className="p-4 sm:p-6 max-w-[1400px] mx-auto">
+            <BackupControlCenter
+              inlinePage={true}
+              apiBaseUrl="https://franquicias.check-oil.com/api/index.php"
+            />
+          </div>
+        );
       case 'manual':
         return <SystemManual />;
       default:

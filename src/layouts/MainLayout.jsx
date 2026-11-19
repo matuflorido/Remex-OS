@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Activity, UserCircle, Wrench, Search, Bell, LogOut, Menu, X, CheckCircle2, BarChart3, CalendarDays, Settings, BookOpen, MessageSquare, Inbox, DollarSign, Bot, Scale, Award, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+import { Activity, UserCircle, Wrench, Search, Bell, LogOut, Menu, X, CheckCircle2, BarChart3, CalendarDays, Settings, BookOpen, MessageSquare, Inbox, DollarSign, Bot, Scale, Award, ChevronLeft, ChevronRight, Sparkles, HardDrive } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import useUIStore from '../store/useUIStore';
 import useSettingsStore from '../store/useSettingsStore';
@@ -482,6 +482,27 @@ export default function MainLayout({ children }) {
           >
             <BarChart3 className="w-4 h-4 shrink-0" />
             {isSidebarOpen && <span className="ml-2.5 font-bold whitespace-nowrap">Estadísticas</span>}
+          </button>
+
+          <button
+            onClick={() => setCurrentView('backups')}
+            onMouseEnter={(e) =>
+              handleNavHoverEnter(
+                e,
+                '📡 Control Remoto de Backups (Sucursales)',
+                'Monitorea en vivo la barra de estado de cada PC con Remex Backup, revisa cuándo respaldó por última vez e inicia backups a distancia.',
+                'EN VIVO'
+              )
+            }
+            onMouseLeave={handleNavHoverLeave}
+            className={`w-full flex items-center ${isSidebarOpen ? 'px-3 py-2.5' : 'justify-center py-2.5'} rounded-xl text-xs border transition-colors ${
+              currentView === 'backups'
+                ? 'bg-orange-900/25 text-orange-400 border-orange-500/50'
+                : 'border-transparent text-zinc-400 hover:bg-zinc-800 hover:text-white'
+            }`}
+          >
+            <HardDrive className="w-4 h-4 shrink-0 text-sky-400" />
+            {isSidebarOpen && <span className="ml-2.5 font-bold whitespace-nowrap">Backups Red</span>}
           </button>
 
           <button
