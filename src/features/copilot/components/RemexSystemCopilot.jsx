@@ -16,20 +16,25 @@ import {
   isGhostEmptySession
 } from '../../bot/services/botNonDerivedAnalyzer';
 import { processRemexCopilotTurn } from '../services/remexKnowledgeAndCopilotEngine';
+import {
+  canAccessCentralBasesSection,
+  fetchCentralBranchSnapshot,
+  buildWeeklyCollectionsForecast
+} from '../../central_bases/services/centralBasesService';
 
-const STORAGE_KEY = 'remex_system_copilot_history_v1';
+const STORAGE_KEY = 'remex_system_copilot_history_v28';
 
 const INITIAL_MESSAGES = [
   {
     id: 'welcome-remex',
     role: 'assistant',
     text:
-      '👋 ¡Hola! Soy el **Ayudante Inteligente de Remex Work-OS**.\n\nConozco cada sección, cada colección de Firestore, las vinculaciones automáticas entre módulos (Tareas, Viajes, Flota, Finanzas, Socios 3/3 y Bot WhatsApp) y **puedo ejecutar acciones reales en el sistema por vos**.',
+      '👋 ¡Hola! Soy el **Ayudante Inteligente de Remex Work-OS v2.8.0**.\n\nConozco las **17 secciones** (incluyendo **Base Central REMEX DBF**, **Simulador IA del Bot** y **Backups Red**), sé **de dónde sale cada dato**, **cómo se calcula cada número paso a paso** y puedo ejecutar tareas reales por vos.',
     suggestedActions: [
       { label: '📊 Resumen en Vivo de Remex', action: { type: 'ASK_PROMPT', prompt: 'Resumen operativo de Remex' } },
-      { label: '📖 Manual con Fotos Rotuladas', action: { type: 'NAVIGATE', view: 'manual' } },
-      { label: '🗺️ Mapa de Datos y Vínculos', action: { type: 'ASK_PROMPT', prompt: '¿De dónde sale la información y cómo se vincula todo?' } },
-      { label: '🤖 Informe Sin Derivación Bot', action: { type: 'NAVIGATE', view: 'bot' } }
+      { label: '🧮 ¿Cómo se calcula Recaudación Semanal?', action: { type: 'ASK_PROMPT', prompt: '¿Cuánto se estima recaudar la próxima semana en Central y cómo se calcula?' } },
+      { label: '📖 Manual y Fórmulas Explicadas', action: { type: 'NAVIGATE', view: 'manual' } },
+      { label: '🤖 Bot & Simulador IA', action: { type: 'NAVIGATE', view: 'bot' } }
     ]
   }
 ];
@@ -93,7 +98,8 @@ export default function RemexSystemCopilot({
     trips: [],
     debtSnapshots: [],
     proposals: [],
-    botSummary: null
+    botSummary: null,
+    centralSummary: null
   });
 
   const endRef = useRef(null);
@@ -143,7 +149,11 @@ export default function RemexSystemCopilot({
       .then((data) => {
         if (Array.isArray(data?.sessions)) {
           const valid = data.sessions.filter(
-            (s) => s.documentId && !s.documentId.endsWith('@g.us') && !isGhostEmptySession(s)
+            (s) =>
+              s.documentId &&
+              !s.documentId.endsWith('@g.us') &&
+              !s.documentId.startsWith('__sim__') &&
+              !isGhostEmptySession(s)
           );
           const derived = valid.filter((s) => evaluateEffectiveDerivation(s).isEffectivelyDerived).length;
           setLiveData((p) => ({
@@ -158,10 +168,37 @@ export default function RemexSystemCopilot({
       })
       .catch(() => {});
 
+    if (canAccessCentralBasesSection(user)) {
+      fetchCentralBranchSnapshot('00')
+        .then((snap) => {
+          if (!snap?.kpis) return;
+          const fc = snap.weeklyCollectionsData
+            ? buildWeeklyCollectionsForecast({
+                weeklyCollectionsData: snap.weeklyCollectionsData,
+                clients: snap.clients || []
+              })
+            : null;
+          setLiveData((p) => ({
+            ...p,
+            centralSummary: {
+              cuentasPorCobrar: snap.kpis.cuentasPorCobrar || 0,
+              facturasAbiertas: snap.kpis.facturasConSaldoCount || 0,
+              chequesEnCartera: snap.kpis.chequesEnCarteraTotal || 0,
+              stockCosto: snap.kpis.valorizadoCostoStock || 0,
+              ahorroIa: snap.kpis.ahorroComprasIa || 0,
+              proximaSemanaTotal: fc?.totals?.proximaSemanaTotal || 0,
+              promedioSemanal4Sem: fc?.totals?.promedioIngresoProyectadoSemanal || 0,
+              moraExcluida: fc?.totals?.moraAntiguaExcluida || 0
+            }
+          }));
+        })
+        .catch(() => {});
+    }
+
     return () => {
       unsubs.forEach((u) => u && u());
     };
-  }, [isOpen]);
+  }, [isOpen, user]);
 
   useEffect(() => {
     if (isOpen && endRef.current) {
@@ -349,9 +386,12 @@ export default function RemexSystemCopilot({
               <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
                 {[
                   'Resumen operativo de Remex',
-                  '¿De dónde sale la info?',
-                  'Abrí Presupuestos Centro',
-                  'Abrí Viajes de Reparto'
+                  ...(canAccessCentralBasesSection(user)
+                    ? ['Recaudación próxima semana Central', 'Abrí Base Central REMEX']
+                    : []),
+                  '¿Cómo se calcula FIFO en Finanzas?',
+                  'Abrí Simulador del Bot',
+                  'Abrí Backups Red'
                 ].map((chip) => (
                   <button
                     key={chip}

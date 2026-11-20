@@ -4,7 +4,7 @@ import useUIStore from '../store/useUIStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { canAccessPartnersSection } from '../features/partners/services/partnerGovernanceService';
 
-const CURRENT_VERSION = '2.7.0';
+const CURRENT_VERSION = '2.8.0';
 
 export default function UpdateModal() {
   const [isOpen, setIsOpen] = useState(false);
@@ -64,10 +64,28 @@ export default function UpdateModal() {
 
         <div className="p-6 md:p-8 overflow-y-auto custom-scrollbar flex-1 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-zinc-900/40 via-zinc-950 to-zinc-950">
           <p className="text-zinc-300 mb-6 text-sm">
-            La versión <strong>2.7.0</strong> incorpora el nuevo <strong>Simulador y Entrenador IA de Conversaciones (Bot v3.0)</strong>, el <strong>Reconocimiento Automático de Clientes y Patentes en Cochecita</strong>, y el ciclo de entrenamiento en <strong>Borrador antes de Publicar en Vivo</strong>:
+            La versión <strong>2.8.0</strong> incorpora el nuevo <strong>Lector de Bases Central REMEX (.DBF en vivo para Socios y SuperAdmin)</strong>, el <strong>Manual y Presentación Integral con Fórmulas Explicadas Paso a Paso</strong>, el <strong>Ayudante IA Interno actualizado</strong> y el <strong>Simulador IA del Bot v3.0</strong>:
           </p>
 
           <div className="space-y-4">
+            <div className="bg-zinc-900/80 border border-emerald-500/60 p-4 rounded-xl flex gap-3">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-white font-bold text-sm mb-1">🗄️ Lector de Bases Central REMEX (00 Bariloche & 00 BsAs — Exclusivo Socios y SuperAdmin)</h4>
+                <p className="text-zinc-400 text-sm leading-relaxed">
+                  Nueva sección <strong>Base Central DBF</strong> conectada en vivo a las 38 tablas <code>C:\mayor\*.DBF</code>: proyección de recaudación semanal (Sem. +1 a +4), cuentas corrientes mayoristas, catálogo/stock, compras IA, cheques en cartera y lector binario directo de archivos <code>.DBF</code> locales.
+                </p>
+              </div>
+            </div>
+            <div className="bg-zinc-900/80 border border-cyan-500/60 p-4 rounded-xl flex gap-3">
+              <CheckCircle2 className="w-5 h-5 text-cyan-400 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-white font-bold text-sm mb-1">🧮 Manual Completo v2.8 + Bot Interno Copiloto con Fórmulas Transparentes</h4>
+                <p className="text-zinc-400 text-sm leading-relaxed">
+                  Las <strong>17 secciones</strong> explican ahora de dónde sale exactamente cada dato y cómo se calcula cada indicador paso a paso, integrado en vivo dentro del <strong>Ayudante Remex OS</strong>.
+                </p>
+              </div>
+            </div>
             <div className="bg-zinc-900/80 border border-emerald-500/60 p-4 rounded-xl flex gap-3">
               <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
               <div>

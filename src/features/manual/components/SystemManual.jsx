@@ -12,9 +12,12 @@ import {
   Layers,
   ShieldCheck,
   Sparkles,
-  ChevronRight
+  ChevronRight,
+  Calculator
 } from 'lucide-react';
 import useUIStore from '../../../store/useUIStore';
+import { useAuthStore } from '../../../store/useAuthStore';
+import { canAccessCentralBasesSection } from '../../central_bases/services/centralBasesService';
 import {
   REMEX_ARCHITECTURE_OVERVIEW,
   REMEX_MANUAL_CHAPTERS
@@ -24,10 +27,12 @@ const resolveManualAsset = (rawPath) => {
   const clean = String(rawPath || '').replace(/^\//, '');
   const base = import.meta.env.BASE_URL || './';
   const normalizedBase = base.endsWith('/') ? base : `${base}/`;
-  return `${normalizedBase}${clean}?v=2.6.0`;
+  return `${normalizedBase}${clean}?v=2.8.0`;
 };
 
 export default function SystemManual() {
+  const { user } = useAuthStore();
+  const canSeeRestricted = canAccessCentralBasesSection(user);
   const { setCurrentView, setCopilotOpen } = useUIStore();
   const [tabMode, setTabMode] = useState('chapters'); // 'chapters' | 'architecture'
   const [searchQuery, setSearchQuery] = useState('');
@@ -48,14 +53,22 @@ export default function SystemManual() {
     }
   };
 
+  const visibleBaseChapters = useMemo(() => {
+    if (canSeeRestricted) return REMEX_MANUAL_CHAPTERS;
+    return REMEX_MANUAL_CHAPTERS.filter(
+      (ch) => ch.id !== 'lector_bases_central_remex' && ch.id !== 'directorio_socios_3de3'
+    );
+  }, [canSeeRestricted]);
+
   const filteredChapters = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return REMEX_MANUAL_CHAPTERS;
-    return REMEX_MANUAL_CHAPTERS.filter((ch) => {
-      const hay = `${ch.number} ${ch.title} ${ch.badge} ${ch.purpose} ${ch.howItWorks} ${ch.dataSource} ${ch.crossLinks.join(' ')}`.toLowerCase();
+    if (!q) return visibleBaseChapters;
+    return visibleBaseChapters.filter((ch) => {
+      const calcTxt = Array.isArray(ch.howItCalculates) ? ch.howItCalculates.join(' ') : '';
+      const hay = `${ch.number} ${ch.title} ${ch.badge} ${ch.purpose} ${ch.howItWorks} ${ch.dataSource} ${calcTxt} ${ch.crossLinks.join(' ')}`.toLowerCase();
       return hay.includes(q);
     });
-  }, [searchQuery]);
+  }, [searchQuery, visibleBaseChapters]);
 
   const activeChapter = useMemo(() => {
     const exact = filteredChapters.find((c) => c.id === selectedChapterId);
@@ -364,12 +377,30 @@ export default function SystemManual() {
 
                 <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/25 space-y-1.5">
                   <div className="text-[11px] font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-                    <Database className="w-3.5 h-3.5" /> ¿De dónde sale exactamente la información?
+                    <Database className="w-3.5 h-3.5" /> ¿De dónde viene exactamente la información?
                   </div>
                   <p className="text-xs text-zinc-200 leading-relaxed font-semibold">
                     {activeChapter.dataSource}
                   </p>
                 </div>
+
+                {Array.isArray(activeChapter.howItCalculates) && activeChapter.howItCalculates.length > 0 && (
+                  <div className="p-4 rounded-2xl bg-cyan-500/5 border border-cyan-500/30 space-y-2.5">
+                    <div className="text-[11px] font-black uppercase tracking-wider text-cyan-300 flex items-center gap-1.5">
+                      <Calculator className="w-4 h-4" /> ¿Cómo se calcula cada número paso a paso?
+                    </div>
+                    <ul className="space-y-2">
+                      {activeChapter.howItCalculates.map((calcLine, cIdx) => (
+                        <li
+                          key={cIdx}
+                          className="text-xs text-zinc-200 leading-relaxed bg-zinc-950/80 border border-zinc-800/80 rounded-xl p-3"
+                        >
+                          {calcLine}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="p-4 rounded-2xl bg-purple-500/5 border border-purple-500/25 space-y-2">

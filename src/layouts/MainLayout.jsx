@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Activity, UserCircle, Wrench, Search, Bell, LogOut, Menu, X, CheckCircle2, BarChart3, CalendarDays, Settings, BookOpen, MessageSquare, Inbox, DollarSign, Bot, Scale, Award, ChevronLeft, ChevronRight, Sparkles, HardDrive } from 'lucide-react';
+import { Activity, UserCircle, Wrench, Search, Bell, LogOut, Menu, X, CheckCircle2, BarChart3, CalendarDays, Settings, BookOpen, MessageSquare, Inbox, DollarSign, Bot, Scale, Award, ChevronLeft, ChevronRight, Sparkles, HardDrive, Database } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import useUIStore from '../store/useUIStore';
 import useSettingsStore from '../store/useSettingsStore';
 import { subscribeToNotifications, markNotificationAsRead } from '../features/notifications/services/notificationService';
 import { canAccessPartnersSection } from '../features/partners/services/partnerGovernanceService';
+import { canAccessCentralBasesSection } from '../features/central_bases/services/centralBasesService';
 import SettingsModal from '../features/settings/components/SettingsModal';
 import UpdateModal from '../Components/UpdateModal';
 import RemexSystemCopilot from '../features/copilot/components/RemexSystemCopilot';
@@ -438,6 +439,37 @@ export default function MainLayout({ children }) {
                   <span className="ml-2.5 font-black whitespace-nowrap">Socios</span>
                   <span className="ml-auto px-1.5 py-0.5 text-[9px] font-black rounded bg-amber-400 text-black uppercase">
                     3/3
+                  </span>
+                </>
+              )}
+            </button>
+          )}
+
+          {/* SECCIÓN EXCLUSIVA SOCIOS Y SUPERADMIN: LECTOR DE BASES CENTRAL REMEX */}
+          {canAccessCentralBasesSection(user) && (
+            <button
+              onClick={() => setCurrentView('central_bases')}
+              onMouseEnter={(e) =>
+                handleNavHoverEnter(
+                  e,
+                  '🗄️ Lector de Bases Central REMEX (00 & 00 BsAs)',
+                  'Lectura en vivo de C:\\mayor\\*.DBF de Casa Central: Recaudación estimada semanal, Cta. Cte. mayorista, Stock, Compras IA, Cheques y explorador de tablas DBF.',
+                  'SOCIOS / SUPERADMIN'
+                )
+              }
+              onMouseLeave={handleNavHoverLeave}
+              className={`w-full flex items-center ${isSidebarOpen ? 'px-3 py-2.5' : 'justify-center py-2.5'} rounded-xl text-xs border transition-colors relative ${
+                currentView === 'central_bases'
+                  ? 'bg-emerald-900/35 text-emerald-300 border-emerald-400/70 shadow-[0_0_15px_rgba(16,185,129,0.25)]'
+                  : 'bg-emerald-950/20 border-emerald-500/35 text-emerald-300 hover:bg-emerald-900/30'
+              }`}
+            >
+              <Database className="w-4 h-4 shrink-0 text-emerald-400" />
+              {isSidebarOpen && (
+                <>
+                  <span className="ml-2.5 font-black whitespace-nowrap">Base Central</span>
+                  <span className="ml-auto px-1.5 py-0.5 text-[9px] font-black rounded bg-emerald-400 text-black uppercase">
+                    DBF
                   </span>
                 </>
               )}

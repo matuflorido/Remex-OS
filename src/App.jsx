@@ -15,6 +15,7 @@ import InboxBoard from './features/inbox/components/InboxBoard';
 import BotControlCenter from './features/bot/components/BotControlCenter';
 import PartnersGovernanceBoard from './features/partners/components/PartnersGovernanceBoard';
 import BackupControlCenter from './features/backups/components/BackupControlCenter';
+import CentralBasesReader from './features/central_bases/components/CentralBasesReader';
 
 export default function App() {
   const { user, loading, init } = useAuthStore();
@@ -49,6 +50,8 @@ export default function App() {
         return <BotControlCenter key="bot_quotes" initialTab="quotes" dedicatedQuotesOnly={true} />;
       case 'partners':
         return <PartnersGovernanceBoard />;
+      case 'central_bases':
+        return <CentralBasesReader />;
       case 'crm': 
         return <CRMBoard />;
       case 'calendar': 
@@ -61,11 +64,13 @@ export default function App() {
         return <ReportsDashboard />;
       case 'backups':
         return (
-          <div className="p-4 sm:p-6 max-w-[1400px] mx-auto">
-            <BackupControlCenter
-              inlinePage={true}
-              apiBaseUrl="https://franquicias.check-oil.com/api/index.php"
-            />
+          <div className="flex-1 overflow-y-auto custom-scrollbar w-full p-4 sm:p-6">
+            <div className="max-w-[1400px] mx-auto">
+              <BackupControlCenter
+                inlinePage={true}
+                apiBaseUrl="https://franquicias.check-oil.com/api/index.php"
+              />
+            </div>
           </div>
         );
       case 'manual':

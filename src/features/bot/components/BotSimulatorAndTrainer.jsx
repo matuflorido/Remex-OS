@@ -1234,24 +1234,34 @@ export default function BotSimulatorAndTrainer({
                           </span>
                         </div>
                         <div className="space-y-1.5 pt-1">
-                          {(lastVariables.vehiculosCochecita || []).map((v, i) => (
-                            <div
-                              key={i}
-                              className="p-2 rounded-xl bg-zinc-950 border border-zinc-800/90 text-[11px] flex flex-wrap items-center justify-between gap-2"
-                            >
-                              <div>
-                                <b className="text-white">{v.vehiculo || 'Vehículo'}</b>{' '}
-                                <span className="font-mono text-orange-300 ml-1">
-                                  [{v.patente}]
+                          {(lastVariables.vehiculosCochecita || []).map((v, i) => {
+                            const nombreVeh =
+                              v.vehiculo ||
+                              v.marcaModelo ||
+                              [v.marca, v.modelo].filter(Boolean).join(' ') ||
+                              'Vehículo';
+                            const dom = v.patente || v.dominio || 'S/D';
+                            const ultFecha = v.ultimoServicioFecha || v.ultimoServicio?.fecha || '';
+                            const ultSuc = v.ultimoServicioSucursal || v.ultimoServicio?.sucursal || '-';
+                            return (
+                              <div
+                                key={i}
+                                className="p-2 rounded-xl bg-zinc-950 border border-zinc-800/90 text-[11px] flex flex-wrap items-center justify-between gap-2"
+                              >
+                                <div>
+                                  <b className="text-white">{nombreVeh}</b>{' '}
+                                  <span className="font-mono text-orange-300 ml-1">
+                                    [{dom}]
+                                  </span>
+                                </div>
+                                <span className="text-zinc-400 text-[10px]">
+                                  {ultFecha
+                                    ? `Últ. serv: ${ultFecha} (${ultSuc})`
+                                    : 'Sin servicios detallados'}
                                 </span>
                               </div>
-                              <span className="text-zinc-400 text-[10px]">
-                                {v.ultimoServicioFecha
-                                  ? `Últ. serv: ${v.ultimoServicioFecha} (${v.ultimoServicioSucursal || '-'})`
-                                  : 'Sin historial de ítems'}
-                              </span>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </>
                     )}
