@@ -32,3 +32,10 @@ out/
 *.exe
 *.zip
 *.asar
+# Seguridad: nunca subir workflows n8n ni llaves
+*workflow*.json
+*Workflow*.json
+*firebase-adminsdk*.json
+*serviceAccount*.json
+.env
+.env.*

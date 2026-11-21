@@ -77,6 +77,13 @@ const UNSUPPORTED_SERVICE_CATALOG = [
 ];
 
 const DERIVATION_CONFIRM_PATTERNS = [
+  'he derivado tu solicitud',
+  'he derivado tu consulta',
+  'he derivado la solicitud',
+  'he derivado la consulta',
+  'he derivado su solicitud',
+  'he derivado su consulta',
+  'hemos derivado',
   'derivé tu consulta',
   'derive tu consulta',
   'derivé su consulta',
@@ -85,12 +92,38 @@ const DERIVATION_CONFIRM_PATTERNS = [
   'derive tu solicitud',
   'ya derivé tu',
   'ya derive tu',
+  'ya derivamos tu',
+  'derivamos tu consulta',
+  'derivamos tu solicitud',
   'ya está derivado a la sucursal',
   'ya esta derivado a la sucursal',
+  'ya está derivada a la sucursal',
+  'ya esta derivada a la sucursal',
   'fue derivado a la sucursal',
+  'fue derivada a la sucursal',
   'ya fue informada para que te contacten',
   'pasé tus datos a la sucursal',
-  'pase tus datos a la sucursal'
+  'pase tus datos a la sucursal',
+  'he derivado tu'
+];
+
+const QUOTE_DELIVERED_PATTERNS = [
+  'adjunto el presupuesto',
+  'te adjunto el presupuesto',
+  'adjuntamos el presupuesto',
+  'te envío el presupuesto',
+  'te envio el presupuesto',
+  'te enviamos el presupuesto',
+  'te paso el presupuesto',
+  'presupuesto adjunto',
+  'presupuesto entregado',
+  'presupuesto enviado',
+  'acá tenés el presupuesto',
+  'aca tenes el presupuesto',
+  'aquí tienes el presupuesto',
+  'aqui tienes el presupuesto',
+  '[pdf',
+  '[documento'
 ];
 
 const REJECTION_AFTER_DERIVATION_PATTERNS = [
@@ -131,13 +164,23 @@ export function parseSessionHistorial(session) {
 export function evaluateEffectiveDerivation(session, historialInput = null) {
   const historial = historialInput || parseSessionHistorial(session);
   const rh = safeStr(session?.resumen_historico).toLowerCase();
+  const isCorrected =
+    session?.estado_charla === 'corregida' ||
+    session?.estado_aprendizaje === 'aprobado' ||
+    Boolean(session?.corregida_en);
+  const isAttendedHuman = session?.estado_charla === 'atendida_humano';
   const explicitDerived =
     session?.estado_charla === 'derivada' ||
     session?.estado_cotizacion === 'confirmado' ||
+    session?.estado_cotizacion === 'presupuesto_enviado' ||
+    Boolean(session?.presupuesto_enviado_at) ||
+    isCorrected ||
+    isAttendedHuman ||
     (historial.length === 0 && rh.includes('check oil'));
 
   let lastDerivationIdx = -1;
   let lastRejectionIdx = -1;
+  let quoteDeliveredInMessages = false;
 
   for (let i = 0; i < historial.length; i++) {
     const m = historial[i];
@@ -146,30 +189,47 @@ export function evaluateEffectiveDerivation(session, historialInput = null) {
     if (DERIVATION_CONFIRM_PATTERNS.some((p) => low.includes(p))) {
       lastDerivationIdx = i;
     }
+    if (
+      QUOTE_DELIVERED_PATTERNS.some((p) => low.includes(p)) ||
+      (m.mediaUrl || m.archivo || m.pdfUrl || m.tipo === 'pdf' || m.tipo === 'document')
+    ) {
+      quoteDeliveredInMessages = true;
+    }
     if (REJECTION_AFTER_DERIVATION_PATTERNS.some((p) => low.includes(p))) {
       lastRejectionIdx = i;
     }
   }
 
-  const derivedInMessages = lastDerivationIdx >= 0 && lastRejectionIdx <= lastDerivationIdx;
+  const derivedInMessages =
+    (lastDerivationIdx >= 0 && lastRejectionIdx <= lastDerivationIdx) ||
+    quoteDeliveredInMessages;
 
   if (explicitDerived) {
     return {
       isEffectivelyDerived: true,
-      wasOverwrittenByCourtesy: false
+      wasOverwrittenByCourtesy: false,
+      closedByQuoteDelivered: session?.estado_cotizacion === 'presupuesto_enviado' || Boolean(session?.presupuesto_enviado_at),
+      closedByCorrection: isCorrected,
+      closedByHuman: isAttendedHuman && !isCorrected
     };
   }
 
   if (derivedInMessages) {
     return {
       isEffectivelyDerived: true,
-      wasOverwrittenByCourtesy: true
+      wasOverwrittenByCourtesy: !quoteDeliveredInMessages,
+      closedByQuoteDelivered: quoteDeliveredInMessages,
+      closedByCorrection: false,
+      closedByHuman: false
     };
   }
 
   return {
     isEffectivelyDerived: false,
-    wasOverwrittenByCourtesy: false
+    wasOverwrittenByCourtesy: false,
+    closedByQuoteDelivered: false,
+    closedByCorrection: false,
+    closedByHuman: false
   };
 }
 

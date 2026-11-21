@@ -32,7 +32,13 @@ import {
   FileText,
   FlaskConical,
   Edit3,
-  Rocket
+  Rocket,
+  Menu,
+  ChevronDown,
+  ChevronUp,
+  SlidersHorizontal,
+  PanelRightOpen,
+  PanelRightClose
 } from 'lucide-react';
 import { Doughnut, Bar } from 'react-chartjs-2';
 import {
@@ -448,6 +454,86 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
   const [simulatorPreloadCase, setSimulatorPreloadCase] = useState(null);
   const configDirtyRef = useRef(false);
 
+  // Menús compactos y paneles colapsables (para maximizar espacio en pantalla)
+  const [showBotControlsMenu, setShowBotControlsMenu] = useState(false);
+  const [showIaLabMenu, setShowIaLabMenu] = useState(false);
+  const [showChatFilters, setShowChatFilters] = useState(false);
+  const [showClientSidePanel, setShowClientSidePanel] = useState(false);
+  const controlsMenuRef = useRef(null);
+  const iaMenuRef = useRef(null);
+
+  // Paneles redimensionables (estirables / achicables arrastrando el borde)
+  const [chatListWidth, setChatListWidth] = useState(() => {
+    try {
+      const saved = Number(localStorage.getItem('remex_bot_list_width'));
+      return saved >= 260 && saved <= 640 ? saved : 370;
+    } catch {
+      return 370;
+    }
+  });
+  const [sidePanelWidth, setSidePanelWidth] = useState(() => {
+    try {
+      const saved = Number(localStorage.getItem('remex_bot_side_width'));
+      return saved >= 240 && saved <= 520 ? saved : 320;
+    } catch {
+      return 320;
+    }
+  });
+  const resizingRef = useRef(null);
+
+  const startResize = (target, e) => {
+    e.preventDefault();
+    resizingRef.current = {
+      target,
+      startX: e.clientX,
+      startWidth: target === 'left' ? chatListWidth : sidePanelWidth
+    };
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  };
+
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!resizingRef.current) return;
+      const { target, startX, startWidth } = resizingRef.current;
+      const dx = e.clientX - startX;
+      if (target === 'left') {
+        const next = Math.max(260, Math.min(640, startWidth + dx));
+        setChatListWidth(next);
+        try { localStorage.setItem('remex_bot_list_width', String(next)); } catch {}
+      } else if (target === 'right') {
+        const next = Math.max(240, Math.min(520, startWidth - dx));
+        setSidePanelWidth(next);
+        try { localStorage.setItem('remex_bot_side_width', String(next)); } catch {}
+      }
+    };
+    const onUp = () => {
+      if (!resizingRef.current) return;
+      resizingRef.current = null;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (controlsMenuRef.current && !controlsMenuRef.current.contains(e.target)) {
+        setShowBotControlsMenu(false);
+      }
+      if (iaMenuRef.current && !iaMenuRef.current.contains(e.target)) {
+        setShowIaLabMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
   const loadDashboard = async (silent = false) => {
     if (!silent) setIsLoading(true);
     setIsSyncing(true);
@@ -500,6 +586,9 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
               isPaused,
               isDerived,
               wasOverwrittenByCourtesy: derivEval.wasOverwrittenByCourtesy,
+              closedByQuoteDelivered: derivEval.closedByQuoteDelivered,
+              closedByCorrection: derivEval.closedByCorrection,
+              closedByHuman: derivEval.closedByHuman,
               timing,
               nonDerivedInfo
             };
@@ -508,9 +597,10 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
           .sort((a, b) => new Date(b.updatedTime || 0).getTime() - new Date(a.updatedTime || 0).getTime());
 
         setSessions(cleanSessions);
-        if (!selectedSessionId && cleanSessions.length > 0) {
-          setSelectedSessionId(cleanSessions[0].documentId);
-          setEditingSummary(cleanSessions[0].resumen_historico || '');
+        if (cleanSessions.length > 0) {
+          // Usar updater funcional para evitar stale closure del setInterval cada 30s
+          // (antes pisaba el chat abierto y saltaba a la 1ra charla cada 30 segundos)
+          setSelectedSessionId((prev) => prev || cleanSessions[0].documentId);
         }
       }
       setLastSync(new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
@@ -531,17 +621,6 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
     return () => clearInterval(interval);
   }, []);
 
-  const selectedSession = useMemo(
-    () => sessions.find(s => s.documentId === selectedSessionId) || null,
-    [sessions, selectedSessionId]
-  );
-
-  useEffect(() => {
-    if (selectedSession) {
-      setEditingSummary(selectedSession.resumen_historico || '');
-    }
-  }, [selectedSessionId]);
-
   const learnedRules = useMemo(() => {
     try {
       const parsed = typeof botConfig.reglas_aprendidas_json === 'string'
@@ -552,6 +631,56 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
       return [];
     }
   }, [botConfig.reglas_aprendidas_json]);
+
+  // Cruce automático: si una charla ya fue corregida (en la sesión o con una regla en learnedRules),
+  // pasa automáticamente al estado CORREGIDA y queda cerrada fuera de "Sin cerrar".
+  const displaySessions = useMemo(() => {
+    return sessions.map((s) => {
+      const phone = String(s.cliente_telefono || s.documentId || '').replace('@s.whatsapp.net', '').trim();
+      const nameLow = String(s.cliente_nombre || '').trim().toLowerCase();
+      const matchedRule = learnedRules.find((r) => {
+        if (!r) return false;
+        if (r.sessionId && r.sessionId === s.documentId) return true;
+        if (phone && r.clientPhone && String(r.clientPhone).includes(phone)) return true;
+        const orig = String(r.origen || '').toLowerCase();
+        if (phone && orig.includes(phone)) return true;
+        if (nameLow && nameLow.length >= 3 && nameLow !== 'cliente' && orig.includes(nameLow)) return true;
+        return false;
+      }) || null;
+
+      const isCorrected = Boolean(
+        s.closedByCorrection ||
+        s.estado_charla === 'corregida' ||
+        s.estado_aprendizaje === 'aprobado' ||
+        s.corregida_en ||
+        matchedRule
+      );
+
+      if (!isCorrected) return s;
+
+      return {
+        ...s,
+        isCorrected: true,
+        isDerived: true,
+        linkedCorrectionRule: matchedRule,
+        correctionSummary: s.correccion_resumen || matchedRule?.respuesta || s.aprendizaje_sugerido || '',
+        correctionAuthor: s.corregida_por || matchedRule?.corregido_por || '',
+        correctionDate: s.corregida_en || matchedRule?.fecha || '',
+        timing: s.timing ? { ...s.timing, needsFollowUp: false, followUpUrgent: false } : s.timing
+      };
+    });
+  }, [sessions, learnedRules]);
+
+  const selectedSession = useMemo(
+    () => displaySessions.find(s => s.documentId === selectedSessionId) || null,
+    [displaySessions, selectedSessionId]
+  );
+
+  useEffect(() => {
+    if (selectedSession) {
+      setEditingSummary(selectedSession.resumen_historico || '');
+    }
+  }, [selectedSessionId]);
 
   const draftRulesCount = useMemo(
     () => learnedRules.filter(r => r.activa !== false && r.estado_publicacion === 'borrador').length,
@@ -577,26 +706,29 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
   // MÉTRICAS, FECHAS Y DESGLOSE DE NO DERIVADOS
   // ==========================================
   const stats = useMemo(() => {
-    const total = sessions.length;
-    const derived = sessions.filter(s => s.isDerived).length;
-    const nonDerived = sessions.filter(s => !s.isDerived).length;
-    const paused = sessions.filter(s => s.isPaused).length;
-    const incomplete = sessions.filter(s =>
-      s.estado_charla === 'incompleta' ||
-      s.estado_charla === 'fuera_de_contexto' ||
-      s.fuera_de_contexto === 'si' ||
-      Boolean(s.incompleta_motivo)
+    const total = displaySessions.length;
+    const derived = displaySessions.filter(s => s.isDerived).length;
+    const corrected = displaySessions.filter(s => s.isCorrected).length;
+    const nonDerived = displaySessions.filter(s => !s.isDerived).length;
+    const paused = displaySessions.filter(s => s.isPaused).length;
+    const incomplete = displaySessions.filter(s =>
+      !s.isDerived && (
+        s.estado_charla === 'incompleta' ||
+        s.estado_charla === 'fuera_de_contexto' ||
+        s.fuera_de_contexto === 'si' ||
+        Boolean(s.incompleta_motivo)
+      )
     ).length;
-    const needsFollowUp = sessions.filter(s => s.timing?.needsFollowUp).length;
-    const urgentFollowUp = sessions.filter(s => s.timing?.followUpUrgent).length;
+    const needsFollowUp = displaySessions.filter(s => s.timing?.needsFollowUp).length;
+    const urgentFollowUp = displaySessions.filter(s => s.timing?.followUpUrgent).length;
 
-    const todayCount = sessions.filter(s => s.timing?.dateCategory === 'today').length;
-    const yesterdayCount = sessions.filter(s => s.timing?.dateCategory === 'yesterday').length;
-    const weekCount = sessions.filter(s => ['today', 'yesterday', 'week'].includes(s.timing?.dateCategory)).length;
-    const olderCount = sessions.filter(s => s.timing?.dateCategory === 'older').length;
+    const todayCount = displaySessions.filter(s => s.timing?.dateCategory === 'today').length;
+    const yesterdayCount = displaySessions.filter(s => s.timing?.dateCategory === 'yesterday').length;
+    const weekCount = displaySessions.filter(s => ['today', 'yesterday', 'week'].includes(s.timing?.dateCategory)).length;
+    const olderCount = displaySessions.filter(s => s.timing?.dateCategory === 'older').length;
 
     const nonDerivedBreakdown = Object.values(NON_DERIVED_REASONS).map(r => {
-      const items = sessions.filter(s => !s.isDerived && s.nonDerivedInfo?.id === r.id);
+      const items = displaySessions.filter(s => !s.isDerived && s.nonDerivedInfo?.id === r.id);
       return {
         ...r,
         count: items.length,
@@ -604,13 +736,13 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
       };
     });
 
-    const pendingLearnings = sessions.filter(s =>
-      s.aprendizaje_sugerido && s.estado_aprendizaje !== 'aprobado' && s.estado_aprendizaje !== 'descartado'
+    const pendingLearnings = displaySessions.filter(s =>
+      s.aprendizaje_sugerido && s.estado_aprendizaje !== 'aprobado' && s.estado_aprendizaje !== 'descartado' && !s.isCorrected
     ).length;
-    const totalMessages = sessions.reduce((acc, s) => acc + Number(s.total_mensajes || s.historial?.length || 1), 0);
+    const totalMessages = displaySessions.reduce((acc, s) => acc + Number(s.total_mensajes || s.historial?.length || 1), 0);
 
     const byBranch = SUCURSALES_LIST.map(branch => {
-      const count = sessions.filter(s => {
+      const count = displaySessions.filter(s => {
         const text = `${s.sucursal_elegida || ''} ${s.resumen_historico || ''} ${s.resumen_charla || ''}`.toLowerCase();
         return text.includes(branch.key.toLowerCase());
       }).length;
@@ -622,6 +754,7 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
     return {
       total,
       derived,
+      corrected,
       nonDerived,
       nonDerivedBreakdown,
       paused,
@@ -637,7 +770,7 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
       conversionRate,
       byBranch
     };
-  }, [sessions]);
+  }, [displaySessions]);
 
   // ==========================================
   // ACCIONES DE CONTROL Y SEGUIMIENTO
@@ -808,13 +941,20 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
     const ruleText = (customRuleText ?? session.aprendizaje_sugerido ?? '').trim();
     if (!ruleText) return;
 
+    const nowIso = new Date().toISOString();
+    const authorName = user?.name || 'Operador';
+
     const newRule = {
       id: `learn-${Date.now()}`,
       pregunta: session.pregunta_detectada || session.incompleta_motivo || `Caso cliente ${session.cliente_nombre || session.cliente_telefono}`,
       respuesta: ruleText,
       origen: `Aprendido de charla con ${session.cliente_nombre || session.cliente_telefono}`,
+      sessionId: session.documentId,
+      clientPhone: session.cliente_telefono || '',
+      corregido_por: authorName,
+      corregido_en: nowIso,
       activa: true,
-      fecha: new Date().toISOString().split('T')[0]
+      fecha: nowIso.split('T')[0]
     };
 
     const nextRules = [newRule, ...learnedRules];
@@ -826,6 +966,13 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
       ...session,
       aprendizaje_sugerido: ruleText,
       estado_aprendizaje: 'aprobado',
+      estado_charla: session.estado_charla === 'derivada' ? 'derivada' : 'corregida',
+      corregida_por: authorName,
+      corregida_en: nowIso,
+      correccion_resumen: ruleText,
+      isDerived: true,
+      isCorrected: true,
+      closedByCorrection: true,
       ultima_interaccion: session.updatedTime || session.ultima_interaccion
     };
 
@@ -933,7 +1080,7 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
 
   // Filtrado de sesiones por estado, sub-motivo de no derivación, fecha y texto
   const filteredSessions = useMemo(() => {
-    return sessions.filter(s => {
+    return displaySessions.filter(s => {
       if (chatFilter === 'nonderived') {
         if (s.isDerived) return false;
         if (nonDerivedSubFilter !== 'all' && s.nonDerivedInfo?.id !== nonDerivedSubFilter) return false;
@@ -941,6 +1088,7 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
       if (chatFilter === 'followup' && !s.timing?.needsFollowUp) return false;
       if (chatFilter === 'paused' && !s.isPaused) return false;
       if (chatFilter === 'derived' && !s.isDerived) return false;
+      if (chatFilter === 'corrected' && !s.isCorrected) return false;
 
       if (dateFilter === 'today' && s.timing?.dateCategory !== 'today') return false;
       if (dateFilter === 'yesterday' && s.timing?.dateCategory !== 'yesterday') return false;
@@ -949,12 +1097,12 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
 
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const hay = `${s.cliente_nombre || ''} ${s.cliente_telefono || ''} ${s.documentId || ''} ${s.vehiculo || ''} ${s.sucursal_elegida || ''} ${s.resumen_historico || ''} ${s.resumen_charla || ''} ${s.timing?.badgeLabel || ''} ${s.nonDerivedInfo?.label || ''}`.toLowerCase();
+        const hay = `${s.cliente_nombre || ''} ${s.cliente_telefono || ''} ${s.documentId || ''} ${s.vehiculo || ''} ${s.sucursal_elegida || ''} ${s.resumen_historico || ''} ${s.resumen_charla || ''} ${s.timing?.badgeLabel || ''} ${s.nonDerivedInfo?.label || ''} ${s.correctionSummary || ''}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [sessions, chatFilter, nonDerivedSubFilter, dateFilter, searchQuery]);
+  }, [displaySessions, chatFilter, nonDerivedSubFilter, dateFilter, searchQuery]);
 
   // Datos para gráficos Chart.js
   const doughnutData = {
@@ -1020,110 +1168,291 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
     );
   }
 
+  const isIaSubTabActive = ['simulator', 'learning', 'config'].includes(activeTab);
+  const activeIaLabel =
+    activeTab === 'simulator'
+      ? 'Simulador IA'
+      : activeTab === 'learning'
+      ? 'Aprendizaje IA'
+      : activeTab === 'config'
+      ? 'Config. y Prompt'
+      : 'IA y Config.';
+  const activeExtraFiltersCount =
+    (dateFilter !== 'all' ? 1 : 0) +
+    (chatFilter === 'followup' || chatFilter === 'paused' ? 1 : 0) +
+    (nonDerivedSubFilter !== 'all' ? 1 : 0);
+
   return (
-    <div className="flex-1 p-4 lg:p-6 overflow-y-auto custom-scrollbar bg-zinc-950 flex flex-col h-full">
-      {/* HEADER SUPERIOR Y CONTROL MAESTRO COMPACTO CON GLOBOS */}
-      <div className="flex flex-wrap justify-between items-center gap-3 mb-4 shrink-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <Bot className="w-6 h-6 text-orange-500 shrink-0" />
-          <h2 className="text-lg lg:text-xl font-black text-white">
-            Centro de Control Bot & IA (Check-Oil)
-          </h2>
-          <span
-            className="px-2 py-0.5 rounded-full text-[10px] font-black bg-zinc-800 text-orange-300 border border-orange-500/30 cursor-help whitespace-nowrap"
-            title="Monitorea charlas de WhatsApp con fecha exacta, audita por qué algunos clientes no llegaron a derivarse, alerta cuando dejan de responder e inyecta aprendizajes en vivo."
-          >
-            ⓘ Info en globo
-          </span>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={handleToggleGlobalBot}
-            className={`px-3 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 border transition-all whitespace-nowrap ${
-              isGlobalBotActive
-                ? 'bg-emerald-950/40 text-emerald-400 border-emerald-500/40 hover:bg-emerald-900/50'
-                : 'bg-red-950/50 text-red-400 border-red-500/50 hover:bg-red-900/50 animate-pulse'
-            }`}
-            title="Activar o pausar globalmente las respuestas automáticas del Bot Check-Oil en WhatsApp"
-          >
-            {isGlobalBotActive ? <PlayCircle className="w-4 h-4 shrink-0" /> : <PauseCircle className="w-4 h-4 shrink-0" />}
-            <span>{isGlobalBotActive ? 'BOT: ACTIVO' : 'BOT: EN PAUSA'}</span>
-          </button>
-
-          <button
-            onClick={handleToggleAutoPause}
-            className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all whitespace-nowrap ${
-              isAutoPauseActive
-                ? 'bg-orange-950/30 text-orange-400 border-orange-500/40'
-                : 'bg-zinc-900 text-zinc-400 border-zinc-800'
-            }`}
-            title="Si un operador humano escribe desde WhatsApp en una charla activa, el bot se pausa automáticamente y solo observa/resume."
-          >
-            <Eye className="w-4 h-4 shrink-0" />
-            <span>Auto-Pausa: {isAutoPauseActive ? 'ON' : 'OFF'}</span>
-          </button>
-
+    <div className="flex-1 p-3 lg:p-4 overflow-y-auto custom-scrollbar bg-zinc-950 flex flex-col h-full">
+      {/* BARRA SUPERIOR UNIFICADA Y COMPACTA (UNA SOLA FILA) */}
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3 bg-zinc-900/95 border border-zinc-800 px-3 py-2 rounded-2xl shrink-0">
+        {/* Identidad compacta + Pestañas cortas en 1 línea */}
+        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
           <div
-            className="bg-zinc-900 border border-orange-500/40 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 whitespace-nowrap"
-            title="Configurar cada cuántos minutos el Bot le envía recordatorio por WhatsApp a Sucursal Centro cuando hay un presupuesto pendiente"
+            className="flex items-center gap-1.5 pr-2 mr-1 border-r border-zinc-800 cursor-help"
+            data-globo="Centro de Control Bot & IA (Check-Oil): monitorea WhatsApp, audita derivaciones, entrena reglas IA y controla el encendido del bot."
           >
-            <Clock className="w-3.5 h-3.5 text-orange-500 shrink-0" />
-            <span className="text-zinc-300">Recordatorio:</span>
-            <select
-              value={String(botConfig.sla_recordatorio_minutos || '15')}
-              onChange={(e) => handleUpdateBrokerConfig({ sla_recordatorio_minutos: String(e.target.value) })}
-              className="bg-orange-500/20 text-orange-300 font-black px-1.5 py-0.5 rounded-lg border border-orange-500/40 outline-none cursor-pointer"
-            >
-              {['10', '15', '20', '25', '30', '45', '60'].map((m) => (
-                <option key={m} value={m} className="bg-zinc-900 text-white">
-                  Cada {m} min
-                </option>
-              ))}
-              {!['10', '15', '20', '25', '30', '45', '60'].includes(String(botConfig.sla_recordatorio_minutos || '15')) && (
-                <option value={String(botConfig.sla_recordatorio_minutos)} className="bg-zinc-900 text-white">
-                  Cada {botConfig.sla_recordatorio_minutos} min
-                </option>
-              )}
-            </select>
+            <Bot className="w-5 h-5 text-orange-500 shrink-0" />
+            <span className="text-sm font-black text-white whitespace-nowrap hidden sm:inline">Bot & IA</span>
           </div>
 
           <button
-            onClick={handleExportCSV}
-            className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors whitespace-nowrap"
-            title="Exportar el listado completo de sesiones y métricas a un archivo CSV/Excel"
+            onClick={() => setActiveTab('chats')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all whitespace-nowrap ${
+              activeTab === 'chats'
+                ? 'bg-orange-500 text-black shadow-[0_0_12px_rgba(249,115,22,0.35)]'
+                : 'text-zinc-300 hover:text-white hover:bg-zinc-800'
+            }`}
           >
-            <Download className="w-3.5 h-3.5 text-orange-500 shrink-0" />
-            <span>CSV</span>
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span>Monitor ({stats.total})</span>
+            {stats.paused > 0 && (
+              <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-red-500 text-white font-black leading-none">
+                {stats.paused}
+              </span>
+            )}
+            {stats.needsFollowUp > 0 && (
+              <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-amber-400 text-black font-black leading-none">
+                {stats.needsFollowUp}
+              </span>
+            )}
           </button>
+
+          <button
+            onClick={() => setActiveTab('stats')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all whitespace-nowrap ${
+              activeTab === 'stats'
+                ? 'bg-orange-500 text-black shadow-[0_0_12px_rgba(249,115,22,0.35)]'
+                : 'text-zinc-300 hover:text-white hover:bg-zinc-800'
+            }`}
+          >
+            <BarChart3 className="w-3.5 h-3.5" />
+            <span>Estadísticas y Suc.</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('audit_nonderived')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all whitespace-nowrap ${
+              activeTab === 'audit_nonderived'
+                ? 'bg-orange-500 text-black shadow-[0_0_12px_rgba(249,115,22,0.35)]'
+                : 'text-zinc-300 hover:text-white hover:bg-zinc-800'
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Sin Derivación</span>
+          </button>
+
+          {/* MENÚ DESPLEGABLE: SIMULADOR, APRENDIZAJE Y CONFIGURACIÓN */}
+          <div className="relative" ref={iaMenuRef}>
+            <button
+              type="button"
+              onClick={() => setShowIaLabMenu((v) => !v)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all whitespace-nowrap border ${
+                isIaSubTabActive
+                  ? 'bg-orange-500 text-black border-orange-400 shadow-[0_0_12px_rgba(249,115,22,0.35)]'
+                  : 'text-orange-300 bg-orange-500/10 border-orange-500/30 hover:bg-orange-500/20'
+              }`}
+            >
+              <FlaskConical className="w-3.5 h-3.5" />
+              <span>{activeIaLabel}</span>
+              {(stats.pendingLearnings > 0 || draftRulesCount > 0) && (
+                <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-amber-400 text-black font-black leading-none">
+                  {stats.pendingLearnings + draftRulesCount}
+                </span>
+              )}
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showIaLabMenu ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showIaLabMenu && (
+              <div className="absolute left-0 top-full mt-2 w-64 bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl p-1.5 z-50 space-y-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('simulator');
+                    setShowIaLabMenu(false);
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl text-xs font-black flex items-center justify-between transition-colors ${
+                    activeTab === 'simulator' ? 'bg-orange-500 text-black' : 'text-zinc-200 hover:bg-zinc-800'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <FlaskConical className="w-4 h-4" />
+                    Simulador y Entrenador IA
+                  </span>
+                  {draftRulesCount > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-amber-400 text-black font-black">
+                      {draftRulesCount}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('learning');
+                    setShowIaLabMenu(false);
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl text-xs font-black flex items-center justify-between transition-colors ${
+                    activeTab === 'learning' ? 'bg-orange-500 text-black' : 'text-zinc-200 hover:bg-zinc-800'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <Brain className="w-4 h-4" />
+                    Aprendizaje IA e Incompletas
+                  </span>
+                  {stats.pendingLearnings > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-amber-400 text-black font-black">
+                      {stats.pendingLearnings}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('config');
+                    setShowIaLabMenu(false);
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl text-xs font-black flex items-center gap-2 transition-colors ${
+                    activeTab === 'config' ? 'bg-orange-500 text-black' : 'text-zinc-200 hover:bg-zinc-800'
+                  }`}
+                >
+                  <Settings className="w-4 h-4" />
+                  Configuración y Prompt
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* DERECHA: MENÚ HAMBURGUESA DE CONTROL DEL BOT (BOT ACTIVO, AUTO-PAUSA, RECORDATORIO, CSV) + ACTUALIZAR */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <div className="relative" ref={controlsMenuRef}>
+            <button
+              type="button"
+              onClick={() => setShowBotControlsMenu((v) => !v)}
+              data-globo="Abrir controles del Bot: Encendido/Pausa global, Auto-Pausa humana, tiempo de Recordatorio a Sucursal Centro y exportación CSV."
+              className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-2 border transition-all whitespace-nowrap ${
+                isGlobalBotActive
+                  ? 'bg-emerald-950/40 text-emerald-300 border-emerald-500/40 hover:bg-emerald-900/50'
+                  : 'bg-red-950/50 text-red-300 border-red-500/50 hover:bg-red-900/50 animate-pulse'
+              }`}
+            >
+              <Menu className="w-3.5 h-3.5 shrink-0" />
+              <span className={`w-2 h-2 rounded-full ${isGlobalBotActive ? 'bg-emerald-400' : 'bg-red-400'}`} />
+              <span>{isGlobalBotActive ? 'Bot: ON' : 'Bot: PAUSA'}</span>
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showBotControlsMenu ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showBotControlsMenu && (
+              <div className="absolute right-0 top-full mt-2 w-72 bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl p-3 z-50 space-y-2.5">
+                <div className="text-[10px] font-black uppercase tracking-wider text-zinc-400 px-1">
+                  Controles Maestros del Bot
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleToggleGlobalBot}
+                  className={`w-full px-3 py-2 rounded-xl text-xs font-black flex items-center justify-between border transition-all ${
+                    isGlobalBotActive
+                      ? 'bg-emerald-950/50 text-emerald-300 border-emerald-500/40 hover:bg-emerald-900/60'
+                      : 'bg-red-950/50 text-red-300 border-red-500/50 hover:bg-red-900/60'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    {isGlobalBotActive ? <PlayCircle className="w-4 h-4" /> : <PauseCircle className="w-4 h-4" />}
+                    Estado Global del Bot
+                  </span>
+                  <span>{isGlobalBotActive ? 'ACTIVO' : 'PAUSA'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleToggleAutoPause}
+                  className={`w-full px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-between border transition-all ${
+                    isAutoPauseActive
+                      ? 'bg-orange-950/40 text-orange-300 border-orange-500/40'
+                      : 'bg-zinc-950 text-zinc-400 border-zinc-800'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <Eye className="w-4 h-4" />
+                    Auto-Pausa Humana
+                  </span>
+                  <span className="font-black">{isAutoPauseActive ? 'ON' : 'OFF'}</span>
+                </button>
+
+                <div className="bg-zinc-950 border border-zinc-800 px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-2 text-zinc-300">
+                    <Clock className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+                    Recordatorio:
+                  </span>
+                  <select
+                    value={String(botConfig.sla_recordatorio_minutos || '15')}
+                    onChange={(e) => handleUpdateBrokerConfig({ sla_recordatorio_minutos: String(e.target.value) })}
+                    className="bg-orange-500/20 text-orange-300 font-black px-2 py-0.5 rounded-lg border border-orange-500/40 outline-none cursor-pointer"
+                  >
+                    {['10', '15', '20', '25', '30', '45', '60'].map((m) => (
+                      <option key={m} value={m} className="bg-zinc-900 text-white">
+                        Cada {m} min
+                      </option>
+                    ))}
+                    {!['10', '15', '20', '25', '30', '45', '60'].includes(String(botConfig.sla_recordatorio_minutos || '15')) && (
+                      <option value={String(botConfig.sla_recordatorio_minutos)} className="bg-zinc-900 text-white">
+                        Cada {botConfig.sla_recordatorio_minutos} min
+                      </option>
+                    )}
+                  </select>
+                </div>
+
+                <div className="pt-1 border-t border-zinc-800 flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleExportCSV();
+                      setShowBotControlsMenu(false);
+                    }}
+                    className="flex-1 bg-zinc-950 hover:bg-zinc-800 text-zinc-200 border border-zinc-800 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5"
+                  >
+                    <Download className="w-3.5 h-3.5 text-orange-500" />
+                    Exportar CSV
+                  </button>
+                </div>
+
+                {lastSync && (
+                  <div className="text-[10px] text-zinc-500 font-mono text-center pt-0.5">
+                    Última sincro n8n: {lastSync}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           <button
             onClick={() => loadDashboard(false)}
             disabled={isSyncing}
-            className="bg-orange-600 hover:bg-orange-500 text-black font-black px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-colors disabled:opacity-50 whitespace-nowrap"
-            title="Sincronizar conversaciones y estados con n8n / Firestore"
+            data-globo={`Sincronizar conversaciones con n8n${lastSync ? ` (Última: ${lastSync})` : ''}`}
+            className="bg-orange-600 hover:bg-orange-500 text-black font-black px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition-colors disabled:opacity-50 whitespace-nowrap"
           >
             <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${isSyncing ? 'animate-spin' : ''}`} />
-            <span>{isSyncing ? 'Sincronizando...' : 'Actualizar'}</span>
+            <span className="hidden md:inline">{isSyncing ? 'Sincro...' : 'Actualizar'}</span>
           </button>
         </div>
       </div>
 
-      {/* BANNER GLOBAL DE ALERTA DE SEGUIMIENTO (CLIENTES SIN RESPUESTA) */}
+      {/* BANNER COMPACTO DE ALERTA DE SEGUIMIENTO (SOLO CHARLAS REALMENTE SIN CERRAR) */}
       {stats.needsFollowUp > 0 && (
-        <div className="mb-5 bg-amber-950/30 border border-amber-500/40 rounded-2xl p-3.5 px-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
-          <div className="flex items-center gap-3 text-xs text-amber-200">
-            <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 shrink-0">
-              <BellRing className="w-5 h-5 animate-bounce" />
-            </div>
-            <div>
-              <span className="font-black text-amber-400 uppercase tracking-wide block sm:inline mr-2">
-                Alerta de Seguimiento ({stats.needsFollowUp} {stats.needsFollowUp === 1 ? 'charla sin cerrar' : 'charlas sin cerrar'}):
-              </span>
-              <span>
-                Hay {stats.urgentFollowUp > 0 ? <b>{stats.urgentFollowUp} clientes de hoy/ayer</b> : <b>{stats.needsFollowUp} clientes</b>} que dejaron de responder o quedaron esperando confirmación sin llegar a derivarse.
-              </span>
-            </div>
+        <div className="mb-3 bg-amber-950/30 border border-amber-500/35 rounded-xl py-2 px-3.5 flex flex-wrap items-center justify-between gap-2 shrink-0">
+          <div className="flex items-center gap-2 text-xs text-amber-200 min-w-0">
+            <BellRing className="w-4 h-4 text-amber-400 shrink-0" />
+            <span className="truncate">
+              <b className="text-amber-400 uppercase mr-1.5">
+                {stats.needsFollowUp} sin cerrar:
+              </b>
+              {stats.urgentFollowUp > 0
+                ? `${stats.urgentFollowUp} de hoy/ayer sin derivar ni presupuesto entregado.`
+                : `${stats.needsFollowUp} clientes pendientes sin derivar ni presupuesto entregado.`}
+            </span>
           </div>
           <button
             onClick={() => {
@@ -1132,126 +1461,23 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
               const firstStalled = sessions.find(s => s.timing?.needsFollowUp);
               if (firstStalled) setSelectedSessionId(firstStalled.documentId);
             }}
-            className="bg-amber-500 hover:bg-amber-400 text-black font-black text-xs px-4 py-2 rounded-xl shrink-0 flex items-center gap-1.5 transition-colors"
+            className="bg-amber-500 hover:bg-amber-400 text-black font-black text-[11px] px-3 py-1 rounded-lg shrink-0 flex items-center gap-1 transition-colors"
           >
-            <MessageCircleWarning className="w-4 h-4" />
-            Ver e Intervenir ({stats.needsFollowUp})
+            <MessageCircleWarning className="w-3.5 h-3.5" />
+            Ver ({stats.needsFollowUp})
           </button>
         </div>
       )}
 
       {errorMsg && (
-        <div className="mb-6 bg-red-950/30 border border-red-500/40 rounded-2xl p-4 flex items-center justify-between text-red-300 text-sm">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
+        <div className="mb-3 bg-red-950/30 border border-red-500/40 rounded-xl p-3 flex items-center justify-between text-red-300 text-xs shrink-0">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
             <span>{errorMsg}</span>
           </div>
           <button onClick={() => loadDashboard(false)} className="text-xs font-black underline">Reintentar</button>
         </div>
       )}
-
-      {/* NAVEGACIÓN DE PESTAÑAS DEL BOT GENERAL */}
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-6 bg-zinc-900/90 border border-zinc-800 p-2 rounded-2xl shrink-0">
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => setActiveTab('stats')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all ${
-              activeTab === 'stats'
-                ? 'bg-orange-500 text-black shadow-[0_0_15px_rgba(249,115,22,0.4)]'
-                : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-            }`}
-          >
-            <BarChart3 className="w-4 h-4" />
-            Estadísticas y Sucursales
-          </button>
-
-          <button
-            onClick={() => setActiveTab('audit_nonderived')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all ${
-              activeTab === 'audit_nonderived'
-                ? 'bg-orange-500 text-black shadow-[0_0_15px_rgba(249,115,22,0.4)]'
-                : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-            }`}
-          >
-            <FileText className="w-4 h-4" />
-            Informe Sin Derivación
-          </button>
-
-          <button
-            onClick={() => setActiveTab('chats')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all ${
-              activeTab === 'chats'
-                ? 'bg-orange-500 text-black shadow-[0_0_15px_rgba(249,115,22,0.4)]'
-                : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-            }`}
-          >
-            <MessageSquare className="w-4 h-4" />
-            Monitor de Charlas ({stats.total})
-            {stats.paused > 0 && (
-              <span className="px-2 py-0.5 text-[10px] rounded-full bg-red-500 text-white font-black">
-                {stats.paused} en pausa
-              </span>
-            )}
-            {stats.needsFollowUp > 0 && (
-              <span className="px-2 py-0.5 text-[10px] rounded-full bg-amber-400 text-black font-black">
-                {stats.needsFollowUp} sin resp.
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={() => setActiveTab('simulator')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all ${
-              activeTab === 'simulator'
-                ? 'bg-orange-500 text-black shadow-[0_0_15px_rgba(249,115,22,0.4)]'
-                : 'text-orange-300 bg-orange-500/10 border border-orange-500/30 hover:bg-orange-500/20'
-            }`}
-          >
-            <FlaskConical className="w-4 h-4" />
-            Simulador y Entrenador IA
-            {draftRulesCount > 0 && (
-              <span className="px-2 py-0.5 text-[10px] rounded-full bg-amber-400 text-black font-black">
-                {draftRulesCount} borrador{draftRulesCount === 1 ? '' : 'es'}
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={() => setActiveTab('learning')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all ${
-              activeTab === 'learning'
-                ? 'bg-orange-500 text-black shadow-[0_0_15px_rgba(249,115,22,0.4)]'
-                : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-            }`}
-          >
-            <Brain className="w-4 h-4" />
-            Aprendizaje IA e Incompletas
-            {stats.pendingLearnings > 0 && (
-              <span className="px-2 py-0.5 text-[10px] rounded-full bg-amber-400 text-black font-black">
-                {stats.pendingLearnings} nuevos
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={() => setActiveTab('config')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all ${
-              activeTab === 'config'
-                ? 'bg-orange-500 text-black shadow-[0_0_15px_rgba(249,115,22,0.4)]'
-                : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-            }`}
-          >
-            <Settings className="w-4 h-4" />
-            Configuración y Prompt
-          </button>
-        </div>
-
-        {lastSync && (
-          <span className="text-[11px] text-zinc-500 font-bold px-3">
-            Última sincro n8n: {lastSync}
-          </span>
-        )}
-      </div>
 
       {/* =========================================================
           NUEVA PESTAÑA: SIMULADOR SANDBOX Y ENTRENADOR IA
@@ -1471,124 +1697,175 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
           TAB 2: MONITOR DE CHARLAS, FECHAS Y MOTIVOS DE NO DERIVACIÓN
       ========================================================= */}
       {activeTab === 'chats' && (
-        <div className="flex-1 flex flex-col lg:flex-row gap-6 min-h-[650px]">
-          {/* Columna izquierda: Lista de sesiones con filtro por Fecha, Estado y Motivo de No Derivación */}
-          <div className="w-full lg:w-[430px] shrink-0 bg-zinc-900 border border-zinc-800 rounded-3xl flex flex-col overflow-hidden">
-            <div className="p-4 border-b border-zinc-800 space-y-3 bg-zinc-950/40">
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Buscar cliente, teléfono, vehículo, motivo..."
-                  className="w-full bg-black border border-zinc-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:border-orange-500 outline-none"
-                />
-              </div>
-
-              {/* FILTRO POR FECHA */}
-              <div>
-                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                  <Calendar className="w-3 h-3 text-orange-500" /> 1. Filtrar por Fecha
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    { id: 'all', label: `Todas (${stats.total})` },
-                    { id: 'today', label: `Hoy (${stats.todayCount})` },
-                    { id: 'yesterday', label: `Ayer (${stats.yesterdayCount})` },
-                    { id: 'week', label: `Últ. 7 días (${stats.weekCount})` },
-                    { id: 'older', label: `+1 Semana (${stats.olderCount})` }
-                  ].map(df => (
-                    <button
-                      key={df.id}
-                      onClick={() => setDateFilter(df.id)}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors ${
-                        dateFilter === df.id
-                          ? 'bg-emerald-500 text-black font-black'
-                          : 'bg-black text-zinc-400 hover:text-white border border-zinc-800'
-                      }`}
-                    >
-                      {df.label}
-                    </button>
-                  ))}
+        <div className="flex-1 flex flex-col lg:flex-row gap-2 lg:gap-0 min-h-0 overflow-hidden">
+          {/* Columna izquierda: Lista de sesiones REDIMENSIONABLE arrastrando el borde derecho */}
+          <div
+            style={{ '--list-w': `${chatListWidth}px` }}
+            className="w-full lg:w-[var(--list-w)] shrink-0 bg-zinc-900 border border-zinc-800 rounded-2xl flex flex-col overflow-hidden"
+          >
+            <div className="p-3 border-b border-zinc-800 space-y-2 bg-zinc-950/50 shrink-0">
+              {/* Buscador + Botón Filtros colapsable */}
+              <div className="flex items-center gap-1.5">
+                <div className="relative flex-1 min-w-0">
+                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Buscar cliente, teléfono, vehículo..."
+                    className="w-full bg-black border border-zinc-800 rounded-xl pl-8 pr-2.5 py-1.5 text-xs text-white focus:border-orange-500 outline-none"
+                  />
                 </div>
-              </div>
-
-              {/* FILTRO POR ESTADO (DERIVADAS VS NO DERIVADAS VS SIN RESPUESTA) */}
-              <div>
-                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                  <Clock className="w-3 h-3 text-amber-400" /> 2. Filtrar por Resultado
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    { id: 'all', label: 'Todos' },
-                    { id: 'nonderived', label: `❌ No Derivados (${stats.nonDerived})` },
-                    { id: 'followup', label: `⚠️ Alerta Sin Resp. (${stats.needsFollowUp})` },
-                    { id: 'derived', label: `✅ Derivados (${stats.derived})` },
-                    { id: 'paused', label: `En Pausa (${stats.paused})` }
-                  ].map(tab => (
-                    <button
-                      key={tab.id}
-                      onClick={() => {
-                        setChatFilter(tab.id);
-                        if (tab.id !== 'nonderived') setNonDerivedSubFilter('all');
-                      }}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors ${
-                        chatFilter === tab.id
-                          ? 'bg-orange-500 text-black font-black'
-                          : tab.id === 'followup' && stats.needsFollowUp > 0
-                          ? 'bg-amber-950/40 text-amber-300 border border-amber-500/40 hover:bg-amber-900/50'
-                          : 'bg-black text-zinc-400 hover:text-white border border-zinc-800'
-                      }`}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* SUB-FILTRO ESPECÍFICO CUANDO SE ELIGE "NO DERIVADOS" */}
-              {chatFilter === 'nonderived' && (
-                <div className="pt-1 border-t border-zinc-800/80">
-                  <p className="text-[10px] font-black text-amber-400 uppercase tracking-wider mb-1.5">
-                    Motivo por el que no se derivó:
-                  </p>
-                  <div className="flex flex-wrap gap-1">
-                    <button
-                      onClick={() => setNonDerivedSubFilter('all')}
-                      className={`px-2 py-1 rounded text-[10px] font-bold ${
-                        nonDerivedSubFilter === 'all'
-                          ? 'bg-amber-400 text-black font-black'
-                          : 'bg-zinc-900 text-zinc-400 border border-zinc-800'
-                      }`}
-                    >
-                      Todos ({stats.nonDerived})
-                    </button>
-                    {stats.nonDerivedBreakdown.map(b => (
-                      <button
-                        key={b.id}
-                        onClick={() => setNonDerivedSubFilter(b.id)}
-                        className={`px-2 py-1 rounded text-[10px] font-bold ${
-                          nonDerivedSubFilter === b.id
-                            ? 'bg-amber-400 text-black font-black'
-                            : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-white'
-                        }`}
-                      >
-                        {b.shortBadge} ({b.count})
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {stats.paused > 0 && (
                 <button
-                  onClick={handleResumeAllPaused}
-                  className="w-full py-1.5 rounded-lg bg-emerald-950/50 hover:bg-emerald-900/60 text-emerald-400 border border-emerald-500/30 text-[11px] font-black flex items-center justify-center gap-1.5"
+                  type="button"
+                  onClick={() => setShowChatFilters((v) => !v)}
+                  data-globo="Mostrar u ocultar filtros avanzados por fecha, pausados y motivo de no derivación"
+                  className={`px-2.5 py-1.5 rounded-xl text-[11px] font-black border flex items-center gap-1 shrink-0 transition-colors ${
+                    showChatFilters || activeExtraFiltersCount > 0
+                      ? 'bg-orange-500/20 text-orange-300 border-orange-500/50'
+                      : 'bg-black text-zinc-300 border-zinc-800 hover:border-zinc-700'
+                  }`}
                 >
-                  <PlayCircle className="w-3.5 h-3.5" />
-                  Reactivar todos los bots en pausa ({stats.paused})
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                  <span>Filtros</span>
+                  {activeExtraFiltersCount > 0 && (
+                    <span className="px-1.5 py-0.2 rounded-full bg-orange-500 text-black text-[10px] font-black">
+                      {activeExtraFiltersCount}
+                    </span>
+                  )}
+                  {showChatFilters ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                 </button>
+              </div>
+
+              {/* Barra rápida siempre visible sin recortes */}
+              <div className="flex flex-wrap items-center gap-1">
+                {[
+                  { id: 'all', label: `Todas (${stats.total})` },
+                  { id: 'nonderived', label: `Sin cerrar (${stats.nonDerived})` },
+                  { id: 'derived', label: `Cerradas (${stats.derived})` },
+                  { id: 'corrected', label: `✨ Corregidas (${stats.corrected})` }
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setChatFilter(tab.id);
+                      if (tab.id !== 'nonderived') setNonDerivedSubFilter('all');
+                    }}
+                    className={`px-2 py-1 rounded-lg text-[10px] font-black whitespace-nowrap transition-colors ${
+                      chatFilter === tab.id
+                        ? tab.id === 'corrected'
+                          ? 'bg-violet-500 text-white'
+                          : 'bg-orange-500 text-black'
+                        : tab.id === 'corrected' && stats.corrected > 0
+                        ? 'bg-violet-950/50 text-violet-300 border border-violet-500/35 hover:bg-violet-900/50'
+                        : 'bg-black text-zinc-400 hover:text-white border border-zinc-800'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+                {stats.paused > 0 && (
+                  <button
+                    onClick={handleResumeAllPaused}
+                    data-globo={`Reactivar todos los bots en pausa (${stats.paused})`}
+                    className="ml-auto px-2 py-1 rounded-lg bg-emerald-950/60 hover:bg-emerald-900/70 text-emerald-300 border border-emerald-500/35 text-[10px] font-black flex items-center gap-1 whitespace-nowrap shrink-0"
+                  >
+                    <PlayCircle className="w-3 h-3" />
+                    Reactivar ({stats.paused})
+                  </button>
+                )}
+              </div>
+
+              {/* PANEL DE FILTROS AVANZADOS (COLAPSADO POR DEFECTO) */}
+              {showChatFilters && (
+                <div className="pt-2 border-t border-zinc-800/80 space-y-2.5 max-h-56 overflow-y-auto custom-scrollbar">
+                  <div>
+                    <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wider mb-1 flex items-center gap-1">
+                      <Calendar className="w-3 h-3 text-orange-500" /> Fecha
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      {[
+                        { id: 'all', label: `Todas (${stats.total})` },
+                        { id: 'today', label: `Hoy (${stats.todayCount})` },
+                        { id: 'yesterday', label: `Ayer (${stats.yesterdayCount})` },
+                        { id: 'week', label: `7 días (${stats.weekCount})` },
+                        { id: 'older', label: `+1 Sem (${stats.olderCount})` }
+                      ].map(df => (
+                        <button
+                          key={df.id}
+                          onClick={() => setDateFilter(df.id)}
+                          className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-colors ${
+                            dateFilter === df.id
+                              ? 'bg-emerald-500 text-black font-black'
+                              : 'bg-black text-zinc-400 hover:text-white border border-zinc-800'
+                          }`}
+                        >
+                          {df.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wider mb-1 flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-amber-400" /> Estado especial
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      {[
+                        { id: 'followup', label: `⚠️ Alerta Sin Resp. (${stats.needsFollowUp})` },
+                        { id: 'paused', label: `En Pausa (${stats.paused})` }
+                      ].map(tab => (
+                        <button
+                          key={tab.id}
+                          onClick={() => {
+                            setChatFilter(chatFilter === tab.id ? 'all' : tab.id);
+                            setNonDerivedSubFilter('all');
+                          }}
+                          className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-colors ${
+                            chatFilter === tab.id
+                              ? 'bg-orange-500 text-black font-black'
+                              : 'bg-black text-zinc-400 hover:text-white border border-zinc-800'
+                          }`}
+                        >
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {chatFilter === 'nonderived' && (
+                    <div>
+                      <p className="text-[10px] font-black text-amber-400 uppercase tracking-wider mb-1">
+                        Motivo sin cerrar:
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        <button
+                          onClick={() => setNonDerivedSubFilter('all')}
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            nonDerivedSubFilter === 'all'
+                              ? 'bg-amber-400 text-black font-black'
+                              : 'bg-zinc-900 text-zinc-400 border border-zinc-800'
+                          }`}
+                        >
+                          Todos ({stats.nonDerived})
+                        </button>
+                        {stats.nonDerivedBreakdown.map(b => (
+                          <button
+                            key={b.id}
+                            onClick={() => setNonDerivedSubFilter(b.id)}
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              nonDerivedSubFilter === b.id
+                                ? 'bg-amber-400 text-black font-black'
+                                : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-white'
+                            }`}
+                          >
+                            {b.shortBadge} ({b.count})
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
@@ -1610,23 +1887,25 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
                     <div
                       key={s.documentId}
                       onClick={() => setSelectedSessionId(s.documentId)}
-                      className={`p-4 cursor-pointer transition-colors ${
+                      className={`p-3 cursor-pointer transition-colors ${
                         isSelected
                           ? 'bg-orange-500/10 border-l-4 border-l-orange-500'
                           : 'hover:bg-zinc-800/40 border-l-4 border-l-transparent'
                       }`}
                     >
                       {/* Fila 1: Nombre del Cliente + Estado */}
-                      <div className="flex justify-between items-start gap-2 mb-1.5">
-                        <span className="font-black text-sm text-white truncate">
+                      <div className="flex justify-between items-start gap-2 mb-1">
+                        <span className="font-black text-xs text-white truncate">
                           {s.cliente_nombre && s.cliente_nombre !== 'Cliente'
                             ? s.cliente_nombre
                             : `+${s.cliente_telefono || s.documentId.replace('@s.whatsapp.net', '')}`}
                         </span>
                         <span
-                          className={`text-[10px] px-2 py-0.5 rounded-full font-black uppercase shrink-0 ${
+                          className={`text-[9px] px-2 py-0.5 rounded-full font-black uppercase shrink-0 ${
                             s.isPaused
                               ? 'bg-orange-500/20 text-orange-400 border border-orange-500/40'
+                              : s.isCorrected
+                              ? 'bg-violet-500/20 text-violet-300 border border-violet-500/40'
                               : s.isDerived
                               ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                               : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
@@ -1634,16 +1913,18 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
                         >
                           {s.isPaused
                             ? 'PAUSADO'
+                            : s.isCorrected
+                            ? '✨ CORREGIDA'
                             : s.isDerived
-                            ? 'DERIVADA'
-                            : 'NO DERIVADO'}
+                            ? (s.closedByQuoteDelivered ? 'PRESUP. ENVIADO' : s.closedByHuman ? 'ATENDIDA' : 'DERIVADA')
+                            : 'SIN CERRAR'}
                         </span>
                       </div>
 
-                      {/* Fila 2: Etiqueta de Fecha + Motivo de No Derivación */}
-                      <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+                      {/* Fila 2: Fecha + Sucursal + Motivo (si está abierta) */}
+                      <div className="flex flex-wrap items-center gap-1.5 mb-1">
                         <span
-                          className={`text-[10px] px-2 py-0.5 rounded-md font-black flex items-center gap-1 ${
+                          className={`text-[10px] px-1.5 py-0.5 rounded font-bold flex items-center gap-1 ${
                             isToday
                               ? 'bg-emerald-950/70 text-emerald-300 border border-emerald-500/30'
                               : isYesterday
@@ -1655,26 +1936,23 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
                           {t.badgeLabel || 'Sin fecha'}
                         </span>
 
+                        {s.sucursal_elegida && s.sucursal_elegida !== 'Sin definir' && (
+                          <span className="text-[10px] text-orange-400 font-bold truncate">
+                            • {s.sucursal_elegida}
+                          </span>
+                        )}
+
                         {!s.isDerived && s.nonDerivedInfo && (
-                          <span className={`text-[10px] px-2 py-0.5 rounded-md font-black border ${s.nonDerivedInfo.color}`}>
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded font-black border ${s.nonDerivedInfo.color}`}>
                             {s.nonDerivedInfo.shortBadge}
                           </span>
                         )}
                       </div>
 
-                      {/* Fila 3: Teléfono + Sucursal */}
-                      <div className="text-[11px] text-zinc-400 font-mono mb-1.5 flex items-center gap-2">
-                        <Phone className="w-3 h-3 text-zinc-500" />
-                        {s.cliente_telefono || s.documentId.replace('@s.whatsapp.net', '')}
-                        {s.sucursal_elegida && s.sucursal_elegida !== 'Sin definir' && (
-                          <span className="text-orange-400 font-bold truncate">• {s.sucursal_elegida}</span>
-                        )}
-                      </div>
-
-                      <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed">
+                      <p className="text-[11px] text-zinc-400 line-clamp-1 leading-snug">
                         {!s.isDerived && s.nonDerivedInfo
                           ? s.nonDerivedInfo.detail
-                          : (s.resumen_charla || s.resumen_historico || 'Sin resumen generado aún.')}
+                          : (s.resumen_charla || s.resumen_historico || s.cliente_telefono || '')}
                       </p>
                     </div>
                   );
@@ -1683,8 +1961,17 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
             </div>
           </div>
 
+          {/* DIVISOR ARRASTRABLE PARA ESTIRAR O ACHICAR LA LISTA DE CHARLAS */}
+          <div
+            onMouseDown={(e) => startResize('left', e)}
+            data-globo="Arrastrá hacia los costados para agrandar o achicar la lista de conversaciones"
+            className="hidden lg:flex w-2.5 shrink-0 cursor-col-resize items-center justify-center group select-none"
+          >
+            <div className="w-1 h-16 rounded-full bg-zinc-800 group-hover:bg-orange-500 transition-colors" />
+          </div>
+
           {/* Columna derecha: Detalle de charla, motivo de no derivación, alerta de intervención, resumen, pausa y chat */}
-          <div className="flex-1 bg-zinc-900 border border-zinc-800 rounded-3xl flex flex-col overflow-hidden">
+          <div className="flex-1 min-w-0 bg-zinc-900 border border-zinc-800 rounded-2xl flex flex-col overflow-hidden">
             {!selectedSession ? (
               <div className="flex-1 flex flex-col items-center justify-center p-12 text-zinc-500">
                 <MessageSquare className="w-12 h-12 mb-3 opacity-20" />
@@ -1719,11 +2006,25 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
                     </div>
                   </div>
 
-                  {/* Botón Pausa / Reactivar Bot para este cliente */}
-                  <div className="flex items-center gap-2">
+                  {/* Botón Pausa / Reactivar Bot + Toggle Memoria/Diagnóstico */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setShowClientSidePanel((v) => !v)}
+                      data-globo="Mostrar u ocultar el panel lateral de Memoria Histórica del Cliente y Resumen Ejecutivo"
+                      className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
+                        showClientSidePanel
+                          ? 'bg-zinc-800 text-white border-zinc-600'
+                          : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-white hover:border-zinc-700'
+                      }`}
+                    >
+                      {showClientSidePanel ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
+                      <span className="hidden xl:inline">Memoria / Diag.</span>
+                    </button>
+
                     <button
                       onClick={() => handleToggleClientPause(selectedSession)}
-                      className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 border transition-all ${
+                      className={`px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 border transition-all ${
                         selectedSession.isPaused
                           ? 'bg-emerald-600 hover:bg-emerald-500 text-black border-emerald-400'
                           : 'bg-orange-950/60 hover:bg-orange-900/60 text-orange-400 border-orange-500/50'
@@ -1732,17 +2033,48 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
                       {selectedSession.isPaused ? (
                         <>
                           <PlayCircle className="w-4 h-4" />
-                          REACTIVAR BOT EN ESTE CHAT
+                          REACTIVAR BOT
                         </>
                       ) : (
                         <>
                           <PauseCircle className="w-4 h-4" />
-                          PAUSAR BOT (MODO OBSERVADOR)
+                          PAUSAR BOT
                         </>
                       )}
                     </button>
                   </div>
                 </div>
+
+                {/* BANNER DE CORRECCIÓN REGISTRADA (SI YA FUE CORREGIDA PARA ENTRENAR AL BOT) */}
+                {selectedSession.isCorrected && (
+                  <div className="bg-violet-950/35 border-b border-violet-500/35 px-4 py-2.5 flex flex-wrap items-start justify-between gap-2 text-xs text-violet-100">
+                    <div className="flex items-start gap-2 min-w-0">
+                      <Sparkles className="w-4 h-4 text-violet-400 shrink-0 mt-0.5" />
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-[10px] font-black px-2 py-0.5 rounded bg-violet-500/25 text-violet-200 border border-violet-500/40 uppercase">
+                            ✨ Charla Corregida / Cerrada
+                          </span>
+                          {selectedSession.correctionAuthor && (
+                            <span className="text-[11px] text-violet-300 font-bold">
+                              por {selectedSession.correctionAuthor}
+                            </span>
+                          )}
+                          {selectedSession.correctionDate && (
+                            <span className="text-[10px] font-mono text-violet-400">
+                              ({String(selectedSession.correctionDate).slice(0, 10)})
+                            </span>
+                          )}
+                        </div>
+                        {selectedSession.correctionSummary && (
+                          <p className="text-[11px] text-violet-200/90 mt-1 leading-snug">
+                            <b>Regla aplicada:</b> {selectedSession.correctionSummary}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* DIAGNÓSTICO DE NO DERIVACIÓN + ALERTA DE INTERVENCIÓN RÁPIDA */}
                 {!selectedSession.isDerived && selectedSession.nonDerivedInfo && (
@@ -1814,10 +2146,10 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
                   </div>
                 )}
 
-                {/* Cuerpo dividido: Historial de Mensajes y Panel de Resumen */}
-                <div className="flex-1 grid grid-cols-1 xl:grid-cols-5 overflow-hidden">
-                  {/* Mensajes del Chat (3 cols) */}
-                  <div className="xl:col-span-3 flex flex-col border-b xl:border-b-0 xl:border-r border-zinc-800 overflow-hidden">
+                {/* Cuerpo: Historial de Mensajes a ancho completo + Panel lateral de Memoria/Diagnóstico opcional */}
+                <div className="flex-1 flex overflow-hidden min-h-0">
+                  {/* Mensajes del Chat (100% ancho cuando el panel lateral está minimizado) */}
+                  <div className={`flex-1 flex flex-col overflow-hidden min-w-0 ${showClientSidePanel ? 'border-r border-zinc-800' : ''}`}>
                     <div className="p-4 bg-black/30 border-b border-zinc-800 text-xs font-black text-zinc-400 uppercase tracking-widest flex justify-between">
                       <span>Registro de Interacción WhatsApp</span>
                       <span>{(selectedSession.historial || []).length} mensajes</span>
@@ -1886,6 +2218,7 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
                                   type="button"
                                   onClick={() =>
                                     setMonitorTeachModal({
+                                      sessionId: selectedSession.documentId,
                                       clientMessage: prevClientMsg,
                                       botReply: m.texto || '',
                                       clientPhone: selectedSession.cliente_telefono || '',
@@ -1924,41 +2257,55 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
                     </form>
                   </div>
 
-                  {/* Resumen de la charla y Memoria del Cliente (2 cols) */}
-                  <div className="xl:col-span-2 p-5 flex flex-col gap-4 overflow-y-auto custom-scrollbar">
-                    <div className="bg-black/40 border border-zinc-800 rounded-2xl p-4">
-                      <h4 className="text-xs font-black text-orange-400 uppercase tracking-widest mb-2">
-                        Resumen Ejecutivo y Diagnóstico
-                      </h4>
-                      <p className="text-xs text-zinc-300 leading-relaxed">
-                        {selectedSession.resumen_charla || selectedSession.nonDerivedInfo?.detail || 'El bot generará un resumen ejecutivo en el próximo mensaje.'}
-                      </p>
-                    </div>
-
-                    <div className="flex-1 flex flex-col bg-black/40 border border-zinc-800 rounded-2xl p-4">
-                      <div className="flex justify-between items-center mb-2">
-                        <h4 className="text-xs font-black text-emerald-400 uppercase tracking-widest">
-                          Memoria Histórica del Cliente (Usada por el Bot)
-                        </h4>
-                      </div>
-                      <p className="text-[11px] text-zinc-500 mb-2">
-                        Estos datos duros (Marca, Modelo, Año, Motor, Sucursal) son leídos por el bot para no volver a preguntar.
-                      </p>
-                      <textarea
-                        value={editingSummary}
-                        onChange={(e) => setEditingSummary(e.target.value)}
-                        rows={5}
-                        className="w-full flex-1 bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs text-white font-mono focus:border-orange-500 outline-none resize-none"
-                      />
-                      <button
-                        onClick={handleSaveClientSummary}
-                        disabled={isSavingSummary}
-                        className="mt-3 w-full bg-zinc-800 hover:bg-orange-600 hover:text-black text-white font-black py-2 rounded-xl text-xs transition-colors"
+                  {/* Resumen de la charla y Memoria del Cliente (oculto por defecto; estirable arrastrando el borde) */}
+                  {showClientSidePanel && (
+                    <>
+                      <div
+                        onMouseDown={(e) => startResize('right', e)}
+                        data-globo="Arrastrá para agrandar o achicar el panel de Memoria y Diagnóstico"
+                        className="w-2 shrink-0 cursor-col-resize flex items-center justify-center group select-none bg-zinc-950/60 hover:bg-orange-500/15"
                       >
-                        {isSavingSummary ? 'Guardando en Firestore...' : 'Guardar Memoria del Cliente'}
-                      </button>
-                    </div>
-                  </div>
+                        <div className="w-0.5 h-14 rounded-full bg-zinc-700 group-hover:bg-orange-500 transition-colors" />
+                      </div>
+                      <div
+                        style={{ width: `${sidePanelWidth}px` }}
+                        className="shrink-0 p-4 flex flex-col gap-3 overflow-y-auto custom-scrollbar bg-zinc-950/30"
+                      >
+                        <div className="bg-black/40 border border-zinc-800 rounded-2xl p-3.5">
+                          <h4 className="text-[11px] font-black text-orange-400 uppercase tracking-widest mb-1.5">
+                            Resumen Ejecutivo y Diagnóstico
+                          </h4>
+                          <p className="text-xs text-zinc-300 leading-relaxed">
+                            {selectedSession.resumen_charla || selectedSession.nonDerivedInfo?.detail || 'El bot generará un resumen ejecutivo en el próximo mensaje.'}
+                          </p>
+                        </div>
+
+                        <div className="flex-1 flex flex-col bg-black/40 border border-zinc-800 rounded-2xl p-3.5">
+                          <div className="flex justify-between items-center mb-1.5">
+                            <h4 className="text-[11px] font-black text-emerald-400 uppercase tracking-widest">
+                              Memoria Histórica del Cliente
+                            </h4>
+                          </div>
+                          <p className="text-[11px] text-zinc-500 mb-2">
+                            Datos duros (Marca, Modelo, Motor, Sucursal) leídos por el bot para no volver a preguntar.
+                          </p>
+                          <textarea
+                            value={editingSummary}
+                            onChange={(e) => setEditingSummary(e.target.value)}
+                            rows={5}
+                            className="w-full flex-1 bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-xs text-white font-mono focus:border-orange-500 outline-none resize-none"
+                          />
+                          <button
+                            onClick={handleSaveClientSummary}
+                            disabled={isSavingSummary}
+                            className="mt-2.5 w-full bg-zinc-800 hover:bg-orange-600 hover:text-black text-white font-black py-2 rounded-xl text-xs transition-colors"
+                          >
+                            {isSavingSummary ? 'Guardando en Firestore...' : 'Guardar Memoria del Cliente'}
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </>
             )}
@@ -1988,8 +2335,12 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
                   Aún no hay charlas incompletas ni preguntas fuera de contexto pendientes.
                 </div>
               ) : (
-                sessions
-                  .filter(s => (s.aprendizaje_sugerido || s.incompleta_motivo || s.pregunta_detectada) && s.estado_aprendizaje !== 'descartado')
+                displaySessions
+                  .filter(s =>
+                    s.estado_aprendizaje !== 'descartado' &&
+                    (!s.isDerived || s.isCorrected || Boolean(s.aprendizaje_sugerido)) &&
+                    (s.aprendizaje_sugerido || (!s.isDerived && (s.incompleta_motivo || s.pregunta_detectada)))
+                  )
                   .map(s => {
                     const isApproved = s.estado_aprendizaje === 'aprobado';
                     const isEditingThis = editingLearningSessionId === s.documentId;
@@ -2395,8 +2746,42 @@ export default function BotControlCenter({ initialTab = 'stats', dedicatedQuotes
         sourceLabel={`Charla real (${monitorTeachModal?.clientName || 'Cliente'})`}
         clientPhoneHint={monitorTeachModal?.clientPhone || ''}
         onSaveRule={async (newRule) => {
-          const nextRules = [newRule, ...learnedRules];
+          const nowIso = new Date().toISOString();
+          const authorName = user?.name || 'Operador';
+          const targetSessionId = monitorTeachModal?.sessionId || selectedSessionId;
+          const enrichedRule = {
+            ...newRule,
+            sessionId: targetSessionId || '',
+            clientPhone: monitorTeachModal?.clientPhone || '',
+            corregido_por: authorName,
+            corregido_en: nowIso
+          };
+          const nextRules = [enrichedRule, ...learnedRules];
           await handlePersistLearnedRules(nextRules);
+
+          // Marcar la conversación como CORREGIDA y cerrada para que quede registrada en el chat
+          const targetSession = sessions.find(s => s.documentId === targetSessionId);
+          if (targetSession) {
+            const updatedSession = {
+              ...targetSession,
+              estado_charla: targetSession.estado_charla === 'derivada' ? 'derivada' : 'corregida',
+              estado_aprendizaje: 'aprobado',
+              corregida_por: authorName,
+              corregida_en: nowIso,
+              correccion_resumen: enrichedRule.respuesta || enrichedRule.pregunta || '',
+              aprendizaje_sugerido: enrichedRule.respuesta || targetSession.aprendizaje_sugerido || '',
+              isDerived: true,
+              isCorrected: true,
+              closedByCorrection: true,
+              ultima_interaccion: targetSession.updatedTime || targetSession.ultima_interaccion
+            };
+            setSessions(prev => prev.map(s => s.documentId === targetSession.documentId ? updatedSession : s));
+            try {
+              await upsertBotDocumentInN8n(targetSession.documentId, updatedSession);
+            } catch (err) {
+              console.error('No se pudo actualizar estado corregida en n8n:', err);
+            }
+          }
         }}
         onOpenInSimulator={({ phone, message }) => {
           setSimulatorPreloadCase({ phone, message });

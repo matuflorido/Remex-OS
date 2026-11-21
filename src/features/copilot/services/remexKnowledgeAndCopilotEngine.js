@@ -173,22 +173,22 @@ export const REMEX_MANUAL_CHAPTERS = [
     dataSource:
       'API viva https://n8n.check-oil.tech/webhook/remex-bot-api (PostgreSQL checkoil_bot) + caché en Firestore bot_sync_cache.',
     howItCalculates: [
-      'Tasa de Conversión a Sucursal (%): divide la cantidad de charlas reales que llegaron a derivarse efectivamente a una sucursal por el total de conversaciones reales de clientes, multiplicado por 100. Ejemplo: 64 derivadas sobre 105 charlas = (64 ÷ 105) × 100 = 61%.',
-      'Alerta Amarilla de Seguimiento: mide cuántos minutos pasaron desde el último mensaje en charlas de hoy o ayer que aún no fueron derivadas; si supera los 25 minutos sin respuesta o cierre, enciende el aviso para intervenir.'
+      'Tasa de Conversión y Cierre (%): divide la cantidad de charlas cerradas (derivadas a sucursal, mensajes con "He derivado tu solicitud..." o presupuestos #COT ya entregados/adjuntados al cliente) por el total de conversaciones reales, multiplicado por 100.',
+      'Alerta de Seguimiento: cuenta únicamente las charlas abiertas donde todavía no se derivó ni se entregó el presupuesto al cliente; toda charla con presupuesto entregado o derivación confirmada se marca automáticamente como cerrada.'
     ],
     crossLinks: [
-      'El selector "Recordatorio (ej. cada 15 o 30 min)" regula automáticamente el reloj de avisos hacia Sucursal Centro en "Presupuestos".',
-      'El botón de alerta amarilla abre directamente los casos estancados en el "Monitor de Charlas".'
+      'El menú desplegable "☰ Bot: ON" agrupa Encendido Global, Auto-Pausa, Recordatorio SLA y exportación CSV en un solo lugar compacto.',
+      'El menú desplegable "IA y Config." agrupa Simulador y Entrenador IA, Aprendizaje IA y Configuración y Prompt.'
     ],
     howToUse: [
-      'Desde la barra superior podés pausar/activar el Bot globalmente o ajustar cada cuántos minutos recuerda presupuestos pendientes.',
-      'Revisá los gráficos inferiores para comparar qué sucursales reciben más consultas.'
+      'Usá la barra compacta de 1 línea para moverte entre Monitor, Estadísticas y Suc., Sin Derivación y el menú "IA y Config.".',
+      'En Monitor de Charlas, los filtros avanzados y el panel lateral "Memoria / Diag." arrancan minimizados para ver más conversaciones a la vez; abrí cualquiera con 1 clic cuando lo necesites.'
     ],
     callouts: [
-      'Controles Maestros en Producción: encendido global del Bot, Auto-Pausa humana y selector de recordatorio SLA.',
-      'Banner de Alerta de Seguimiento: detecta clientes recientes sin cerrar y permite intervenirlos en 1 clic.',
-      'Navegador de 6 Sub-Módulos: Estadísticas, Informe Sin Derivación, Charlas, Simulador IA, Aprendizaje y Prompt.',
-      'Gráficos de Conversión y Demanda por Sede: compara derivaciones entre las 6 sucursales.'
+      'Menú Compacto "☰ Bot: ON": reúne Encendido Global, Auto-Pausa humana, Recordatorio SLA y CSV sin ocupar espacio.',
+      'Barra de Navegación en 1 Línea: Monitor, Estadísticas y Suc., Sin Derivación y desplegable "IA y Config.".',
+      'Paneles Estirables + Filtros Colapsables: podés arrastrar el borde de la lista de chats o del panel "Memoria / Diag." para agrandarlos o achicarlos a gusto.',
+      'Cierre Automático y Estado "✨ CORREGIDA": toda charla derivada, con presupuesto entregado o donde se cargó una corrección IA pasa a estado cerrado/corregido y muestra la regla cargada dentro del chat.'
     ]
   },
   {

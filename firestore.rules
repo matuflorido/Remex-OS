@@ -1,0 +1,431 @@
+rules_version = '2';
+
+// =============================================================================
+// REMEX WORK-OS (Firebase Project: check-oil-work-os)
+// Prototype Firestore Security Rules — Review & test before production deploy.
+// =============================================================================
+//
+// Authentication Status:
+//   READY FOR DEPLOYMENT — Uses real Firebase Email/Password Authentication
+//   (signInWithEmailAndPassword) with /users/{uid} role profiles and bootstrap
+//   SuperAdmin (matuflorido@gmail.com).
+//
+// =============================================================================
+// Assumed Data Model
+// =============================================================================
+//
+// Collection: users
+// Document ID: {userId} (Firebase Auth UID)
+// Fields:
+//   - email: string (required, valid email, <= 160 chars, immutable by non-admin)
+//   - name: string (required, 1..120 chars)
+//   - role: string (required, 1..80 chars, immutable by non-admin)
+//   - roles: list<string> (optional, <= 20 items, immutable by non-admin)
+//   - isActive: bool (required, immutable by non-admin)
+//   - partnerId: string (optional, 'martin'|'alejandro'|'juan_pablo', immutable by non-admin)
+//   - createdAt: timestamp (optional, immutable after creation)
+//
+// Collection: areas
+// Document ID: {areaId}
+// Fields:
+//   - name: string (required, 1..100 chars)
+//   - subareas: list (optional, <= 50 items)
+//   - color / description / id / createdAt / updatedAt (optional, bounded)
+//
+// Collection: tasks
+// Document ID: {taskId}
+// Fields:
+//   - title: string (required, 1..300 chars)
+//   - status: string (required, 1..50 chars)
+//   - description, assignedTo, assignedArea, priority, isPrivate, history, etc.
+//
+// Collection: deleted_tasks (Append-only Audit Log)
+// Document ID: auto-generated
+// Fields:
+//   - deletedAt / deletedBy / task / reason (create-only by active staff, read by SuperAdmin)
+//
+// Collection: events, contacts, zones, trips, fleet_vehicles, fleet_logs,
+//             notifications, bot_sync_cache, settings
+//   - Accessible only to active authenticated staff (excluding 'Sin_Area' & inactive users).
+//
+// Collection: partner_proposals, debt_snapshots
+//   - Strictly restricted to Partners (Martín, Alejandro, Juan Pablo / role 'Socios')
+//     and Super_Usuario.
+//
+// =============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -------------------------------------------------------------------------
+    // Helper Functions
+    // -------------------------------------------------------------------------
+    function isAuthenticated() {
+      return request.auth != null &&
+             request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function userDocExists() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function userDocData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isBootstrapAdmin() {
+      return isAuthenticated() &&
+             request.auth.token.email == 'matuflorido@gmail.com';
+    }
+
+    function isSuperUser() {
+      return isAuthenticated() && (
+        isBootstrapAdmin() ||
+        request.auth.token.role == 'Super_Usuario' ||
+        request.auth.token.admin == true ||
+        (userDocExists() &&
+          userDocData().isActive == true &&
+          (
+            userDocData().role == 'Super_Usuario' ||
+            ('roles' in userDocData() && userDocData().roles is list && 'Super_Usuario' in userDocData().roles)
+          )
+        )
+      );
+    }
+
+    function isActiveStaff() {
+      return isSuperUser() || (
+        isAuthenticated() &&
+        userDocExists() &&
+        userDocData().isActive == true &&
+        userDocData().role is string &&
+        userDocData().role != 'Sin_Area' &&
+        userDocData().role != 'Modo_Offline'
+      );
+    }
+
+    function isPartner() {
+      return isSuperUser() || (
+        isActiveStaff() && (
+          request.auth.token.role == 'Socio' ||
+          ('partnerId' in userDocData() && userDocData().partnerId in ['martin', 'alejandro', 'juan_pablo']) ||
+          userDocData().role in ['Socios', 'Socio', 'Directorio'] ||
+          ('roles' in userDocData() && userDocData().roles is list &&
+            userDocData().roles.hasAny(['Socios', 'Socio', 'Directorio', 'Super_Usuario']))
+        )
+      );
+    }
+
+    function isValidEmail(email) {
+      return email is string &&
+             email.size() <= 160 &&
+             email.matches('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$');
+    }
+
+    function isValidOptionalString(data, field, minLen, maxLen) {
+      return !(field in data) ||
+             data[field] == null ||
+             (data[field] is string &&
+              data[field].size() >= minLen &&
+              data[field].size() <= maxLen);
+    }
+
+    function isValidOptionalList(data, field, maxSize) {
+      return !(field in data) ||
+             data[field] == null ||
+             (data[field] is list && data[field].size() <= maxSize);
+    }
+
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    function isBoundedMap(data, maxKeys) {
+      return data is map && data.keys().size() <= maxKeys;
+    }
+
+    // -------------------------------------------------------------------------
+    // Domain Validators (Called in BOTH create and update)
+    // -------------------------------------------------------------------------
+    function isValidUser(data) {
+      return isBoundedMap(data, 25) &&
+             data.keys().hasAll(['email', 'name', 'role', 'isActive']) &&
+             isValidEmail(data.email) &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 120 &&
+             data.role is string && data.role.size() >= 1 && data.role.size() <= 80 &&
+             data.isActive is bool &&
+             isValidOptionalList(data, 'roles', 20) &&
+             isValidOptionalString(data, 'partnerId', 1, 40) &&
+             isValidOptionalString(data, 'phone', 0, 40) &&
+             isValidOptionalString(data, 'area', 0, 100);
+    }
+
+    function isValidArea(data) {
+      return isBoundedMap(data, 15) &&
+             data.keys().hasAll(['name']) &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+             isValidOptionalList(data, 'subareas', 50) &&
+             isValidOptionalString(data, 'description', 0, 500) &&
+             isValidOptionalString(data, 'color', 0, 40);
+    }
+
+    function isValidTask(data) {
+      return isBoundedMap(data, 45) &&
+             isValidOptionalString(data, 'title', 1, 300) &&
+             isValidOptionalString(data, 'description', 0, 10000) &&
+             isValidOptionalString(data, 'status', 1, 60) &&
+             isValidOptionalString(data, 'priority', 0, 40) &&
+             isValidOptionalList(data, 'history', 500) &&
+             isValidOptionalList(data, 'approvals', 30) &&
+             isValidOptionalList(data, 'requiredAreas', 30) &&
+             (!('isPrivate' in data) || data.isPrivate is bool);
+    }
+
+    function isValidDeletedTask(data) {
+      return isBoundedMap(data, 20) &&
+             isValidOptionalString(data, 'deletedBy', 0, 160) &&
+             isValidOptionalString(data, 'reason', 0, 1000);
+    }
+
+    function isValidEvent(data) {
+      return isBoundedMap(data, 30) &&
+             isValidOptionalString(data, 'title', 1, 250) &&
+             isValidOptionalString(data, 'description', 0, 5000) &&
+             isValidOptionalString(data, 'type', 0, 60);
+    }
+
+    function isValidContact(data) {
+      return isBoundedMap(data, 40) &&
+             isValidOptionalString(data, 'name', 1, 200) &&
+             isValidOptionalString(data, 'company', 0, 200) &&
+             isValidOptionalString(data, 'phone', 0, 60) &&
+             isValidOptionalString(data, 'email', 0, 160) &&
+             isValidOptionalString(data, 'notes', 0, 10000) &&
+             isValidOptionalList(data, 'zones', 30) &&
+             isValidOptionalList(data, 'history', 500);
+    }
+
+    function isValidZone(data) {
+      return isBoundedMap(data, 15) &&
+             data.keys().hasAll(['name']) &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+             isValidOptionalString(data, 'color', 0, 40);
+    }
+
+    function isValidPartnerProposal(data) {
+      return isBoundedMap(data, 35) &&
+             isValidOptionalString(data, 'title', 1, 300) &&
+             isValidOptionalString(data, 'description', 0, 15000) &&
+             isValidOptionalString(data, 'category', 0, 80) &&
+             isValidOptionalString(data, 'scope', 0, 120) &&
+             isValidOptionalString(data, 'status', 0, 60) &&
+             (!('votes' in data) || (data.votes is map && data.votes.keys().size() <= 5)) &&
+             isValidOptionalList(data, 'comments', 300);
+    }
+
+    function isValidDebtSnapshot(data) {
+      return isBoundedMap(data, 35) &&
+             isValidOptionalString(data, 'label', 0, 200) &&
+             isValidOptionalString(data, 'notes', 0, 5000);
+    }
+
+    function isValidTrip(data) {
+      return isBoundedMap(data, 40) &&
+             isValidOptionalString(data, 'driverName', 0, 150) &&
+             isValidOptionalString(data, 'destination', 0, 250) &&
+             isValidOptionalString(data, 'status', 0, 60) &&
+             isValidOptionalList(data, 'expenses', 200);
+    }
+
+    function isValidFleetVehicle(data) {
+      return isBoundedMap(data, 30) &&
+             isValidOptionalString(data, 'plate', 0, 30) &&
+             isValidOptionalString(data, 'name', 0, 150) &&
+             isValidOptionalString(data, 'model', 0, 150);
+    }
+
+    function isValidFleetLog(data) {
+      return isBoundedMap(data, 30) &&
+             isValidOptionalString(data, 'vehicleId', 0, 100) &&
+             isValidOptionalString(data, 'notes', 0, 5000);
+    }
+
+    function isValidNotification(data) {
+      return isBoundedMap(data, 20) &&
+             isValidOptionalString(data, 'title', 0, 250) &&
+             isValidOptionalString(data, 'message', 0, 2000) &&
+             (!('read' in data) || data.read is bool);
+    }
+
+    function isValidSetting(data) {
+      return isBoundedMap(data, 25) &&
+             isValidOptionalList(data, 'categories', 100);
+    }
+
+    function isValidBotCache(data) {
+      return isBoundedMap(data, 40);
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection Rules
+    // -------------------------------------------------------------------------
+
+    // User Profiles & RBAC Directory
+    match /users/{userId} {
+      // Users can read their own profile; active staff & SuperAdmin can read internal directory
+      allow read: if isOwner(userId) || isActiveStaff() || isSuperUser();
+
+      // Prevent privilege escalation on self-registration; only SuperAdmin can assign privileged roles
+      allow create: if isValidUser(request.resource.data) && (
+        isSuperUser() ||
+        (
+          isOwner(userId) &&
+          request.resource.data.email == request.auth.token.email &&
+          request.resource.data.role == 'Sin_Area' &&
+          request.resource.data.isActive == true &&
+          !('roles' in request.resource.data) &&
+          !('partnerId' in request.resource.data)
+        )
+      );
+
+      // Users cannot elevate their own role, roles, isActive, partnerId, or email
+      allow update: if isValidUser(request.resource.data) && (
+        isSuperUser() ||
+        (
+          isOwner(userId) &&
+          areImmutableFieldsUnchanged(['role', 'roles', 'isActive', 'partnerId', 'email', 'createdAt'])
+        )
+      );
+
+      allow delete: if isSuperUser();
+    }
+
+    // Company Areas
+    match /areas/{areaId} {
+      allow read: if isActiveStaff();
+      allow create: if isSuperUser() && isValidArea(request.resource.data);
+      allow update: if isSuperUser() && isValidArea(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['createdAt']);
+      allow delete: if isSuperUser();
+    }
+
+    // Tasks Board
+    match /tasks/{taskId} {
+      allow read: if isActiveStaff();
+      allow create: if isActiveStaff() && isValidTask(request.resource.data);
+      allow update: if isActiveStaff() && isValidTask(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['createdAt']);
+      allow delete: if isActiveStaff();
+    }
+
+    // Deleted Tasks — Immutable Append-Only Audit Log
+    match /deleted_tasks/{auditId} {
+      allow read: if isSuperUser();
+      allow create: if isActiveStaff() && isValidDeletedTask(request.resource.data);
+      allow update, delete: if false;
+    }
+
+    // Calendar Events
+    match /events/{eventId} {
+      allow read: if isActiveStaff();
+      allow create: if isActiveStaff() && isValidEvent(request.resource.data);
+      allow update: if isActiveStaff() && isValidEvent(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['createdAt']);
+      allow delete: if isActiveStaff();
+    }
+
+    // Commercial CRM Contacts & Zones
+    match /contacts/{contactId} {
+      allow read: if isActiveStaff();
+      allow create: if isActiveStaff() && isValidContact(request.resource.data);
+      allow update: if isActiveStaff() && isValidContact(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['createdAt']);
+      allow delete: if isActiveStaff();
+    }
+
+    match /zones/{zoneId} {
+      allow read: if isActiveStaff();
+      allow create: if isActiveStaff() && isValidZone(request.resource.data);
+      allow update: if isActiveStaff() && isValidZone(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['createdAt']);
+      allow delete: if isActiveStaff();
+    }
+
+    // Exclusive 3-Partners Governance Board (Martín, Alejandro, Juan Pablo + SuperAdmin)
+    match /partner_proposals/{proposalId} {
+      allow read: if isPartner();
+      allow create: if isPartner() && isValidPartnerProposal(request.resource.data);
+      allow update: if isPartner() && isValidPartnerProposal(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['createdAt']);
+      allow delete: if isPartner();
+    }
+
+    // Sensitive Finance Debt Snapshots (Partners + SuperAdmin Only)
+    match /debt_snapshots/{snapshotId} {
+      allow read: if isPartner();
+      allow create: if isPartner() && isValidDebtSnapshot(request.resource.data);
+      allow update: if isPartner() && isValidDebtSnapshot(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['createdAt']);
+      allow delete: if isSuperUser();
+    }
+
+    // Fleet Management (Trips, Vehicles, Logs)
+    match /trips/{tripId} {
+      allow read: if isActiveStaff();
+      allow create: if isActiveStaff() && isValidTrip(request.resource.data);
+      allow update: if isActiveStaff() && isValidTrip(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['createdAt']);
+      allow delete: if isActiveStaff();
+    }
+
+    match /fleet_vehicles/{vehicleId} {
+      allow read: if isActiveStaff();
+      allow create: if isActiveStaff() && isValidFleetVehicle(request.resource.data);
+      allow update: if isActiveStaff() && isValidFleetVehicle(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['createdAt']);
+      allow delete: if isActiveStaff();
+    }
+
+    match /fleet_logs/{logId} {
+      allow read: if isActiveStaff();
+      allow create: if isActiveStaff() && isValidFleetLog(request.resource.data);
+      allow update: if isActiveStaff() && isValidFleetLog(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['createdAt']);
+      allow delete: if isActiveStaff();
+    }
+
+    // System Settings (e.g., fleet_categories)
+    match /settings/{settingId} {
+      allow read: if isActiveStaff();
+      allow create: if isActiveStaff() && isValidSetting(request.resource.data);
+      allow update: if isActiveStaff() && isValidSetting(request.resource.data);
+      allow delete: if isSuperUser();
+    }
+
+    // Internal Notifications
+    match /notifications/{notifId} {
+      allow read: if isActiveStaff();
+      allow create: if isActiveStaff() && isValidNotification(request.resource.data);
+      allow update: if isActiveStaff() && isValidNotification(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['createdAt']);
+      allow delete: if isSuperUser();
+    }
+
+    // WhatsApp Bot Sync Cache
+    match /bot_sync_cache/{docId} {
+      allow read: if isActiveStaff();
+      allow create: if isActiveStaff() && isValidBotCache(request.resource.data);
+      allow update: if isActiveStaff() && isValidBotCache(request.resource.data);
+      allow delete: if isSuperUser();
+    }
+
+    // Default Deny Everything Else
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

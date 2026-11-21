@@ -4,7 +4,7 @@ import useUIStore from '../store/useUIStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { canAccessPartnersSection } from '../features/partners/services/partnerGovernanceService';
 
-const CURRENT_VERSION = '2.8.0';
+const CURRENT_VERSION = '2.8.1';
 
 export default function UpdateModal() {
   const [isOpen, setIsOpen] = useState(false);
